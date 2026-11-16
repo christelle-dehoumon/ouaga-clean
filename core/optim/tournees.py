@@ -68,7 +68,8 @@ def solve_ortools(dist: np.ndarray, demand: list[float], fleet: Fleet, time_limi
     routing.AddDimensionWithVehicleCapacity(routing.RegisterUnaryTransitCallback(load), 0,
                                             [int(fleet.capacity_kg)] * n_veh, True, "load")
     for node in range(1, n):
-        routing.AddDisjunction([manager.NodeToIndex(node)], DROP_PENALTY_M + DROP_PENALTY_PER_KG * load_i[node])
+        # + (n - node) : départage les arrêts identiques (dépotoirs découpés) pour un plan reproductible.
+        routing.AddDisjunction([manager.NodeToIndex(node)], DROP_PENALTY_M + DROP_PENALTY_PER_KG * load_i[node] + n - node)
     params = pywrapcp.DefaultRoutingSearchParameters()
     params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GREEDY_DESCENT
@@ -86,7 +87,8 @@ def solve_ortools(dist: np.ndarray, demand: list[float], fleet: Fleet, time_limi
             stops.append(manager.IndexToNode(idx))
             idx = solution.Value(routing.NextVar(idx))
         routes.append(stops)
-    return routes, timed_out
+    # Véhicules virtuels identiques : tournées rangées dans un ordre fixe (non vides d'abord), même entrée = même plan.
+    return sorted(routes, key=lambda r: (not r, r)), timed_out
 
 
 def solve_greedy(dist: np.ndarray, demand: list[float], fleet: Fleet) -> list[list[int]]:
@@ -144,19 +146,29 @@ def _delta(stops: list[int], k: int, s: int, dist: np.ndarray) -> float:
 def insert_cheapest(routes: list[list[int]], to_insert: list[int], dist: np.ndarray, demand: list[float],
                     fleet: Fleet) -> tuple[list[list[int]], list[int]]:
     """Insère chaque arrêt (plus lourd d'abord) à la place la moins chère qui respecte capacité et durée ; renvoie les restes."""
+    return insert_in_order(routes, sorted(to_insert, key=lambda i: (-demand[i - 1], i)), dist, demand, fleet)
+
+
+def insert_in_order(routes: list[list[int]], order: list[int], dist: np.ndarray, demand: list[float],
+                    fleet: Fleet) -> tuple[list[list[int]], list[int]]:
+    """Insère les arrêts dans l'ordre donné, chacun à la place la moins chère qui respecte capacité et durée ; renvoie les restes."""
     routes = [list(r) for r in routes]
+    loads = [sum(demand[i - 1] for i in r) for r in routes]
     left = []
-    for s in sorted(to_insert, key=lambda i: (-demand[i - 1], i)):
+    for s in order:
         best: tuple[float, int, int] | None = None
         for v, stops in enumerate(routes):
+            if loads[v] + demand[s - 1] > fleet.capacity_kg + 1e-6:
+                continue
             for k in range(len(stops) + 1):
-                cand = stops[:k] + [s] + stops[k:]
-                if (best is None or _delta(stops, k, s, dist) < best[0]) and _feasible(cand, dist, demand, fleet):
-                    best = (_delta(stops, k, s, dist), v, k)
+                delta = _delta(stops, k, s, dist)
+                if (best is None or delta < best[0]) and _feasible(stops[:k] + [s] + stops[k:], dist, demand, fleet):
+                    best = (delta, v, k)
         if best is None:
             left.append(s)
         else:
             routes[best[1]].insert(best[2], s)
+            loads[best[1]] += demand[s - 1]
     return routes, left
 
 

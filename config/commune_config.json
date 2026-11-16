@@ -67,6 +67,8 @@
     "max_collection_points": 120,
     "max_dumpsite_stops": 60,
     "_dumpsite_note": "HYPOTHESE : au-dela de max_dumpsite_stops depotoirs valides, ils sont regroupes par cellule (taille doublee depuis model.cell_size_m jusqu a passer sous le seuil).",
-    "min_collection_points": 5
+    "min_collection_points": 5,
+    "preselect_capacity_factor": 1.2,
+    "_preselect_note": "HYPOTHESE : si la demande depasse la capacite de la flotte sur le passage, seuls les arrets prioritaires (centres, puis depotoirs par confiance puis taille decroissantes) jusqu a ce facteur fois la capacite vont au solveur ; les autres sont non servis (capacity)."
   }
 }

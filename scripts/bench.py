@@ -164,12 +164,19 @@ def _matrix_on_n(net: Network, report_nodes: np.ndarray) -> None:
 def bench_scale(cfg: dict[str, Any], net: Network, params: dict[str, Any], rows: list[list[str]]) -> None:
     """6. Passage à l'échelle : 100 / 1 000 / 10 000 signalements, puis 46 et 120 points."""
     view = net.views["truck_dry"]
+    no_pre = copy.deepcopy(cfg)
+    no_pre["solver"]["preselect_capacity_factor"] = 1e12      # présélection neutralisée : la mesure « avant »
     for n in REPORT_SIZES:
         reports = plausible_reports(cfg, net, n, "accepted")
-        plan_s, plan = timed(lambda: compute_plan(params, reports))
+        before_s, before = timed(lambda: compute_plan(params, reports, cfg=no_pre, net=net))
+        plan_s, plan = timed(lambda: compute_plan(params, reports, cfg=cfg, net=net))
         dumps = sum(p["type"] == "dumpsite" for p in plan["collection_points"])
-        rows.append([f"6. {n} signalements", "compute_plan (matrice sur k)", f"{plan_s:.2f} s",
-                     f"{len(reports)} signalements -> {dumps} arrêts dépotoirs ; {served(plan)}", ""])
+        rows.append([f"6. {n} signalements", "compute_plan sans présélection (avant)", f"{before_s:.2f} s",
+                     f"{dumps} arrêts dépotoirs ; {served(before)}", ""])
+        rows.append(["", "compute_plan avec présélection et remplissage (après, matrice sur k)", f"{plan_s:.2f} s",
+                     f"{len(reports)} signalements -> {dumps} arrêts dépotoirs ; {served(plan)} ; "
+                     f"camions nécessaires (estimation) : {plan['totals'].get('trucks_needed')}",
+                     f"Avant / après présélection et remplissage : {before_s:.2f} s -> {plan_s:.2f} s."])
         if n <= MATRIX_N_MAX:
             nodes = np.array([int(view.tree_idx[view.tree.query(project(np.array([r["lat"]]), np.array([r["lon"]]),
                                                                           view.origin)[0])[1]]) for r in reports])
@@ -182,6 +189,12 @@ def bench_scale(cfg: dict[str, Any], net: Network, params: dict[str, Any], rows:
                          f"limité : {n} sources Dijkstra, trop long pour ce banc", ""])
     rows[-1][4] = ("compute_plan ne calcule la matrice que sur les arrêts (k), regroupés au-delà de "
                    "solver.max_dumpsite_stops ; la matrice sur n est mesurée à part pour comparer.")
+    reports = plausible_reports(cfg, net, REPORT_SIZES[0], "accepted")
+    zero_s, zero = timed(lambda: compute_plan({**params, "population": 0}, reports, cfg=cfg, net=net))
+    rows.append(["6. population 0", f"compute_plan, {len(reports)} signalements", f"{zero_s:.2f} s",
+                 f"{served(zero)} ; {sum(p['type'] == 'center' for p in zero['collection_points'])} centre(s) ; "
+                 f"contrôles {'au vert' if all(v for k, v in zero['checks'].items() if k != 'messages') else 'en échec'}",
+                 "Population 0 sur le vrai réseau : seuls les dépotoirs sont servis."])
     for k in POINT_COUNTS:
         c = copy.deepcopy(cfg)
         c["solver"]["min_collection_points"] = c["solver"]["max_collection_points"] = k

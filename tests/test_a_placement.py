@@ -37,10 +37,11 @@ def _demand(n: int = 200) -> dict[str, Any]:
 
 
 def test_demand_population_split(cfg: dict[str, Any]) -> None:
-    """Population répartie sur les bâtiments ; sans population, persons_per_building."""
+    """Population répartie sur les bâtiments ; population 0 : personne ; population absente : persons_per_building."""
     persons, assumptions = estimate_demand(50, {"population": 1000}, cfg["model"])
     assert persons.sum() == pytest.approx(1000) and len(set(persons)) == 1 and assumptions
-    persons, _ = estimate_demand(10, {"population": 0}, cfg["model"])
+    assert estimate_demand(10, {"population": 0}, cfg["model"])[0].sum() == 0
+    persons, _ = estimate_demand(10, {}, cfg["model"])
     assert persons.sum() == pytest.approx(10 * cfg["model"]["persons_per_building"])
     assert estimate_demand(0, {"population": 1}, cfg["model"])[0].size == 0
 

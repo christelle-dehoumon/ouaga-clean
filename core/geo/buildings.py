@@ -45,11 +45,13 @@ def _days_between(params: dict[str, Any]) -> tuple[float, float]:
 
 
 def estimate_demand(n_buildings: int, params: dict[str, Any], model: dict[str, Any]) -> tuple[np.ndarray, list[str]]:
-    """Personnes par bâtiment de la commune : population répartie également, sinon model.persons_per_building."""
+    """Personnes par bâtiment : aucune si population 0, population répartie également, sinon model.persons_per_building."""
     if n_buildings <= 0:
         return np.zeros(0), []
     per_building = _num(model.get("persons_per_building"), 1.0)
-    population = _num(params.get("population"), 0.0)
+    population = _num(params.get("population"), -1.0)
+    if population == 0:
+        return np.zeros(n_buildings), []
     if population > 0:
         persons = population / n_buildings
         return np.full(n_buildings, persons), [
@@ -72,11 +74,15 @@ def building_demand(cfg: dict[str, Any], params: dict[str, Any]) -> dict[str, An
     assumptions += t_assumptions
     warnings += t_warnings
     owner = assign(territories, lat, lon)
+    zero = _num(params.get("population"), -1.0) == 0
+    if zero:
+        warnings.append("Population 0 : aucune demande des ménages, aucun point de regroupement ; "
+                        "seuls les dépotoirs validés restent à servir.")
     summary = []
     for i, t in enumerate(territories):
         inside = owner == i
         n_t = int(inside.sum())
-        if t["population"] is not None and n_t:
+        if t["population"] is not None and n_t and not zero:
             persons[inside] = t["population"] / n_t
             pop, tag = t["population"], t["source"] or "provided"
         else:

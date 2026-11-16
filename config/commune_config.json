@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "note": "Toutes les valeurs ci-dessous sont des HYPOTHESES de travail tant que la mairie ou les organisateurs ne les ont pas confirmees. Elles sont modifiables sans toucher au code.",
+    "data_tag": "estimated"
+  },
+  "commune": "Ouagadougou",
+  "place_query": "Ouagadougou, Burkina Faso",
+  "bbox": {"west": -1.68, "south": 12.25, "east": -1.40, "north": 12.48, "_note": "emprise approximative, a verifier sur la carte"},
+  "depot": {"lat": null, "lon": null, "_note": "point de depart et de retour des camions ; si null, le code prend le noeud routier le plus central et l'ecrit dans plan.assumptions"},
+  "paths": {
+    "raw_dir": "data/raw",
+    "processed_dir": "data/processed",
+    "mock_dir": "data/mock",
+    "territories": "data/processed/territories.geojson",
+    "flood_zones": "data/processed/flood_zones.geojson"
+  },
+  "params": {
+    "population": 3000000,
+    "subscription_rate": 0.4,
+    "trucks": 10,
+    "truck_capacity_kg": 5000,
+    "tricycles": 20,
+    "tricycle_capacity_kg": 400,
+    "frequency_per_week": 3,
+    "budget": 10000000,
+    "rainy_season": false,
+    "broken_trucks": [],
+    "extra_territories": []
+  },
+  "model": {
+    "waste_kg_per_person_day": 0.6,
+    "persons_per_building": 6,
+    "max_walk_m": 300,
+    "cost_per_km_truck": 1500,
+    "cost_per_km_tricycle": 300,
+    "truck_speed_kmh": 25,
+    "tricycle_speed_kmh": 12,
+    "service_min_per_stop": 10,
+    "shift_minutes": 480,
+    "dumpsite_kg_by_size": {"small": 200, "medium": 800, "large": 3000}
+  },
+  "network": {
+    "truck_highways": ["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential"],
+    "tricycle_extra_highways": ["service", "track", "living_street", "path"],
+    "truck_requires_paved_when_rainy": true,
+    "unpaved_surfaces": ["unpaved", "dirt", "earth", "ground", "sand", "mud", "gravel", "compacted"],
+    "unknown_surface_is_paved_for": ["motorway", "trunk", "primary", "secondary"],
+    "straight_line_factor": 1.4
+  },
+  "solver": {
+    "time_limit_s": 5,
+    "max_collection_points": 60,
+    "min_collection_points": 5
+  }
+}

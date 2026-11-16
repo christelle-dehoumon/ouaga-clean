@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ouaga Clean — Tableau de bord mairie</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--vert:#009E49;--vert-f:#007A38;--rouge:#EF2B2D;--rouge-f:#B21E23;--jaune:#FCD116;--jaune-f:#6B5200;--fond:#F7F6F2;--texte:#1a1a1a;--muted:#6b7280;--bord:#e5e7eb}
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--fond);color:var(--texte);line-height:1.5}
+header{background:#fff;border-bottom:1px solid var(--bord);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px}
+.badge{background:var(--vert);color:#fff;padding:4px 10px;border-radius:999px;font-size:12px}
+.layout{display:grid;grid-template-columns:340px 1fr 360px;gap:12px;padding:12px;min-height:calc(100vh - 60px)}
+@media(max-width:1100px){.layout{grid-template-columns:1fr} #map{height:420px !important}}
+.card{background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+#map{height:640px;border-radius:12px}
+.btn{padding:10px 14px;border-radius:10px;border:none;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn-crise{width:100%;margin-top:8px;justify-content:center}
+.btn-rouge{background:var(--rouge);color:#fff}
+.btn-vert{background:var(--vert);color:#fff}
+.btn-ghost{background:#fff;border:1px solid var(--bord)}
+.pill{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.pill-vert{background:#e6f7ed;color:var(--vert-f)}
+.pill-rouge{background:#fde8e8;color:var(--rouge-f)}
+.pill-jaune{background:#fff6cc;color:var(--jaune-f)}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi div{background:var(--fond);border-radius:8px;padding:10px;text-align:center}
+.kpi b{font-size:20px}
+.slider label{font-size:12px;color:var(--muted)}
+.slider input{width:100%}
+.change{padding:8px;border-left:3px solid var(--vert);background:var(--fond);border-radius:6px;margin-top:6px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <span aria-hidden="true">♻️</span><h1>Ouaga Clean</h1>
+  <span class="badge">Tableau de bord mairie — 80%</span>
+  <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <span class="muted" style="font-size:12px">L'outil éclaire, la mairie décide.</span>
+    <a href="/citizen" class="btn btn-ghost">📱 Page citoyenne</a>
+    <a href="/docs" class="btn btn-ghost">API</a>
+  </span>
+</header>
+
+<div id="bandeau" style="display:none;margin:12px 12px 0;padding:10px 14px;border-radius:10px;background:#fff;border:1px solid var(--bord)"></div>
+
+<div class="layout">
+  <!-- Gauche : curseurs + crises -->
+  <div>
+    <div class="card">
+      <h2>Paramètres (mairie)</h2>
+      <div class="slider">
+        <label>Population <b id="v-pop">2 450 000</b></label><input type="range" id="pop" min="1200000" max="3500000" step="50000" value="2450000">
+        <label>Taux d'abonnement <b id="v-abo">35%</b></label><input type="range" id="abo" min="10" max="80" step="5" value="35">
+        <label>Camions <b id="v-cam">12</b></label><input type="range" id="cam" min="2" max="30" step="1" value="12">
+        <label>Fréquence camions <b id="v-fc">3/sem</b></label><input type="range" id="fc" min="1" max="7" step="1" value="3">
+        <label>Budget <b id="v-bud">1 200 M</b></label><input type="range" id="bud" min="400" max="2500" step="100" value="1200">
+      </div>
+      <button class="btn btn-vert" style="width:100%;margin-top:10px;justify-content:center" onclick="recalculer()">🔄 Recalculer le plan</button>
+      <div id="chrono" class="muted" style="text-align:center;margin-top:6px;font-size:12px"></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Crises (épreuve en direct)</h2>
+      <button class="btn btn-rouge btn-crise" onclick="crise('panne_camions')">🚚 Panne de camions (−3)</button>
+      <button class="btn btn-rouge btn-crise" onclick="crise('saison_pluies')">🌧️ Saison des pluies (−1 passage)</button>
+      <button class="btn btn-vert btn-crise" onclick="crise('nouveau_quartier')">🏘️ Nouveau quartier (Saaba)</button>
+      <button class="btn btn-ghost btn-crise" onclick="resetCrises()">↩️ Réinitialiser les crises</button>
+      <p class="muted" style="font-size:11px;margin-top:6px">Chaque crise change les paramètres, relance le plan et la simulation. Chronomètre visible.</p>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Signalements (tri automatique)</h2>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost" style="flex:1" onclick="chargerSignalements()">🔄 Actualiser</button>
+        <button class="btn btn-ghost" onclick="injecterPieges()">🧪 Injecter pièges (jury)</button>
+      </div>
+      <div id="statsSig" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- Centre : carte -->
+  <div class="card" style="padding:8px">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px">
+      <h2 style="margin:0">Carte — dépotoirs, points de regroupement, tournées</h2>
+      <span id="modePlan" class="pill pill-vert" style="margin-left:auto">—</span>
+    </div>
+    <div id="map"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <span class="pill pill-rouge">● Camions (goudron)</span><span class="pill pill-vert">● Tricycles (pistes)</span><span class="pill pill-jaune">● En attente</span>
+    </div>
+  </div>
+
+  <!-- Droite : indicateurs + scénarios -->
+  <div>
+    <div class="card">
+      <h2>3 indicateurs + simulation</h2>
+      <div class="kpi">
+        <div><div class="muted" style="font-size:11px">Tonnes dans la rue /j</div><b id="k-tonnes">—</b></div>
+        <div><div class="muted" style="font-size:11px">Budget restant</div><b id="k-budget">—</b></div>
+        <div><div class="muted" style="font-size:11px">Dépotoirs restants</div><b id="k-depots">—</b></div>
+        <div><div class="muted" style="font-size:11px">Part ramassée (sim)</div><b id="k-part">—</b></div>
+      </div>
+      <canvas id="courbes" width="340" height="120" style="width:100%;margin-top:10px;background:var(--fond);border-radius:8px"></canvas>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="simulerPlan()">▶️ Lancer la simulation (Mesa)</button>
+      <div id="simOut" class="muted" style="font-size:12px;margin-top:6px"></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Scénario A vs B</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" style="flex:1" onclick="figer('A')">📌 Figer A</button>
+        <button class="btn btn-ghost" style="flex:1" onclick="figer('B')">📌 Figer B</button>
+      </div>
+      <div id="ab" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
+      <div id="diff" class="muted" style="font-size:12px;margin-top:6px"></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Ce qui a changé dans le plan</h2>
+      <div id="changements" class="muted">En attente du premier calcul…</div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="exportOsm()">📄 Export OSM (fichier)</button>
+      <button class="btn btn-vert" style="width:100%;margin-top:8px" onclick="validerPlan()">✅ Valider ce plan</button>
+    </div>
+  </div>
+</div>
+
+<p class="muted" style="text-align:center;padding:10px;font-size:12px">Logiciel libre – licence MIT – données OpenStreetMap · <a href="/citizen">Page citoyenne</a> · Maquette mono-fichier : <a href="/docs/mockup/index.html">docs/mockup</a></p>
+
+<script>
+const API=location.origin;
+let crisesActives=[];
+let dernierPlan=null, planA=null, planB=null;
+let map=L.map('map').setView([12.3615,-1.5283],12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+let couches=L.layerGroup().addTo(map);
+
+// sliders
+for(const [id,fmt] of [['pop',v=>Number(v).toLocaleString('fr-FR')], ['abo',v=>v+'%'], ['cam',v=>v], ['fc',v=>v+'/sem'], ['bud',v=>v+' M']]){
+  document.getElementById(id).addEventListener('input', e=>{
+    document.getElementById('v-'+id.replace('pop','pop').replace('abo','abo').replace('cam','cam').replace('fc','fc').replace('bud','bud')).textContent = fmt(e.target.value);
+  });
+}
+// mapping correct
+document.getElementById('pop').addEventListener('input',e=>document.getElementById('v-pop').textContent=Number(e.target.value).toLocaleString('fr-FR'));
+document.getElementById('abo').addEventListener('input',e=>document.getElementById('v-abo').textContent=e.target.value+'%');
+document.getElementById('cam').addEventListener('input',e=>document.getElementById('v-cam').textContent=e.target.value);
+document.getElementById('fc').addEventListener('input',e=>document.getElementById('v-fc').textContent=e.target.value+'/sem');
+document.getElementById('bud').addEventListener('input',e=>document.getElementById('v-bud').textContent=e.target.value+' M');
+
+function paramsActuels(){
+  return {
+    population: parseInt(document.getElementById('pop').value),
+    taux_abonnement_pct: parseInt(document.getElementById('abo').value),
+    nb_camions: parseInt(document.getElementById('cam').value),
+    freq_camions_par_semaine: parseInt(document.getElementById('fc').value),
+    budget_annuel_m_fcfa: parseInt(document.getElementById('bud').value),
+    nb_tricycles: 40,
+    freq_tricycles_par_semaine: 6,
+    crises_actives: crisesActives
+  };
+}
+
+async function recalculer(){
+  const t0=performance.now();
+  document.getElementById('chrono').textContent='Calcul… (limite 5 s)';
+  const res=await fetch(API+'/api/plan/calculer',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({parametres: paramsActuels()})});
+  const plan=await res.json();
+  document.getElementById('chrono').textContent=`Calculé en ${plan.duree_calcul_ms} ms — mode ${plan.mode} — ${res.ok?'OK':'erreur'}`;
+  dernierPlan=plan;
+  majBandeau(plan);
+  majCarte(plan);
+  majKpi(plan);
+  majChangements(plan);
+  majAB();
+}
+
+function majBandeau(plan){
+  const el=document.getElementById('bandeau');
+  if(plan.changements && plan.changements.length){
+    el.style.display='block';
+    el.innerHTML='<b>Ce qui a changé dans le plan :</b><br>' + plan.changements.map(c=>`• ${c.quoi} — <em>${c.pourquoi}</em> <span class="muted">${c.impact||''}</span>`).join('<br>');
+  }
+  const coh=plan.coherence;
+  if(coh && (!coh.capacite_ok || !coh.budget_ok)){
+    el.style.display='block';
+    el.innerHTML+=(coh.capacite_ok?'':'<br>⚠️ Capacité dépassée — ajouter un PR ou un camion') + (coh.budget_ok?'':'<br>⚠️ Budget dépassé');
+  }
+}
+
+function majCarte(plan){
+  couches.clearLayers();
+  // PR
+  for(const pr of plan.points_regroupement){
+    L.circleMarker([pr.lat, pr.lon], {radius:7, color:'#333', weight:1, fillColor:'#fff', fillOpacity:1}).addTo(couches).bindPopup(`<b>${pr.id}</b><br>${pr.quartier_id}<br>Capacité ${pr.capacite_t} t`);
+  }
+  // tournées camions rouge
+  for(const t of plan.tournees_camions){
+    if(t.trace && t.trace.length>1) L.polyline(t.trace, {color:'#EF2B2D', weight:4, opacity:.85}).addTo(couches).bindPopup(`<b>${t.id}</b> · ${t.distance_km} km · ${t.duree_h} h`);
+    for(const p of (t.trace||[])) L.circleMarker(p, {radius:4, fillColor:'#EF2B2D', color:'#fff', weight:1, fillOpacity:1}).addTo(couches);
+  }
+  for(const t of plan.tournees_tricycles){
+    if(t.trace && t.trace.length>1) L.polyline(t.trace, {color:'#009E49', weight:3, opacity:.9, dashArray:'6,6'}).addTo(couches).bindPopup(`<b>${t.id}</b> · ${t.distance_km} km`);
+  }
+  // dépôts
+  fetch(API+'/api/signalements').then(r=>r.json()).then(sigs=>{
+    for(const s of sigs.filter(x=>x.statut==='accepté')){
+      L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#009E49', color:'#fff', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · accepté<br>${s.adresse_texte||''}`);
+    }
+    for(const s of sigs.filter(x=>x.statut==='rejeté')){
+      L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#EF2B2D', color:'#fff', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · rejeté<br>${s.motif_rejet||''}`);
+    }
+    for(const s of sigs.filter(x=>x.statut==='à vérifier')){
+      L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#FCD116', color:'#333', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · à vérifier`);
+    }
+  });
+  document.getElementById('modePlan').textContent=plan.mode;
+  document.getElementById('modePlan').className='pill '+(plan.mode.includes('secours')||plan.mode.includes('dégradé')?'pill-rouge':'pill-vert');
+}
+
+function majKpi(plan){
+  const c=plan.coherence||{};
+  document.getElementById('k-tonnes').textContent=c.tonnes_rue_par_jour!=null?c.tonnes_rue_par_jour+' t':'—';
+  document.getElementById('k-budget').textContent=c.budget_restant_m_fcfa!=null?c.budget_restant_m_fcfa+' M':'—';
+  document.getElementById('k-depots').textContent=c.points_non_desservis?c.points_non_desservis.length: (plan.points_regroupement?plan.points_regroupement.length:'—');
+  // mini courbes (factices mais basées sur cohérence)
+  const ctx=document.getElementById('courbes').getContext('2d');
+  ctx.clearRect(0,0,340,120);
+  ctx.strokeStyle='#009E49'; ctx.beginPath();
+  for(let i=0;i<20;i++){ const v=40 + Math.sin(i/3)*10 - (c.tonnes_rue_par_jour||0)/2; ctx.lineTo(i*17, 80 - v/2); }
+  ctx.stroke();
+  ctx.strokeStyle='#EF2B2D'; ctx.beginPath();
+  for(let i=0;i<20;i++){ const v=60 - i*1.2; ctx.lineTo(i*17, 110 - v/2); }
+  ctx.stroke();
+}
+
+function majChangements(plan){
+  const el=document.getElementById('changements');
+  if(!plan.changements || !plan.changements.length){ el.innerHTML='<span class="muted">Aucun changement — plan nominal</span>'; return; }
+  el.innerHTML=plan.changements.map(c=>`<div class="change"><b>${c.quoi}</b><br><span class="muted">${c.pourquoi} — ${c.impact||''}</span></div>`).join('');
+}
+
+async function crise(id){
+  if(!crisesActives.includes(id)) crisesActives.push(id);
+  await recalculer();
+}
+async function resetCrises(){ crisesActives=[]; await recalculer(); }
+
+async function chargerSignalements(){
+  const r=await fetch(API+'/api/signalements'); const data=await r.json();
+  const stats={accepté:0,rejeté:0,'à vérifier':0};
+  for(const s of data) stats[s.statut]=(stats[s.statut]||0)+1;
+  document.getElementById('statsSig').innerHTML=`
+    <div style="display:flex;gap:6px;margin-top:6px"><span class="pill pill-vert">${stats.accepté||0} acceptés</span><span class="pill pill-rouge">${stats.rejeté||0} rejetés</span><span class="pill pill-jaune">${stats['à vérifier']||0} à vérifier</span></div>
+    <div class="muted" style="font-size:11px;margin-top:6px">${data.slice(0,3).map(s=>`${s.id}: ${s.statut} ${s.motif_rejet?'— '+s.motif_rejet:''}`).join('<br>')}</div>
+  `;
+}
+async function injecterPieges(){
+  const r=await fetch(API+'/data/mock/signalements.json'); // fallback
+  let lot=null;
+  try{ lot=await (await fetch(API+'/api/signalements/bulk')).json(); }catch{}
+  // génère 10 pièges côté front si pas de mock
+  const pieges=[
+    {lat:12.60,lon:-1.55,taille:'moyen',photo_hash:'dup1',photo_exif_date:new Date().toISOString()},
+    {lat:12.3615,lon:-1.5283,taille:'petit',photo_hash:'dup1',photo_exif_date:new Date().toISOString()},
+    {lat:12.403,lon:-1.559,taille:'moyen',photo_hash:'eau1',photo_exif_date:new Date().toISOString()},
+    {lat:13.0,lon:-1.5,taille:'gros',photo_hash:'hz1',photo_exif_date:new Date().toISOString()},
+  ];
+  const res=await fetch(API+'/api/signalements/bulk',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(pieges)});
+  const out=await res.json();
+  alert(`Injectés : ${out.stats.acceptés} acceptés, ${out.stats.rejetés} rejetés, ${out.stats['à vérifier']} à vérifier`);
+  chargerSignalements(); majCarte(dernierPlan||{points_regroupement:[],tournees_camions:[],tournees_tricycles:[]});
+}
+async function simulerPlan(){
+  if(!dernierPlan){ alert('Calcule d’abord un plan'); return; }
+  const r=await fetch(API+'/api/plans/'+dernierPlan.id+'/simuler',{method:'POST'});
+  const s=await r.json();
+  document.getElementById('simOut').textContent=`Moteur ${s.moteur} — part ramassée ${Math.round(s.part_ramassee*100)}% — dépotoirs restants ${s.depotoirs_restants}`;
+  document.getElementById('k-part').textContent=Math.round(s.part_ramassee*100)+'%';
+  document.getElementById('k-depots').textContent=s.depotoirs_restants;
+}
+function figer(which){
+  if(!dernierPlan){ alert('Calcule d’abord un plan'); return; }
+  if(which==='A') planA=dernierPlan; else planB=dernierPlan;
+  majAB();
+}
+async function majAB(){
+  const el=document.getElementById('ab');
+  if(!planA && !planB){ el.innerHTML='<span class="muted">Fige A puis B pour comparer</span>'; return; }
+  el.innerHTML=`
+    <div class="card" style="padding:8px"><b>A</b><br>${planA?planA.id.slice(0,16)+'…':''}<br><span class="muted">${planA?planA.coherence.cout_annuel_m_fcfa+' M · '+planA.coherence.tonnes_rue_par_jour+' t/j':''}</span></div>
+    <div class="card" style="padding:8px"><b>B</b><br>${planB?planB.id.slice(0,16)+'…':''}<br><span class="muted">${planB?planB.coherence.cout_annuel_m_fcfa+' M · '+planB.coherence.tonnes_rue_par_jour+' t/j':''}</span></div>
+  `;
+  if(planA && planB){
+    const r=await fetch(API+`/api/scenarios/compare?a_id=${planA.id}&b_id=${planB.id}`,{method:'POST'});
+    const d=await r.json();
+    document.getElementById('diff').innerHTML=`Diff B−A : <b>${d.diff_cout} M FCFA</b> · <b>${d.diff_tonnes} t/j</b> dans la rue`;
+  }
+}
+async function exportOsm(){
+  const r=await fetch(API+'/api/exports/osm'); const j=await r.json();
+  alert(`Export : ${j.fichier} — ${j.nb_noeuds} nœuds. ${j.message}\n\n⚠️ Aucun envoi auto — à verser manuellement dans JOSM.`);
+}
+async function validerPlan(){
+  if(!dernierPlan){ alert('Rien à valider'); return; }
+  alert('Plan validé : '+dernierPlan.id+' — mode '+dernierPlan.mode);
+}
+
+// init
+recalculer(); chargerSignalements();
+</script>
+</body>
+</html>

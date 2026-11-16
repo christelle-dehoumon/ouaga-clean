@@ -12,7 +12,8 @@
     "processed_dir": "data/processed",
     "mock_dir": "data/mock",
     "territories": "data/processed/territories.geojson",
-    "flood_zones": "data/processed/flood_zones.geojson"
+    "flood_zones": "data/processed/flood_zones.geojson",
+    "waterways": "data/processed/waterways.geojson"
   },
   "params": {
     "population": 3000000,
@@ -30,7 +31,18 @@
   "model": {
     "waste_kg_per_person_day": 0.6,
     "persons_per_building": 6,
-    "max_walk_m": 300,
+    "precollect_radius_m": 1500,
+    "walk_coverage_target": 0.9,
+    "_precollect_note": "HYPOTHESE : un point de regroupement est un centre ou les pre-collecteurs (charrettes, tricycles prives) deposent les dechets des menages abonnes a moins de precollect_radius_m ; les camions le vident.",
+    "truck_trips_per_day": 3,
+    "_trips_note": "HYPOTHESE : chaque camion fait truck_trips_per_day tournees par jour, chacune part du depot et y revient, duree <= shift_minutes / truck_trips_per_day.",
+    "cell_size_m": 100,
+    "_cell_note": "Reglage de calcul : les batiments sont agreges par cellule de cell_size_m (centre pondere) avant KMeans.",
+    "pilot_territory_ids": ["pilot"],
+    "pilot_square_m": 5000,
+    "resnap_max_m": 300,
+    "_resnap_note": "HYPOTHESE : un arret dont le noeud est coupe (pluie) ou un depotoir est recale sur le noeud camion praticable le plus proche s il est a moins de resnap_max_m ; sinon non servi (access) ou signalement ignore.",
+    "_pilot_note": "HYPOTHESE : le fichier OSM ne contient ni arrondissement ni secteur ; le territoire pilote est un carre de pilot_square_m de cote centre sur la commune. Territoires actifs = pilot_territory_ids + params.extra_territories.",
     "cost_per_km_truck": 1500,
     "cost_per_km_tricycle": 300,
     "truck_speed_kmh": 25,
@@ -42,14 +54,19 @@
   "network": {
     "truck_highways": ["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential"],
     "tricycle_extra_highways": ["service", "track", "living_street", "path"],
-    "truck_requires_paved_when_rainy": true,
     "unpaved_surfaces": ["unpaved", "dirt", "earth", "ground", "sand", "mud", "gravel", "compacted"],
     "unknown_surface_is_paved_for": ["motorway", "trunk", "primary", "secondary"],
-    "straight_line_factor": 1.4
+    "straight_line_factor": 1.4,
+    "rain_unpaved_factor": 2.5,
+    "flood_buffer_m": 30,
+    "flood_waterway_types": ["river", "stream", "canal"],
+    "_rain_note": "HYPOTHESES de travail, non mesurees : en pluie, le poids d'une voie non revetue (ou de revetement inconnu hors grands axes) est multiplie par rain_unpaved_factor ; une voie est coupee si ford ou flood_prone, si son milieu est a moins de flood_buffer_m d'un cours d'eau de type flood_waterway_types (drain et ditch exclus : souvent des caniveaux le long des rues) (sauf pont ou tunnel), ou si elle coupe un polygone de flood_zones."
   },
   "solver": {
     "time_limit_s": 5,
-    "max_collection_points": 60,
+    "max_collection_points": 120,
+    "max_dumpsite_stops": 60,
+    "_dumpsite_note": "HYPOTHESE : au-dela de max_dumpsite_stops depotoirs valides, ils sont regroupes par cellule (taille doublee depuis model.cell_size_m jusqu a passer sous le seuil).",
     "min_collection_points": 5
   }
 }

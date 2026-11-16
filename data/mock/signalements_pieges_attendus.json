@@ -1,0 +1,16 @@
+{
+ "t_hors_commune": "hors commune (Bobo-Dioulasso)",
+ "t_mer": "hors commune (0, 0, golfe de Guinée)",
+ "t_doublon_3m": "doublon à 3 m de s00001",
+ "t_doublon_8m": "doublon à 8 m de s00001",
+ "t_lat_200": "latitude hors de [-90, 90]",
+ "t_lon_texte": "longitude non numérique",
+ "t_lat_null": "latitude absente (null)",
+ "t_taille_inconnue": "taille hors de small/medium/large",
+ "t_sans_lat": "champ lat manquant",
+ "t_sans_taille": "champ size manquant",
+ "t_date_13e_mois": "date impossible (mois 13, jour 45, 25 h 61)",
+ "t_date_futur": "date dans le futur",
+ "t_date_texte": "date non ISO 8601",
+ "t_statut_inconnu": "statut hors de pending/accepted/rejected/to_review"
+}

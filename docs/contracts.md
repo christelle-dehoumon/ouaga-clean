@@ -1,5 +1,6 @@
 # Contrat de données — version 2
 
+Version 2.1 (2026-11-17, membre A, sur demande de Tania) : `totals.demand_non_subscribers_kg`, `capacity_shortfall_kg`, `coverage_rate_subscribers` (ajouts, rien de retiré).
 Version 2 (2026-11-16, membre A, autorisation donnée) : `totals.uncollected_kg`, `ignored_reports`, véhicules `truckN_tripM`,
 `collection_points[].type`, `checks.network_ok`, clés de configuration renommées (section 3).
 
@@ -57,7 +58,7 @@ GeoJSON `Feature` de type `Polygon` ou `MultiPolygon`, propriétés :
 ```
 Si `population` est absent, A l'estime à partir des bâtiments et marque `estimated`.
 
-## 5. Plan (A produit avec `compute_plan`, B expose par `GET /plan`, C affiche et simule)
+## 5. Plan (A produit avec `compute_plan`, B expose par `POST /api/plans`, C affiche et simule)
 ```json
 {
   "plan_id": "p_20261117T101500Z",
@@ -85,7 +86,8 @@ Si `population` est absent, A l'estime à partir des bâtiments et marque `estim
     "every_point_served_or_reported": true, "messages": []
   },
   "totals": {"distance_km": 0, "cost": 0, "collected_kg": 0, "budget_remaining": 0,
-             "points_served": 0, "points_unserved": 0, "uncollected_kg": 0},
+             "points_served": 0, "points_unserved": 0, "uncollected_kg": 0,
+             "demand_non_subscribers_kg": 0, "capacity_shortfall_kg": 0, "coverage_rate_subscribers": 1.0},
   "assumptions": ["texte en français"],
   "warnings": []
 }
@@ -98,6 +100,16 @@ Si `population` est absent, A l'estime à partir des bâtiments et marque `estim
   `dumpsite` = dépotoir validé, arrêt ponctuel (id `d_<id du dépotoir>`).
 - `ignored_reports` : tout signalement ou dépotoir non pris en compte, avec sa raison en français (rien ne disparaît en silence).
 - `totals.uncollected_kg` : déchets des non-abonnés des territoires actifs, par passage (`estimated`), non collectés ; pour la simulation.
+- `totals.demand_non_subscribers_kg` : même valeur que `uncollected_kg` (gardé pour compatibilité), nom explicite. Ce sont des
+  déchets **hors du périmètre du plan** (ménages non abonnés, part `1 − subscription_rate`) : on ne prévoit jamais de les
+  collecter, ce n'est donc pas un échec du plan.
+- `totals.capacity_shortfall_kg` : demande des points **du périmètre** (abonnés et dépotoirs validés) qui sont dans `unserved`
+  avec `reason: "capacity"` (flotte ou tournées trop pleines). C'est le manque réel du plan faute de capacité ; les points
+  non servis pour une autre raison (`time`, `access`, `budget`, `no_route`) n'y sont pas comptés.
+- `totals.coverage_rate_subscribers` : `collected_kg / (collected_kg + capacity_shortfall_kg)`, entre 0 et 1 (`null` si les deux
+  sont nuls) : taux de réussite du plan sur son propre périmètre. Il ne faut pas le calculer à partir de `uncollected_kg`.
+- Il n'y a pas de service partiel : un point dans une `route` est collecté en entier (`load_kg` = somme des `demand_kg` de ses arrêts),
+  un point dans `unserved` ne l'est pas du tout.
 - `checks.network_ok` : aucun trajet n'emprunte une voie absente du réseau utilisé (coupée par la pluie).
 - Tout point de regroupement est soit dans une `route`, soit dans `unserved`. Jamais ailleurs.
 
@@ -113,6 +125,7 @@ export_geojson(dumpsites: list[dict]) -> dict              # FeatureCollection, 
 # C — core/sim/
 run_scenario(params: dict, plan: dict, days: int) -> dict  # le plan est obligatoire
 ```
+`run_scenario` renvoie les mesures de simulation avec `plan_id`, `days`, `data_tag: "simulated"` et les hypothèses appliquées. Une entrée invalide renvoie `{"error": "..."}` sans produire de mesures.
 Avec `previous_plan` sans `changed`, A déduit le changement en comparant `previous_plan.params_used` et les signalements.
 `changed` décrit ce qui a changé depuis `previous_plan`, par exemple
 `{"broken_trucks": ["truck2"]}`, `{"rainy_season": true}` ou `{"extra_territories": ["q_new_1"]}`.
@@ -121,3 +134,26 @@ Sans `previous_plan`, calcul complet.
 ## 7. Erreurs
 Aucune fonction partagée ne lève d'exception vers l'appelant. En cas de problème :
 plan en mode `fallback`, `warnings` renseigné, et l'explication dans `checks.messages`.
+
+## 8. Routes HTTP de l’application
+
+- `GET /api/health`, `GET /api/stats` : état et statistiques des signalements.
+- `POST /api/reports`, `GET /api/reports`, `GET /api/reports/{id}` et
+  `POST /api/reports/{id}/validate` : cycle de vie des signalements. Le stockage de B
+  utilise les tailles `petit|moyen|grand` et statuts `accepte|rejete|a_verifier`;
+  l’API du plan convertit ces valeurs vers le contrat ci-dessus.
+- `POST /api/reports/bulk` : valide un tableau de signalements et renvoie chaque résultat
+  ainsi que les statistiques réelles du validateur.
+- `POST /api/plans` avec `{"params": {...}}` : calcule un plan depuis les paramètres et
+  signalements enregistrés. La réponse est le Plan de la section 5, y compris les replis
+  et avertissements si le réseau routier n’est pas disponible.
+- `GET /api/plans/{plan_id}` : relit un plan calculé conservé en mémoire par l’instance.
+- `POST /api/plans/{plan_id}/simulation` avec `{"days": 7}` : exécute `run_scenario`
+  avec les paramètres et le plan associés.
+- `GET /api/plans/{plan_id}/export` : exporte les points et géométries disponibles du plan
+  en GeoJSON; les géométries absentes ne sont pas fabriquées.
+- `GET /dashboard/` : tableau de bord; sa feuille de style et son script sont servis sous
+  `/dashboard/dashboard.css` et `/dashboard/dashboard.js`.
+
+L’accès à une simulation sans plan connu renvoie HTTP 404. Un corps invalide renvoie HTTP
+400 ou 422 avec une explication, plutôt que des mesures simulées par défaut.

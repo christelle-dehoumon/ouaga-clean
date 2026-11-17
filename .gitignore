@@ -24,8 +24,12 @@ htmlcov/
 # Caches applicatifs et outils
 .cache/
 .cache/osmnx/
+data/raw/osm_cache/
 
 # Données locales volumineuses ou générées dynamiquement
+# (pkl/npz en filet de sécurité global, au cas où un fichier atterrit hors data/processed/)
+*.pkl
+*.npz
 data/reports.db
 data/osm/
 data/openbuildings/*
@@ -38,3 +42,4 @@ data/processed/
 !data/mock/
 !data/mock/*.geojson
 !data/mock/*.json
+data/reports.db

@@ -20,7 +20,15 @@ from pathlib import Path
 from typing import Any
 
 from .hypotheses import charger_configuration, hypotheses, valeur
-from .model import Agent, Model, MOTEUR, RACINE
+from .model import (
+    Agent,
+    Model,
+    MOTEUR,
+    RACINE,
+    _cout_plan,
+    _masse_collectee,
+    _taux_non_servis,
+)
 
 NOMS_ACTEURS = ("menages", "pre_collecteurs", "brigade", "mairie")
 ACTIFS_PAR_DEFAUT = {nom: True for nom in NOMS_ACTEURS}
@@ -40,6 +48,10 @@ def _entier(valeur_brute: Any, defaut: int, minimum: int = 0, maximum: int = 500
     except (TypeError, ValueError):
         resultat = int(defaut)
     return max(minimum, min(maximum, resultat))
+
+
+def _borne(valeur_brute: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, float(valeur_brute)))
 
 
 def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -96,8 +108,8 @@ class Foyer(Agent):
 
     def step(self) -> None:
         modele = self.model
-        if not modele.actifs["menages"]:
-            self.depot = False  # acteur retiré : aucun déchet généré
+        if not modele.actifs["menages"] or modele.sans_dechet:
+            self.depot = False  # acteur retiré ou aucun déchet généré
             return
         index = self.uid % max(1, len(modele.centres))
         plein = modele.remplissage[index] >= 1.0
@@ -145,7 +157,7 @@ class PreCollecteur(Agent):
         self.en_service = modele.random.random() >= min(1.0, panne)
         if not self.en_service:
             return
-        probabilite = _nombre(valeur(modele.hyp, "precollect_pass_rate", 0), 0)
+        probabilite = _nombre(valeur(modele.hyp, "precollect_pass_rate", 0), 0) * modele.facteur_collecte
         capacite = _nombre(valeur(modele.hyp, "tricycle_capacity_kg", 0), 0)
         index = self.uid % max(1, len(modele.centres))
         for foyer in modele.foyers:
@@ -194,6 +206,11 @@ class Brigade(Agent):
         if self.depots_evites:
             modele.ajouter_evenement("brigade", "Brigade {uid} : {n} dépôt(s) évité(s) dans un rayon de {r:.0f} m".format(
                 uid=self.uid, n=self.depots_evites, r=rayon))
+        elif self.patrouilles and not modele.sans_dechet:
+            # Un acteur affiché comme actif n'a jamais un step() silencieux :
+            # la patrouille a eu lieu, même si elle n'a rien eu à traiter.
+            modele.ajouter_evenement("brigade", "Brigade {uid} : {n} patrouille(s), aucun dépôt dans le rayon de {r:.0f} m".format(
+                uid=self.uid, n=self.patrouilles, r=rayon))
 
 
 class Mairie(Agent):
@@ -210,33 +227,50 @@ class Mairie(Agent):
         modele = self.model
         self.cout_jour = 0.0
         self.camions_total = modele.trucks
+        budget_disponible = max(0.0, modele.budget - modele.cout_cumule)
         if not modele.actifs["mairie"]:
             self.camions_en_service = 0
+            modele.budget_restant = budget_disponible
             return
-        self.camions_en_service = max(0, modele.trucks - len(modele.broken_trucks))
-        capacite = _nombre(valeur(modele.hyp, "truck_capacity_kg", 0), 0)
+
+        disponibles = max(0, modele.trucks - len(modele.broken_trucks))
         trips = _entier(valeur(modele.hyp, "truck_trips_per_day", 0), 0)
-        # Règle 1 : chaque camion disponible vide les centres et enlève des dépôts.
+        # Coût : totals.cost du plan (contrat §5). À défaut, distances réelles
+        # du plan × coûts de la configuration. Jamais un montant inventé.
+        cout_plan = modele.cout_plan_m
+        if cout_plan <= 0:
+            cout_truck = _nombre(valeur(modele.hyp, "cost_per_km_truck", 0), 0)
+            cout_tri = _nombre(valeur(modele.hyp, "cost_per_km_tricycle", 0), 0)
+            distance_truck = sum(r.get("distance_km", 0) for r in modele.routes if r.get("type") == "truck")
+            distance_tri = sum(r.get("distance_km", 0) for r in modele.routes if r.get("type") == "tricycle")
+            cout_plan = (distance_truck * cout_truck + distance_tri * cout_tri) / 1_000_000
+        cout_jour = cout_plan / max(1, modele.days) * (disponibles / max(1, self.camions_total))
+        # Règle budget : une flotte plus petite ou un budget épuisé réduit le
+        # nombre de camions réellement mobilisés, donc le service rendu.
+        part_budget = _borne(budget_disponible / cout_jour, 0.0, 1.0) if cout_jour > 0 else 1.0
+        self.camions_en_service = int(disponibles * part_budget)
+        self.cout_jour = cout_jour * part_budget
+        capacite_service = self.camions_en_service * max(1, trips)
+
+        centres_vides = 0
         for index in range(len(modele.centres)):
-            if index >= self.camions_en_service * max(1, trips):
+            if index >= capacite_service:
                 break
-            modele.remplissage[index] = 0.0
+            if modele.remplissage[index] > 0:
+                modele.remplissage[index] = 0.0
+                centres_vides += 1
         for foyer in modele.foyers:
-            if foyer.depot and foyer.uid % max(1, self.camions_en_service) == 0:
+            if foyer.depot and capacite_service > 0 and foyer.uid % capacite_service == 0:
                 foyer.depot = False
-        # Règle 2 : le coût vient des distances du plan et des coûts de la config.
-        cout_truck = _nombre(valeur(modele.hyp, "cost_per_km_truck", 0), 0)
-        cout_tri = _nombre(valeur(modele.hyp, "cost_per_km_tricycle", 0), 0)
-        distance_truck = sum(r.get("distance_km", 0) for r in modele.routes if r.get("type") == "truck")
-        distance_tri = sum(r.get("distance_km", 0) for r in modele.routes if r.get("type") == "tricycle")
-        part_flotte = self.camions_en_service / max(1, self.camions_total)
-        self.cout_jour = distance_truck * cout_truck * part_flotte
-        if modele.actifs["pre_collecteurs"]:
-            self.cout_jour += distance_tri * cout_tri
-        modele.budget_restant = max(0.0, modele.budget - modele.cout_cumule - self.cout_jour)
+        modele.budget_restant = max(0.0, budget_disponible - self.cout_jour)
+
         if self.camions_en_service < self.camions_total:
-            modele.ajouter_evenement("mairie", "Camion en panne : {n} tournée(s) reportée(s)".format(
-                n=len(modele.broken_trucks) * trips))
+            raison = "budget insuffisant" if self.camions_en_service < disponibles else "camion en panne"
+            modele.ajouter_evenement("mairie", "Service réduit ({r}) : {n} camion(s) mobilisé(s) sur {t}, {v} centre(s) vidé(s)".format(
+                r=raison, n=self.camions_en_service, t=self.camions_total, v=centres_vides))
+        elif centres_vides:
+            modele.ajouter_evenement("mairie", "Mairie : {v} centre(s) vidé(s), budget restant {b:.2f} M FCFA".format(
+                v=centres_vides, b=modele.budget_restant / 1_000_000))
 
 
 class SimulationActeurs(Model):
@@ -244,7 +278,7 @@ class SimulationActeurs(Model):
 
     def __init__(self, params: dict[str, Any], config: dict[str, Any], plan: dict[str, Any],
                  source_plan: str, hyp: dict[str, dict[str, Any]],
-                 actors_enabled: dict[str, bool], seed: int):
+                 actors_enabled: dict[str, bool], seed: int, days: int = 7):
         super().__init__(seed=seed)
         self.params = params
         self.config = config
@@ -254,6 +288,8 @@ class SimulationActeurs(Model):
         self.actifs = {nom: bool(actors_enabled.get(nom, True)) for nom in NOMS_ACTEURS}
         self.random = __import__("random").Random(seed)
         self.graine = seed
+        self.jour = 0
+        self.days = max(1, int(days))
 
         self.centres = [p for p in plan.get("collection_points", []) if isinstance(p, dict)
                         and p.get("type", "center") == "center"] or [
@@ -261,6 +297,12 @@ class SimulationActeurs(Model):
         self.depotoirs = [p for p in plan.get("collection_points", []) if isinstance(p, dict)
                           and p.get("type") == "dumpsite"]
         self.routes = [r for r in plan.get("routes", []) if isinstance(r, dict)]
+        # Traçabilité du plan : rien d'inventé, tout vient des champs du contrat §5.
+        self.cout_plan_m = _cout_plan(plan)
+        self.taux_non_servis = _taux_non_servis(plan)
+        self.kg_collectes_plan = _masse_collectee(plan)
+        self.facteur_collecte = (1.0 if self.kg_collectes_plan is None else
+                                 _borne(0.6 + self.kg_collectes_plan / max(1, len(self.centres)) / 250.0, 0.6, 1.0))
         self.pluie = bool(params.get("rainy_season", config.get("params", {}).get("rainy_season", False)))
         self.trucks = _entier(params.get("trucks", config.get("params", {}).get("trucks", 0)), 0)
         self.tricycles = _entier(params.get("tricycles", config.get("params", {}).get("tricycles", 0)), 0)
@@ -272,7 +314,7 @@ class SimulationActeurs(Model):
 
         # Les agents foyers sont un proxy : un foyer synthétique par centre du plan.
         lat0, lon0 = _centre_bbox(config)
-        population = _nombre(params.get("population", config.get("params", {}).get("population", 0)), 0)
+        self.population = _nombre(params.get("population", config.get("params", {}).get("population", 0)), 0)
         abonnement = _nombre(params.get("subscription_rate", config.get("params", {}).get("subscription_rate", 0)), 0)
         if "taux_abonnement_pct" in params:
             abonnement = _nombre(params["taux_abonnement_pct"], 0) / 100.0
@@ -287,21 +329,32 @@ class SimulationActeurs(Model):
             # Elle est étiquetée « à valider » dans hypotheses().
             distance = self.random.uniform(0.0, 2.0 * rayon_pre)
             self.foyers.append(Foyer(i + 1, self, centre, self.random.random() < abonnement, distance,
-                                     population * abonnement * kg_hab / max(1, len(self.centres))))
+                                     self.population * abonnement * kg_hab / max(1, len(self.centres))))
 
         self.nb_pre = max(1, min(self.tricycles, len(self.centres)))
         self.pre_collecteurs = [PreCollecteur(i, self) for i in range(self.nb_pre)]
         self.brigade = [Brigade(i, self) for i in range(max(1, _entier(valeur(hyp, "brigade_patrols_per_day", 1), 1)))]
         self.mairie = Mairie(0, self)
-        self.remplissage = [0.0 for _ in self.centres]
+        # Un point laissé sans tournée par le plan est un centre déjà saturé.
+        self.remplissage = [self.taux_non_servis for _ in self.centres]
+        self.kg_par_jour = round(sum(f.kg_jour for f in self.foyers), 4)
+        self.sans_dechet = self.population <= 0 or self.kg_par_jour <= 0 or not self.foyers
         self.evenements: list[dict[str, Any]] = []
         self.series: list[dict[str, Any]] = []
         self.agent_states: list[dict[str, Any]] = []
         self.max_evenements = _entier(valeur(hyp, "max_events_per_day", 0), 1, minimum=1)
+        for point in plan.get("unserved", []) if isinstance(plan.get("unserved"), list) else []:
+            if isinstance(point, dict) and point.get("reason"):
+                self.ajouter_evenement(
+                    "mairie",
+                    "Point {pid} non desservi — motif « {raison} » lu dans le plan".format(
+                        pid=point.get("point_id", "?"), raison=point["reason"]),
+                    source="plan",
+                )
 
-    def ajouter_evenement(self, acteur: str, texte: str) -> None:
+    def ajouter_evenement(self, acteur: str, texte: str, source: str = "simulated") -> None:
         if sum(1 for e in self.evenements if e["jour"] == self.jour) < self.max_evenements:
-            self.evenements.append({"jour": self.jour, "acteur": acteur, "texte": texte, "data_tag": "simulated"})
+            self.evenements.append({"jour": self.jour, "acteur": acteur, "texte": texte, "data_tag": source})
 
     def _etat(self) -> dict[str, Any]:
         return {
@@ -344,19 +397,67 @@ class SimulationActeurs(Model):
         self.cout_cumule += self.mairie.cout_jour
 
         depots = sum(1 for f in self.foyers if f.depot) + sum(1 for d in self.depotoirs if self.actifs["mairie"] is False or not self.mairie.camions_en_service)
-        part = round(1.0 - depots / max(1, len(self.foyers) + len(self.depotoirs)), 3)
+        # Aucun déchet généré : zéro, et surtout pas 100 % de « ramassé ».
+        part = 0.0 if self.sans_dechet else round(1.0 - depots / max(1, len(self.foyers) + len(self.depotoirs)), 3)
         self.series.append({
             "jour": jour,
             "part_ramassee": part,
-            "cout_m_fcfa": round(self.cout_cumule / 1_000_000, 3),
-            "depotoirs_restants": depots,
+            "cout_m_fcfa": round(self.cout_cumule, 3),
+            "depotoirs_restants": 0 if self.sans_dechet else depots,
             "budget_restant_m_fcfa": round(self.budget_restant / 1_000_000, 3),
             "kg_ramasses": round(sum(p.kg_ramasses for p in self.pre_collecteurs), 2),
+            "sans_dechet": self.sans_dechet,
             "data_tag": "simulated",
         })
         etat = self._etat()
         etat["jour"] = jour
         self.agent_states.append(etat)
+
+
+def _etats_points(modele: SimulationActeurs) -> list[dict[str, Any]]:
+    """États « à_vider / vide / non_desservi » dérivés du plan et du dernier jour.
+
+    La raison vient uniquement de ``plan.unserved`` ; la tournée uniquement de
+    ``routes[].stops`` ; le jour uniquement du dernier pas réellement simulé.
+    Aucune de ces valeurs n'est devinée.
+    """
+    plan = modele.plan
+    non_servis = {
+        str(p.get("point_id")): p
+        for p in (plan.get("unserved") or []) if isinstance(p, dict)
+    }
+    tournees: dict[str, list[str]] = {}
+    for route in modele.routes:
+        vehicle = str(route.get("vehicle") or route.get("type") or "tournée")
+        for identifiant in route.get("stops") or []:
+            tournees.setdefault(str(identifiant), []).append(vehicle)
+    index_centres = {str(p.get("id")): i for i, p in enumerate(modele.centres)}
+    etats: list[dict[str, Any]] = []
+    points = plan.get("collection_points")
+    for point in points if isinstance(points, list) else []:
+        if not isinstance(point, dict):
+            continue
+        identifiant = str(point.get("id", "?"))
+        entree: dict[str, Any] = {"id": identifiant, "type": point.get("type", "center")}
+        if identifiant in non_servis:
+            entree.update({
+                "etat": "non_desservi",
+                "raison": str(non_servis[identifiant].get("reason", "raison non précisée dans le plan")),
+                "source": "plan",
+            })
+        else:
+            etat_point = "vide"
+            if point.get("type", "center") == "center":
+                index = index_centres.get(identifiant)
+                if index is not None and modele.remplissage[index] > 0:
+                    etat_point = "à_vider"
+            elif not tournees.get(identifiant):
+                etat_point = "à_vider"
+            entree.update({"etat": etat_point, "jour": modele.jour, "source": "simulated"})
+            if tournees.get(identifiant):
+                entree["tournee"] = tournees[identifiant][-1]
+        etats.append(entree)
+    return etats
 
 
 def executer(params: dict[str, Any], days: int, actors_enabled: dict[str, bool] | None,
@@ -366,13 +467,15 @@ def executer(params: dict[str, Any], days: int, actors_enabled: dict[str, bool] 
     hyp = hypotheses(config)
     plan, source_plan = _charger_plan(params, config)
     actifs = {nom: bool((actors_enabled or ACTIFS_PAR_DEFAUT).get(nom, True)) for nom in NOMS_ACTEURS}
-    modele = SimulationActeurs(params, config, plan, source_plan, hyp, actifs, seed)
-    for jour in range(1, max(1, _entier(days, 7, minimum=1, maximum=365)) + 1):
+    duree = max(1, _entier(days, 7, minimum=1, maximum=365))
+    modele = SimulationActeurs(params, config, plan, source_plan, hyp, actifs, seed, days=duree)
+    for jour in range(1, duree + 1):
         modele.step(jour)
 
     dernier = modele.series[-1]
     etat = modele.agent_states[-1]
     abonnes = etat["menages"]["abonnes"]
+    sans_dechet = modele.sans_dechet
     return {
         "fonction": "run_scenario",
         "data_tag": "simulated",
@@ -382,14 +485,18 @@ def executer(params: dict[str, Any], days: int, actors_enabled: dict[str, bool] 
         "params_used": params,
         "actors_enabled": actifs,
         "source_plan": source_plan,
-        "part_ramassee": dernier["part_ramassee"],
+        "part_ramassee": 0.0 if sans_dechet else dernier["part_ramassee"],
         "cout_m_fcfa": dernier["cout_m_fcfa"],
-        "depotoirs_restants": dernier["depotoirs_restants"],
+        "depotoirs_restants": 0 if sans_dechet else dernier["depotoirs_restants"],
         "unite_depotoirs_restants": "foyers synthétiques et dépotoirs du plan (proxy)",
         "menages_synthetiques": len(modele.foyers),
+        "sans_dechet": sans_dechet,
+        "message_dechet": "Aucun déchet généré" if sans_dechet else None,
+        "kg_dechet_par_jour": modele.kg_par_jour,
         "series": modele.series,
         "agent_states": modele.agent_states,
         "events": modele.evenements,
+        "points_etat": _etats_points(modele),
         "indicateurs": {
             "menages": {
                 "abonnes_pct": round(100 * abonnes / max(1, len(modele.foyers)), 1),
@@ -410,6 +517,13 @@ def executer(params: dict[str, Any], days: int, actors_enabled: dict[str, bool] 
             },
         },
         "hypotheses": [dict(v, cle=k) for k, v in hyp.items()],
+        "assumptions": [
+            "Simulation pas à pas sur {} ménages synthétiques (proxy), source du plan : {}.".format(
+                len(modele.foyers), source_plan),
+            "Le service dépend des champs réels du plan : unserved, totals.points_served, "
+            "totals.points_unserved, totals.collected_kg et totals.cost (contrat §5).",
+            "Règles et seuils ci-dessous : hypothèses à valider avec la mairie.",
+        ],
         "agents": [
             {"nom": "Ménages", "cle": "menages"},
             {"nom": "Pré-collecteurs", "cle": "pre_collecteurs"},

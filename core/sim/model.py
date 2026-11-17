@@ -1,5 +1,4 @@
-"""
-Simulation multi-agents — 4 acteurs : ménages, pré-collecteurs, brigade Laabal, mairie.
+"""Simulation multi-agents — 4 acteurs : ménages, pré-collecteurs, brigade Laabal, mairie.
 
 Le plan entre, 3 chiffres sortent : part ramassée, coût, dépotoirs restants.
 Mesa 3.x est utilisé quand il est disponible. À défaut, un shim local expose la
@@ -9,6 +8,7 @@ donc le même résultat pour une même graine, quel que soit le moteur.
 from __future__ import annotations
 
 import json
+import math
 import random
 import uuid
 from datetime import datetime, timezone
@@ -124,7 +124,8 @@ def _regles(parametres: dict[str, Any], config: dict[str, Any]):
 
     population = _nombre(parametres, "population", 1_200_000)
     # 500 ménages synthétiques = proxy de démonstration, pas un recensement.
-    n_menages = int(_born(population / 2400.0, 150, 900))
+    # Aucun ménage => aucun déchet : on ne fabrique pas de proxy dans ce cas.
+    n_menages = 0 if population <= 0 else int(_born(population / 2400.0, 150, 900))
 
     abonnement = _born(_nombre(parametres, "taux_abonnement_pct", 35) / 100.0, 0.0, 1.0)
     desserte = _born(0.2 + abonnement * 0.8, 0.0, 0.98)
@@ -172,6 +173,83 @@ def _regles(parametres: dict[str, Any], config: dict[str, Any]):
 
 
 # ---------------------------------------------------------------------------
+# Pont explicite avec le plan de A (aucune hypothèse inventée)
+# ---------------------------------------------------------------------------
+def _taux_non_servis(plan: Any) -> float:
+    """Part des points du plan réellement laissés sans tournée.
+
+    `unserved` et `totals.points_unserved` sont au contrat §5 ; quand les deux
+    sont présents on préfère la liste, qui porte les raisons. Le dénominateur
+    est `points_served + points_unserved` du plan, jamais un nombre synthétique.
+    """
+    if not isinstance(plan, dict):
+        return 0.0
+    totaux = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
+    servi = totaux.get("points_served")
+    non_servi = totaux.get("points_unserved")
+    if isinstance(non_servi, (int, float)) and not isinstance(non_servi, bool):
+        if isinstance(servi, (int, float)) and not isinstance(servi, bool):
+            total = float(servi) + float(non_servi)
+            if total > 0:
+                return _born(float(non_servi) / total, 0.0, 1.0)
+    liste = plan.get("unserved")
+    points = plan.get("collection_points")
+    if isinstance(liste, list) and isinstance(points, list) and points:
+        return _born(len(liste) / len(points), 0.0, 1.0)
+    return 0.0
+
+
+def _raison_non_servis(plan: Any) -> list[str]:
+    """Raisons déclarées par A dans `unserved` (jamais devinées)."""
+    if not isinstance(plan, dict) or not isinstance(plan.get("unserved"), list):
+        return []
+    raisons = {
+        str(p["reason"])
+        for p in plan["unserved"]
+        if isinstance(p, dict) and p.get("reason")
+    }
+    return sorted(raisons)
+
+
+def _masse_collectee(plan: Any) -> float | None:
+    """`totals.collected_kg` du contrat §5, en kg ; None si le plan ne le porte pas."""
+    if not isinstance(plan, dict):
+        return None
+    totaux = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
+    valeur = totaux.get("collected_kg")
+    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)) or not math.isfinite(valeur):
+        return None
+    return max(0.0, float(valeur))
+
+
+def _regles_plan(plan: Any, r: dict[str, Any]) -> dict[str, Any]:
+    """Décline les chiffres du plan dans les règles des agents C.
+
+    Deux leviers seulement, tous deux lus dans le plan :
+    * un point `unserved` n'est pas vidé par la mairie : moins il y en a, plus
+      la saturation des centres est forte, donc plus le dépôt sauvage augmente ;
+    * `totals.collected_kg` fixe l'échelle de la charge traitée par les
+      pré-collecteurs, rapportée à la taille du proxy (ménages synthétiques).
+    """
+    taux = _taux_non_servis(plan)
+    collecte = _masse_collectee(plan)
+    quotient = None if collecte is None else collecte / max(1, r["n_menages"])
+    return {
+        "taux_points_non_servis": round(taux, 4),
+        "raisons_non_servis": _raison_non_servis(plan),
+        "kg_collectes_plan": collecte,
+        "kg_collectes_par_menage": None if quotient is None else round(quotient, 3),
+        # Saturation des points de regroupement : 0 si tout le plan est servi,
+        # 1 si tous ses points sont en `unserved`.
+        "saturation_plan": round(taux, 4),
+        # La collecte du plan module la probabilité de passage des tricycles.
+        "facteur_collecte": (
+            1.0 if quotient is None else _born(0.6 + quotient / 250.0, 0.6, 1.0)
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Agents
 # ---------------------------------------------------------------------------
 class Menage(Agent):
@@ -187,6 +265,7 @@ class Menage(Agent):
         if self.desservi:
             # Un ménage desservi peut encore jeter si le service est saturé.
             saturation = 1.0 - 0.5 * r["coeff_camion"] * r["coeff_budget"]
+            saturation = max(saturation, r["saturation_plan"])
             proba = r["proba_depot_desservi"] * _born(saturation, 0.3, 1.0)
         else:
             proba = r["proba_depot_non_desservi"]
@@ -204,7 +283,7 @@ class PreCollecteur(Agent):
         panne = r["proba_panne_tricycle"] + (0.12 if "saison_pluies" in r["crises"] else 0.0)
         if self.model.random.random() < panne:  # type: ignore[attr-defined]
             return
-        proba = r["proba_passage"] * r["coeff_tricycle"] * 0.25
+        proba = r["proba_passage"] * r["coeff_tricycle"] * 0.25 * r["facteur_collecte"]
         # Chaque pré-collecteur ne couvre qu'une part des ménages : la flotte compte.
         tournee = self.unique_id - 10_000
         for agent in self.model.agents:  # type: ignore[attr-defined]
@@ -239,7 +318,8 @@ class Mairie(Agent):
     def step(self):
         r = self.r
         # La mairie envoie la brigade mécanisée selon les camions, la fréquence et le budget.
-        proba = 0.12 * r["coeff_camion"] * r["coeff_budget"]
+        # Un point en `unserved` n'est pas vidé : la charge restante augmente.
+        proba = 0.12 * r["coeff_camion"] * r["coeff_budget"] * (1.0 - r["saturation_plan"])
         for agent in self.model.agents:  # type: ignore[attr-defined]
             if isinstance(agent, Menage) and agent.a_depose:
                 if self.model.random.random() < proba:  # type: ignore[attr-defined]
@@ -299,6 +379,7 @@ def simuler(
         seed = 0
 
     r = _regles(parametres, config)
+    r.update(_regles_plan(plan, r))
     modele = OuagaModel(parametres, config, r, seed)
     for _ in range(jours):
         modele.step()
@@ -307,12 +388,16 @@ def simuler(
         1 for a in modele.agents if isinstance(a, Menage) and a.a_depose  # type: ignore[attr-defined]
     )
     total = r["n_menages"]
-    part = round(1.0 - restants / max(1, total), 3)
+    sans_dechet = total <= 0
+    # Sans déchet, « 100 % ramassé » serait faux : on affiche 0 et un message.
+    part = 0.0 if sans_dechet else round(1.0 - restants / max(1, total), 3)
 
     return {
         "part_ramassee": part,
         "cout_m_fcfa": _cout_plan(plan),
-        "depotoirs_restants": restants,
+        "depotoirs_restants": 0 if sans_dechet else restants,
+        "sans_dechet": sans_dechet,
+        "message_dechet": "Aucun déchet généré" if sans_dechet else None,
         "jours": jours,
         "moteur": MOTEUR,
         # Métadonnées d'honnêteté : le compteur est un proxy, pas un relevé terrain.
@@ -322,6 +407,17 @@ def simuler(
         "graine": seed,
         "agents": [dict(a) for a in AGENTS],
         "hypotheses": "paramètres de démonstration à valider avec la mairie",
+        # Traçabilité du plan : chaque nombre vient du plan, rien n'est inventé.
+        "plan": {
+            "taux_points_non_servis": r["taux_points_non_servis"],
+            "points_non_servis": (
+                plan.get("totals", {}).get("points_unserved")
+                if isinstance(plan, dict) and isinstance(plan.get("totals"), dict) else None
+            ),
+            "raisons_non_servis": r["raisons_non_servis"],
+            "kg_collectes": r["kg_collectes_plan"],
+            "kg_collectes_par_menage": r["kg_collectes_par_menage"],
+        },
     }
 
 
@@ -358,6 +454,90 @@ def _repli(exc: Exception | None = None) -> dict[str, Any]:
     return sortie
 
 
+# ---------------------------------------------------------------------------
+# Validation Backend (contrat §6) — renvoie {"error": ...}, jamais d'exception.
+# ---------------------------------------------------------------------------
+def _valider_entree(
+    params: Any, plan: Any, days: Any
+) -> tuple[dict[str, Any], dict[str, Any], int, str | None]:
+    if not isinstance(params, dict):
+        return {}, {}, 0, "Les paramètres doivent être un objet."
+    if not isinstance(plan, dict) or not isinstance(plan.get("totals"), dict):
+        return {}, {}, 0, "Un plan calculé avec ses totaux est obligatoire."
+    if isinstance(days, bool) or not isinstance(days, int) or days < 1:
+        return {}, {}, 0, "Le nombre de jours doit être un entier positif."
+
+    total = plan["totals"]
+    cout = total.get("cost")
+    if isinstance(cout, bool) or not isinstance(cout, (int, float)) or not math.isfinite(cout) or cout < 0:
+        return {}, {}, 0, "Le coût du plan est absent ou invalide."
+
+    # Les tests C historiques appellent run_scenario avec les curseurs du
+    # membre C (taux_abonnement_pct en pourcentage, nb_tricycles). Le contrat
+    # Backend utilise subscription_rate (0..1) et tricycles ; les deux formes
+    # sont acceptées, sans jamais fabriquer de valeur pour un champ manquant.
+    if "subscription_rate" in params and "taux_abonnement_pct" not in params:
+        subscription = params["subscription_rate"]
+        if (isinstance(subscription, bool) or not isinstance(subscription, (int, float))
+                or not math.isfinite(subscription) or not 0 <= subscription <= 1):
+            return {}, {}, 0, "subscription_rate doit être compris entre 0 et 1."
+    elif "taux_abonnement_pct" in params:
+        if ("subscription_rate" in params
+                and (isinstance(params["subscription_rate"], bool)
+                     or not isinstance(params["subscription_rate"], (int, float))
+                     or not math.isfinite(params["subscription_rate"])
+                     or not 0 <= params["subscription_rate"] <= 1)):
+            return {}, {}, 0, "subscription_rate doit être compris entre 0 et 1."
+    else:
+        return {}, {}, 0, "subscription_rate doit être compris entre 0 et 1."
+
+    if "tricycles" in params and "nb_tricycles" not in params:
+        tricycles = params["tricycles"]
+        if isinstance(tricycles, bool) or not isinstance(tricycles, int) or tricycles < 0:
+            return {}, {}, 0, "tricycles doit être un entier positif ou nul."
+    elif "nb_tricycles" in params:
+        if ("tricycles" in params
+                and (isinstance(params["tricycles"], bool)
+                     or not isinstance(params["tricycles"], int)
+                     or params["tricycles"] < 0)):
+            return {}, {}, 0, "tricycles doit être un entier positif ou nul."
+    else:
+        return {}, {}, 0, "tricycles doit être un entier positif ou nul."
+
+    for cle in ("collected_kg", "uncollected_kg", "points_unserved", "points_served"):
+        valeur = total.get(cle)
+        if valeur is not None and (isinstance(valeur, bool) or not isinstance(valeur, (int, float)) or not math.isfinite(valeur)):
+            return {}, {}, 0, f"totals.{cle} est invalide dans le plan."
+
+    # Un plan conforme porte `unserved` (liste) ; sa présence est vérifiée sans
+    # l'exiger quand le champ n'existe pas dans une version antérieure du contrat.
+    if "unserved" in plan and not isinstance(plan["unserved"], list):
+        return {}, {}, 0, "Le champ unserved du plan doit être une liste."
+
+    return params, plan, days, None
+
+
+def _parametres_simulation(params: dict[str, Any]) -> dict[str, Any]:
+    """Convertit les noms du contrat §6 vers les curseurs historiques du membre C."""
+    if "taux_abonnement_pct" in params:
+        abonnement_pct = float(params["taux_abonnement_pct"])
+    else:
+        abonnement_pct = float(params["subscription_rate"]) * 100.0
+    tricycles = params["nb_tricycles"] if "nb_tricycles" in params else params["tricycles"]
+    return {
+        "taux_abonnement_pct": abonnement_pct,
+        "nb_tricycles": int(tricycles),
+        "nb_camions": params.get("trucks", 12),
+        "population": params.get("population", 1_200_000),
+        "crises_actives": (
+            (["panne_camions"] if params.get("broken_trucks") else [])
+            + (["saison_pluies"] if params.get("rainy_season") else [])
+            + (["nouveau_quartier"] if params.get("extra_territories") else [])
+        ),
+        "graine": params.get("graine", params.get("seed", 0)),
+    }
+
+
 def run_scenario(
     params: dict[str, Any] | None = None,
     plan: dict[str, Any] | int | None = None,
@@ -375,7 +555,6 @@ def run_scenario(
     est un plan (ancienne signature), un nombre est le nombre de jours (nouvelle).
     """
     try:
-        parametres = dict(params) if isinstance(params, dict) else {}
         nouveaux_acteurs = (
             actors_enabled is not None
             or isinstance(days, dict)
@@ -385,14 +564,18 @@ def run_scenario(
         if nouveaux_acteurs:
             # --- Nouvelle signature : jours + drapeaux d'acteurs -------------
             if isinstance(days, dict):
-                # run_scenario(params, 7, {"brigade": False})
                 acteurs = days
                 jours_bruts = plan
             else:
                 acteurs = actors_enabled
                 jours_bruts = plan if (plan is not None and not isinstance(plan, dict)) else days
-            if isinstance(plan, dict):  # plan explicite fourni en plus des acteurs
-                parametres["plan"] = plan
+            plan_acteurs = params.get("plan") if isinstance(params, dict) else None
+            if isinstance(plan_acteurs, dict):
+                # Le contrat §6 s'applique aussi ici quand un plan valide est fourni.
+                valides, _, duree_valide, erreur = _valider_entree(params, plan_acteurs, jours_bruts)
+                if erreur is not None:
+                    return {"error": erreur}
+                jours_bruts = duree_valide
             if "actors_enabled" in kwargs and isinstance(kwargs["actors_enabled"], dict):
                 acteurs = kwargs["actors_enabled"]
             try:
@@ -400,40 +583,60 @@ def run_scenario(
             except (TypeError, ValueError):
                 duree = 7
             try:
-                graine = int(parametres.get("graine", parametres.get("seed", 42)))
+                graine = int(params.get("graine", params.get("seed", 42))) if isinstance(params, dict) else 42
             except (TypeError, ValueError):
                 graine = 42
 
             from .actors import executer  # import différé : évite tout cycle
 
-            resultat = executer(parametres, duree, acteurs, graine)
+            resultat = executer(params or {}, duree, acteurs, graine)
+            if resultat.get("sans_dechet"):
+                resultat.setdefault("assumptions", []).insert(
+                    0, "Aucun déchet généré : aucun pourcentage de collecte n'est affiché."
+                )
             resultat.update({
                 "scenario_id": _scenario_id(),
-                "plan_id": (parametres.get("plan") or {}).get("plan_id")
-                if isinstance(parametres.get("plan"), dict) else None,
+                "plan_id": (plan_acteurs or {}).get("plan_id")
+                if isinstance(plan_acteurs, dict) else None,
             })
             return resultat
 
         # --- Signature historique : plan + jours ---------------------------
-        try:
-            duree = max(1, int(days))
-        except (TypeError, ValueError):
-            duree = 7
-        try:
-            graine = int(parametres.get("graine", parametres.get("seed", 42)))
-        except (TypeError, ValueError):
-            graine = 42
+        valides, plan_valide, duree, erreur = _valider_entree(params, plan, days)
+        if erreur is not None:
+            return {"error": erreur}
 
-        plan_dict = plan if isinstance(plan, dict) else None
-        resultat = simuler(plan_dict, parametres, _config_defaut(), jours=duree, seed=graine)
+        try:
+            graine = int(valides.get("graine", valides.get("seed", 0)))
+        except (TypeError, ValueError):
+            graine = 0
+        resultat = simuler(
+            plan_valide,
+            _parametres_simulation(valides),
+            _config_defaut(),
+            jours=duree,
+            seed=graine,
+        )
         resultat.update({
             "fonction": "run_scenario",
             "scenario_id": _scenario_id(),
-            "plan_id": (plan_dict or {}).get("id") or (plan_dict or {}).get("plan_id"),
-            "params_used": parametres,
+            "plan_id": plan_valide.get("id") or plan_valide.get("plan_id"),
+            "params_used": valides,
             "days": duree,
             "source_plan": "plan fourni par A",
             "data_tag": "simulated",
+            "assumptions": ([
+                "Aucun déchet généré : aucun pourcentage de collecte n'est affiché."
+            ] if resultat.get("sans_dechet") else []) + [
+                "Simulation multi-agents sur {} ménages synthétiques (proxy).".format(
+                    resultat["menages_synthetiques"]
+                ),
+                "Le résultat dépend du plan : taux de points non servis et kg collectés "
+                "sont lus dans unserved et totals.collected_kg (contrat §5).",
+                "Probabilités par défaut faute de configuration : dépôt sauvage 0,78 (non desservi), "
+                "0,35 (desservi), passage de pré-collecte 0,88, panne de tricycle 0,04, "
+                "sensibilisation 0,22.",
+            ],
         })
         return resultat
     except Exception as exc:  # règle commune : jamais d'exception vers l'appelant

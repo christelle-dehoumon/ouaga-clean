@@ -99,7 +99,21 @@ def test_no_network_never_raises(setup: tuple[dict[str, Any], g.Network, dict[st
     empty = g.load_network({**cfg, "paths": {**cfg["paths"], "processed_dir": str(tmp_path / "rien")}})
     plan = compute_plan(params, [], cfg=cfg, net=empty)
     _consistent(plan)
+    assert plan["mode"] == "fallback"
     assert not plan["routes"] and all(u["reason"] == "no_route" for u in plan["unserved"])
+
+
+def test_missing_network_and_buildings_never_claims_optimized(tmp_path: Path) -> None:
+    """Un environnement sans données géographiques renvoie un fallback explicite, pas un plan optimisé vide."""
+    cfg = load_config(REPO_CONFIG)
+    cfg["paths"]["processed_dir"] = str(tmp_path / "missing")
+    net = g.load_network(cfg)
+
+    plan = compute_plan(cfg["params"], [], cfg=cfg, net=net)
+
+    assert plan["mode"] == "fallback"
+    assert not plan["collection_points"] and not plan["routes"]
+    assert any("Réseau routier introuvable" in warning for warning in plan["warnings"])
 
 
 def test_ignored_reports_listed(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
@@ -218,3 +232,72 @@ def test_partial_with_unserved_also_tries_full(setup: tuple[dict[str, Any], g.Ne
     _consistent(plan)
     assert any(u["reason"] in ("capacity", "time") for u in plan["unserved"])
     assert any("calcul complet" in w for w in plan["warnings"])
+
+
+def _dumps(trusts: list[float], kg: float) -> list[dict[str, Any]]:
+    """Dépotoirs validés au même endroit du graphe jouet, un par confiance donnée."""
+    return [{"id": f"s{i}", "lat": 12.0005, "lon": -0.9995, "size": "large", "estimated_kg": kg, "status": "active",
+             "trust": t} for i, t in enumerate(trusts)]
+
+
+def test_heavy_dumpsite_is_split(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Dépotoir de 12 t, camions de 5 t : trois arrêts au même nœud, 4 t chacun, tous servis."""
+    cfg, net, params = setup
+    plan = compute_plan({**params, "population": 0}, _dumps([0.5], 12000), cfg=cfg, net=net)
+    _consistent(plan)
+    parts = [p for p in plan["collection_points"] if p["type"] == "dumpsite"]
+    assert sorted(p["id"] for p in parts) == ["d_s0_p1", "d_s0_p2", "d_s0_p3"]
+    assert all(p["demand_kg"] == pytest.approx(4000) for p in parts) and len({(p["lat"], p["lon"]) for p in parts}) == 1
+    assert plan["totals"]["points_served"] == 3
+
+
+def test_preselection_keeps_priority_stops(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Demande au-delà de la flotte : arrêts les plus sûrs au solveur, les autres non servis (capacity) ; déterministe."""
+    cfg, net, params = setup
+    trips = cfg["model"]["truck_trips_per_day"]
+    fleet_kg = 5000 * trips
+    trusts = [0.1, 0.9, 0.3, 0.7, 0.5, 0.2, 0.8, 0.4]
+    n_keep = int(cfg["solver"]["preselect_capacity_factor"] * fleet_kg // 4000)
+    assert n_keep < len(trusts)
+    run = lambda: compute_plan({**params, "population": 0, "trucks": 1}, _dumps(trusts, 4000), cfg=cfg, net=net)  # noqa: E731
+    plan = run()
+    _consistent(plan)
+    dropped = {u["point_id"] for u in plan["unserved"] if u["detail"].startswith("Non présenté au solveur")}
+    lowest = sorted(range(len(trusts)), key=lambda i: trusts[i])[:len(trusts) - n_keep]
+    assert dropped == {f"d_s{i}" for i in lowest}
+    assert all(u["reason"] == "capacity" for u in plan["unserved"] if u["point_id"] in dropped)
+    assert plan["totals"]["trucks_needed"] == -(-len(trusts) * 4000 // fleet_kg)
+    assert plan["totals"]["trucks_needed_tag"] == "estimated"
+    again = run()
+    assert plan["routes"] == again["routes"] and plan["unserved"] == again["unserved"]
+
+
+def test_fill_pass_inserts_dropped_stops(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Arrêts légers écartés par la présélection : réinsérés là où il reste de la place, retirés d'unserved ; déterministe."""
+    cfg, net, params = setup
+    trips = cfg["model"]["truck_trips_per_day"]
+    heavy, light = _dumps([0.9] * 8, 4000), _dumps([0.1] * 4, 500)
+    for i, r in enumerate(light):
+        r["id"] = f"l{i}"
+    run = lambda: compute_plan({**params, "population": 0, "trucks": 1}, heavy + light, cfg=cfg, net=net)  # noqa: E731
+    plan = run()
+    _consistent(plan)
+    served = {s for r in plan["routes"] for s in r["stops"]}
+    unserved = {u["point_id"] for u in plan["unserved"]}
+    assert len(served & {f"d_s{i}" for i in range(8)}) == trips
+    filled = served & {f"d_l{i}" for i in range(4)}
+    assert filled and not filled & unserved
+    assert any(w.startswith("Passe de remplissage") for w in plan["warnings"])
+    assert all(r["load_kg"] <= r["capacity_kg"] for r in plan["routes"])
+    again = run()
+    assert plan["routes"] == again["routes"] and plan["unserved"] == again["unserved"]
+
+
+def test_population_zero_serves_only_dumpsites(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Population 0 : aucune demande des ménages (pas de repli par bâtiment), seuls les dépotoirs, avertissement."""
+    cfg, net, params = setup
+    plan = compute_plan({**params, "population": 0}, _dumps([0.5], 800), cfg=cfg, net=net)
+    _consistent(plan)
+    assert [p["id"] for p in plan["collection_points"]] == ["d_s0"]
+    assert plan["totals"]["uncollected_kg"] == 0 and plan["totals"]["points_served"] == 1
+    assert any(w.startswith("Population 0") for w in plan["warnings"])

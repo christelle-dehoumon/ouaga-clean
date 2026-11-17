@@ -55,10 +55,11 @@ def _collect(reports: Any, by_size: dict[str, Any], commune: Any) -> tuple[list[
             ignored.append({"report_id": rid, "reason": "Ni « estimated_kg » ni taille connue (small, medium, large)."})
             continue
         key = rid if status == "active" else str(r.get("dumpsite_id") or rid)
+        trust = min(max(_num(r.get("trust")) or 0.0, 0.0), 1.0)
         site = sites.get(key)
         if site is None:
             sites[key] = {"id": key, "lat": lat, "lon": lon, "kg": kg, "validated": status == "active", "members": [rid],
-                          "synthetic": False}
+                          "synthetic": False, "trust": trust}
             site = sites[key]
         elif status == "active" and not site["validated"]:
             sites[key].update({"lat": lat, "lon": lon, "kg": kg, "validated": True})
@@ -67,6 +68,7 @@ def _collect(reports: Any, by_size: dict[str, Any], commune: Any) -> tuple[list[
             if not site["validated"]:
                 site["kg"] = max(site["kg"], kg)
             site["members"].append(rid)
+        site["trust"] = max(site["trust"], trust)
         site["synthetic"] |= r.get("source") == "synthetic"
     return sorted(sites.values(), key=lambda s: s["id"]), ignored
 
@@ -101,11 +103,26 @@ def _group(sites: list[dict[str, Any]], max_stops: int, cell: float) -> list[dic
         groups.append({"id": sites[idx[0]]["id"] + (f"_{len(idx)}" if len(idx) > 1 else ""),
                        "lat": float((lat[idx] * w).sum() / w.sum()), "lon": float((lon[idx] * w).sum() / w.sum()),
                        "kg": float(kg[idx].sum()), "members": members,
-                       "synthetic": any(sites[i]["synthetic"] for i in idx)})
+                       "synthetic": any(sites[i]["synthetic"] for i in idx),
+                       "trust": max(sites[i]["trust"] for i in idx)})
     return groups
 
 
-def dumpsite_stops(reports: Any, cfg: dict[str, Any], net: Network
+def _split(groups: list[dict[str, Any]], capacity: float) -> list[dict[str, Any]]:
+    """Découpe un groupe plus lourd qu'un camion en arrêts au même endroit, chacun au plus égal à la capacité."""
+    if capacity <= 0:
+        return groups
+    out = []
+    for g in groups:
+        parts = max(math.ceil(g["kg"] / capacity - 1e-9), 1)
+        if parts == 1:
+            out.append(g)
+            continue
+        out += [{**g, "id": f"{g['id']}_p{n}", "kg": g["kg"] / parts} for n in range(1, parts + 1)]
+    return out
+
+
+def dumpsite_stops(reports: Any, cfg: dict[str, Any], net: Network, capacity: float = 0.0
                    ) -> tuple[list[dict[str, Any]], list[int], list[dict[str, str]], list[str]]:
     """Arrêts ponctuels (format point du contrat, type « dumpsite »), leurs nœuds camion, les écartés, les hypothèses."""
     model = cfg.get("model") if isinstance(cfg.get("model"), dict) else {}
@@ -121,17 +138,23 @@ def dumpsite_stops(reports: Any, cfg: dict[str, Any], net: Network
     groups = _group(sites, max_stops, _num(model.get("cell_size_m")) or 100.0)
     if len(groups) < len(sites):
         assumptions.append(f"{len(sites)} dépotoirs regroupés en {len(groups)} arrêts (solver.max_dumpsite_stops = {max_stops}).")
-    points, nodes = [], []
+    n_groups = len(groups)
+    groups = _split(groups, _num(capacity) or 0.0)
+    if len(groups) > n_groups:
+        assumptions.append(f"Arrêts dépotoirs plus lourds qu'un camion ({capacity:g} kg) découpés en plusieurs arrêts au même "
+                           f"endroit : {n_groups} -> {len(groups)} arrêts, chacun au plus égal à la capacité.")
+    points, nodes, unsnapped = [], [], set()
     view = net.views["truck_dry"]
     for g in groups:
         near = nearest_node(view, g["lat"], g["lon"])
         if near is None or near[1] > resnap:
             ignored += [{"report_id": m, "reason": f"Aucune route camion à moins de {resnap:g} m : non recalable."}
-                        for m in g["members"]]
+                        for m in g["members"] if m not in unsnapped]
+            unsnapped.update(g["members"])
             continue
         i = net.index_of[near[0]]
         points.append({"id": f"d_{g['id']}", "lat": round(float(net.lat[i]), 7), "lon": round(float(net.lon[i]), 7),
                        "demand_kg": round(g["kg"], 1), "access": "truck", "territory_id": None, "type": "dumpsite",
-                       "data_tag": "synthetic" if g.get("synthetic") else "estimated"})
+                       "data_tag": "synthetic" if g.get("synthetic") else "estimated", "trust": round(g["trust"], 3)})
         nodes.append(near[0])
     return points, nodes, ignored, assumptions

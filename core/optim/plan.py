@@ -21,7 +21,7 @@ from core.optim.coherence import all_ok, check_plan
 from core.optim.matrix import MatrixCache, path_length_m, straight_matrix
 from core.optim.placement import place_points
 from core.optim.dumpsites import dumpsite_stops
-from core.optim.tournees import (Fleet, improve, insert_cheapest, route_minutes, solve_greedy, solve_ortools,
+from core.optim.tournees import (Fleet, improve, insert_cheapest, insert_in_order, route_minutes, solve_greedy, solve_ortools,
                                  trim_to_budget)
 
 CONFIG_PATH = REPO_ROOT / "config" / "commune_config.json"
@@ -72,7 +72,8 @@ def _empty_plan(params: dict[str, Any], points: list[dict[str, Any]], reason: st
             "checks": {"capacity_ok": True, "budget_ok": True, "vehicles_ok": True, "network_ok": True,
                        "every_point_served_or_reported": True, "messages": []},
             "totals": {"distance_km": 0, "cost": 0, "collected_kg": 0, "budget_remaining": _num(params.get("budget"), 0),
-                       "points_served": 0, "points_unserved": len(points), "uncollected_kg": 0},
+                       "points_served": 0, "points_unserved": len(points), "uncollected_kg": 0,
+                       "trucks_needed": 0, "trucks_needed_tag": "estimated"},
             "assumptions": [], "warnings": []}
 
 
@@ -168,6 +169,46 @@ def _classify(ctx: Ctx, points: list[dict[str, Any]], nodes: list[int | None], p
     return cand, cand_nodes
 
 
+Stops = tuple[list[dict[str, Any]], list[int]]
+
+
+def _preselect(ctx: Ctx, cand: list[dict[str, Any]], cand_nodes: list[int], plan: dict[str, Any]) -> tuple[Stops, Stops]:
+    """Camions nécessaires (estimation) ; si la demande dépasse la flotte, seuls les arrêts prioritaires vont au solveur.
+
+    Renvoie (arrêts gardés, arrêts écartés rangés par priorité décroissante) ; les écartés sont déjà dans plan.unserved."""
+    trips = max(int(ctx.num("model", "truck_trips_per_day", 1)), 1)
+    cap = ctx.fleet.capacity_kg
+    total = sum(p["demand_kg"] for p in cand)
+    plan["totals"]["trucks_needed"] = math.ceil(total / (cap * trips) - 1e-9) if cap > 0 else None
+    ctx.assumptions.append(f"totals.trucks_needed (estimated) : camions qu'il faudrait pour emporter les {total / 1000:.1f} t "
+                           f"des arrêts accessibles en un passage, à {cap:g} kg × {trips} tournées par camion.")
+    fleet_kg = cap * len(ctx.fleet.vehicles)
+    if total <= fleet_kg or fleet_kg <= 0:
+        return (cand, cand_nodes), ([], [])
+    factor = ctx.num("solver", "preselect_capacity_factor", 1.2) or 1.2
+    limit = factor * fleet_kg
+    order = sorted(range(len(cand)), key=lambda i: (cand[i]["type"] != "center", -float(cand[i].get("trust") or 0.0),
+                                                    -cand[i]["demand_kg"], cand[i]["id"]))
+    keep: set[int] = set()
+    acc = 0.0
+    for i in order:
+        if acc + cand[i]["demand_kg"] > limit:
+            break
+        keep.add(i)
+        acc += cand[i]["demand_kg"]
+    for i in order[len(keep):]:
+        plan["unserved"].append({"point_id": cand[i]["id"], "reason": "capacity", "detail": (
+            f"Non présenté au solveur : la demande ({total / 1000:.1f} t) dépasse la capacité de la flotte "
+            f"({fleet_kg / 1000:.1f} t) ; arrêts prioritaires gardés jusqu'à {factor:g} fois cette capacité "
+            "(centres de regroupement, puis dépotoirs par confiance et taille décroissantes).")})
+    ctx.warnings.append(f"Demande {total / 1000:.1f} t > capacité de la flotte {fleet_kg / 1000:.1f} t : {len(keep)} arrêt(s) "
+                        f"prioritaire(s) sur {len(cand)} donnés au solveur (solver.preselect_capacity_factor = {factor:g}), "
+                        f"{len(cand) - len(keep)} non servi(s) pour capacité ; il faudrait environ "
+                        f"{plan['totals']['trucks_needed']} camion(s) (estimation).")
+    kept, rest = sorted(keep), order[len(keep):]
+    return ([cand[i] for i in kept], [cand_nodes[i] for i in kept]), ([cand[i] for i in rest], [cand_nodes[i] for i in rest])
+
+
 def _matrix(ctx: Ctx, cand_nodes: list[int]) -> tuple[np.ndarray, list[int | None], bool]:
     """Matrice dépôt + arrêts depuis le cache de la vue ; vol d'oiseau si elle est indisponible."""
     net = ctx.net
@@ -255,8 +296,34 @@ def _build(ctx: Ctx, base: dict[str, Any], routes: list[list[int]], cand: list[d
     return plan
 
 
-def _solve(ctx: Ctx, base: dict[str, Any], cand: list[dict[str, Any]], cand_nodes: list[int]) -> dict[str, Any]:
-    """Solveur complet, puis glouton si le solveur échoue ou si un contrôle est faux, puis plan vide."""
+def _fill(ctx: Ctx, base: dict[str, Any], routes: list[list[int]], cand: list[dict[str, Any]], cand_nodes: list[int],
+          dist: np.ndarray, all_nodes: list[int | None], use_network: bool, extra: Stops
+          ) -> tuple[dict[str, Any], list[list[int]], list[dict[str, Any]], list[int | None], np.ndarray, bool,
+                     dict[str, dict[str, Any]]]:
+    """Passe de remplissage : arrêts écartés par la présélection insérés par priorité, au moindre coût, là où il reste
+    capacité et durée ; un arrêt inséré quitte unserved, les autres gardent leur motif de présélection."""
+    demand = [p["demand_kg"] for p in cand]
+    room = max([ctx.fleet.capacity_kg - sum(demand[i - 1] for i in r) for r in routes] or [0.0])
+    pick = [j for j, p in enumerate(extra[0]) if p["demand_kg"] <= room + 1e-6]
+    if not pick:
+        return base, routes, cand, all_nodes, dist, use_network, {}
+    more, more_nodes = [extra[0][j] for j in pick], [extra[1][j] for j in pick]
+    dist, all_nodes, use_network = _matrix(ctx, [*cand_nodes, *more_nodes])
+    cand = cand + more
+    order = list(range(len(cand) - len(more) + 1, len(cand) + 1))
+    routes, left = insert_in_order(routes, order, dist, [p["demand_kg"] for p in cand], ctx.fleet)
+    ids = {p["id"] for p in more}
+    reasons = {u["point_id"]: u for u in base["unserved"] if u["point_id"] in ids}
+    base = {**base, "unserved": [u for u in base["unserved"] if u["point_id"] not in ids]}
+    ctx.warnings.append(f"Passe de remplissage : {len(more) - len(left)} arrêt(s) écarté(s) par la présélection inséré(s) "
+                        f"dans les tournées qui avaient encore de la place ({len(extra[0])} écarté(s), {len(more)} assez "
+                        "léger(s) pour tenir dans une tournée).")
+    return base, routes, cand, all_nodes, dist, use_network, reasons
+
+
+def _solve(ctx: Ctx, base: dict[str, Any], cand: list[dict[str, Any]], cand_nodes: list[int],
+           extra: Stops = ([], [])) -> dict[str, Any]:
+    """Solveur complet, passe de remplissage, puis glouton si le solveur échoue ou si un contrôle est faux, puis plan vide."""
     dist, all_nodes, use_network = _matrix(ctx, cand_nodes)
     demand = [p["demand_kg"] for p in cand]
     limit = ctx.num("solver", "time_limit_s", 5.0) or 5.0
@@ -265,8 +332,10 @@ def _solve(ctx: Ctx, base: dict[str, Any], cand: list[dict[str, Any]], cand_node
         ctx.warnings.append(f"Limite de sécurité du solveur atteinte ({limit:g} s, solver.time_limit_s) : "
                             "meilleure solution trouvée à ce moment, résultat possiblement non reproductible.")
     if routes is not None:
-        result = _build(ctx, base, routes, cand, all_nodes, dist, use_network)
-        result["mode"] = "optimized" if use_network else "fallback"
+        filled = _fill(ctx, base, routes, cand, cand_nodes, dist, all_nodes, use_network, extra)
+        result = _build(ctx, filled[0], filled[1], filled[2], filled[3], filled[4], filled[5], filled[6])
+        network_available = ctx.net.views[ctx.view].n_nodes > 0
+        result["mode"] = "optimized" if filled[5] and network_available else "fallback"
         if all_ok(result["checks"]):
             return result
         ctx.warnings.append("Plan du solveur incohérent : secours glouton. " + " ".join(result["checks"]["messages"]))
@@ -287,13 +356,14 @@ def _full(ctx: Ctx, reports: Any) -> dict[str, Any]:
     """Calcul complet : points de regroupement des territoires actifs + arrêts dépotoirs, puis tournées."""
     demand = building_demand(ctx.cfg, ctx.params)
     placed = place_points(ctx.net, demand, [], ctx.cfg, ctx.params)
-    dumps, dump_nodes, ignored, d_assumptions = dumpsite_stops(reports, ctx.cfg, ctx.net)
+    dumps, dump_nodes, ignored, d_assumptions = dumpsite_stops(reports, ctx.cfg, ctx.net, ctx.fleet.capacity_kg)
     ctx.warnings += demand["warnings"] + placed["warnings"]
     ctx.assumptions += demand["assumptions"] + placed["assumptions"] + d_assumptions
     points = placed["points"] + dumps
     base = _base(ctx, points, demand["uncollected_kg"], ignored)
     cand, cand_nodes = _classify(ctx, points, placed["node_ids"] + dump_nodes, base)
-    return _solve(ctx, base, cand, cand_nodes)
+    (cand, cand_nodes), extra = _preselect(ctx, cand, cand_nodes, base)
+    return _solve(ctx, base, cand, cand_nodes, extra)
 
 
 def _change_kind(prev: dict[str, Any], params: dict[str, Any], dump_ids: set[str], changed: Any) -> str:
@@ -352,11 +422,12 @@ def _partial(ctx: Ctx, prev: dict[str, Any], reports: Any, kind: str) -> dict[st
                 old_points.append(p)
                 nodes.append(node)
         ctx.assumptions.append(f"Nouveau quartier : {len(placed['points'])} point(s) placé(s) dans ce quartier seulement.")
-    dumps, dump_nodes, ignored, d_assumptions = dumpsite_stops(reports, ctx.cfg, net)
+    dumps, dump_nodes, ignored, d_assumptions = dumpsite_stops(reports, ctx.cfg, net, ctx.fleet.capacity_kg)
     ctx.assumptions += d_assumptions
     points = old_points + dumps
     base = _base(ctx, points, demand["uncollected_kg"], ignored)
     cand, cand_nodes = _classify(ctx, points, nodes + dump_nodes, base)
+    (cand, cand_nodes), _extra = _preselect(ctx, cand, cand_nodes, base)
     index = {p["id"]: i + 1 for i, p in enumerate(cand)}
     prev_routes = {r.get("vehicle"): r.get("stops", []) for r in prev.get("routes", []) if isinstance(r, dict)}
     routes = [[index[s] for s in prev_routes.get(v, []) if s in index] for v in ctx.fleet.vehicles]
@@ -375,13 +446,25 @@ def _partial(ctx: Ctx, prev: dict[str, Any], reports: Any, kind: str) -> dict[st
     ctx.assumptions.append(f"Recalcul partiel ({kind}) : tournées gardées, {len(to_insert)} arrêt(s) réinséré(s) au moindre "
                            "coût, puis amélioration locale (2-opt, déplacement d'arrêt).")
     result = _build(ctx, base, routes, cand, all_nodes, dist, use_network, reasons)
-    result["mode"] = "partial" if use_network else "fallback"
+    network_available = ctx.net.views[ctx.view].n_nodes > 0
+    result["mode"] = "partial" if use_network and network_available else "fallback"
     return result
 
 
 def _score(plan: dict[str, Any]) -> tuple[int, float]:
     """Ordre de préférence entre deux plans : moins de points non servis, puis coût le plus bas."""
     return len(plan["unserved"]), float(plan["totals"]["cost"])
+
+
+def _service_totals(plan: dict[str, Any]) -> None:
+    """Ajoute à totals la part des non-abonnés, le manque de capacité (kg) et le taux de couverture des abonnés servis."""
+    t = plan["totals"]
+    demand = {p.get("id"): float(p.get("demand_kg") or 0.0) for p in plan.get("collection_points", []) if isinstance(p, dict)}
+    shortfall = sum(demand.get(u.get("point_id"), 0.0) for u in plan.get("unserved", []) if u.get("reason") == "capacity")
+    collected = float(t.get("collected_kg") or 0.0)
+    t["demand_non_subscribers_kg"] = t.get("uncollected_kg", 0)
+    t["capacity_shortfall_kg"] = round(shortfall, 1)
+    t["coverage_rate_subscribers"] = round(collected / (collected + shortfall), 4) if collected + shortfall > 0 else None
 
 
 def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None = None, changed: dict | None = None,
@@ -394,7 +477,7 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
         plan, note = None, "Plan précédent illisible : calcul complet."
         if isinstance(previous_plan, dict) and isinstance(previous_plan.get("collection_points"), list):
             ctx = _setup(params, cfg, net, cache)
-            dump_ids = {p["id"] for p in dumpsite_stops(reports, cfg, net)[0]}
+            dump_ids = {p["id"] for p in dumpsite_stops(reports, cfg, net, ctx.fleet.capacity_kg)[0]}
             try:
                 kind = _change_kind(previous_plan, ctx.params, dump_ids, changed)
             except Exception:  # plan précédent mal formé : calcul complet
@@ -427,5 +510,6 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
         plan["ignored_reports"] = []
         plan["warnings"] = [f"Erreur interne, plan vide : {type(exc).__name__}: {exc}"]
         plan["checks"]["messages"] = [traceback.format_exc(limit=3)]
+    _service_totals(plan)
     plan["compute_ms"] = round((time.perf_counter() - t0) * 1000)
     return plan

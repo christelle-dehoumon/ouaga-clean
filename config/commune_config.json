@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "note": "Toutes les valeurs ci-dessous sont des HYPOTHESES de travail tant que la mairie ou les organisateurs ne les ont pas confirmees. Elles sont modifiables sans toucher au code.",
+    "data_tag": "estimated"
+  },
+  "commune": "Ouagadougou",
+  "place_query": "Ouagadougou, Burkina Faso",
+  "bbox": {"west": -1.68, "south": 12.25, "east": -1.40, "north": 12.48, "_note": "emprise approximative, a verifier sur la carte"},
+  "depot": {"lat": null, "lon": null, "_note": "point de depart et de retour des camions ; si null, le code prend le noeud routier le plus central et l'ecrit dans plan.assumptions"},
+  "paths": {
+    "raw_dir": "data/raw",
+    "processed_dir": "data/processed",
+    "mock_dir": "data/mock",
+    "territories": "data/processed/territories.geojson",
+    "flood_zones": "data/processed/flood_zones.geojson",
+    "waterways": "data/processed/waterways.geojson"
+  },
+  "params": {
+    "population": 3000000,
+    "subscription_rate": 0.4,
+    "trucks": 10,
+    "truck_capacity_kg": 5000,
+    "tricycles": 20,
+    "tricycle_capacity_kg": 400,
+    "frequency_per_week": 3,
+    "budget": 10000000,
+    "rainy_season": false,
+    "broken_trucks": [],
+    "extra_territories": []
+  },
+  "model": {
+    "waste_kg_per_person_day": 0.6,
+    "persons_per_building": 6,
+    "precollect_radius_m": 1500,
+    "walk_coverage_target": 0.9,
+    "_precollect_note": "HYPOTHESE : un point de regroupement est un centre ou les pre-collecteurs (charrettes, tricycles prives) deposent les dechets des menages abonnes a moins de precollect_radius_m ; les camions le vident.",
+    "truck_trips_per_day": 3,
+    "_trips_note": "HYPOTHESE : chaque camion fait truck_trips_per_day tournees par jour, chacune part du depot et y revient, duree <= shift_minutes / truck_trips_per_day.",
+    "cell_size_m": 100,
+    "_cell_note": "Reglage de calcul : les batiments sont agreges par cellule de cell_size_m (centre pondere) avant KMeans.",
+    "pilot_territory_ids": ["pilot"],
+    "pilot_square_m": 5000,
+    "resnap_max_m": 300,
+    "_resnap_note": "HYPOTHESE : un arret dont le noeud est coupe (pluie) ou un depotoir est recale sur le noeud camion praticable le plus proche s il est a moins de resnap_max_m ; sinon non servi (access) ou signalement ignore.",
+    "_pilot_note": "HYPOTHESE : le fichier OSM ne contient ni arrondissement ni secteur ; le territoire pilote est un carre de pilot_square_m de cote centre sur la commune. Territoires actifs = pilot_territory_ids + params.extra_territories.",
+    "cost_per_km_truck": 1500,
+    "cost_per_km_tricycle": 300,
+    "truck_speed_kmh": 25,
+    "tricycle_speed_kmh": 12,
+    "service_min_per_stop": 10,
+    "shift_minutes": 480,
+    "dumpsite_kg_by_size": {"small": 200, "medium": 800, "large": 3000}
+  },
+  "network": {
+    "truck_highways": ["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential"],
+    "tricycle_extra_highways": ["service", "track", "living_street", "path"],
+    "unpaved_surfaces": ["unpaved", "dirt", "earth", "ground", "sand", "mud", "gravel", "compacted"],
+    "unknown_surface_is_paved_for": ["motorway", "trunk", "primary", "secondary"],
+    "straight_line_factor": 1.4,
+    "rain_unpaved_factor": 2.5,
+    "flood_buffer_m": 30,
+    "flood_waterway_types": ["river", "stream", "canal"],
+    "_rain_note": "HYPOTHESES de travail, non mesurees : en pluie, le poids d'une voie non revetue (ou de revetement inconnu hors grands axes) est multiplie par rain_unpaved_factor ; une voie est coupee si ford ou flood_prone, si son milieu est a moins de flood_buffer_m d'un cours d'eau de type flood_waterway_types (drain et ditch exclus : souvent des caniveaux le long des rues) (sauf pont ou tunnel), ou si elle coupe un polygone de flood_zones."
+  },
+  "solver": {
+    "time_limit_s": 5,
+    "max_collection_points": 120,
+    "max_dumpsite_stops": 60,
+    "_dumpsite_note": "HYPOTHESE : au-dela de max_dumpsite_stops depotoirs valides, ils sont regroupes par cellule (taille doublee depuis model.cell_size_m jusqu a passer sous le seuil).",
+    "min_collection_points": 5,
+    "preselect_capacity_factor": 1.2,
+    "_preselect_note": "HYPOTHESE : si la demande depasse la capacite de la flotte sur le passage, seuls les arrets prioritaires (centres, puis depotoirs par confiance puis taille decroissantes) jusqu a ce facteur fois la capacite vont au solveur ; les autres sont non servis (capacity)."
+  }
+}

@@ -68,13 +68,14 @@ SAFE_DEFAULTS: dict[str, Any] = {
         "max_collection_points": 60,
         "max_dumpsite_stops": 60,
         "min_collection_points": 1,
+        "preselect_capacity_factor": 1.2,
     },
 }
 
 # Clés numériques qui doivent être strictement positives (zéro n'a pas de sens physique).
 STRICTLY_POSITIVE: frozenset[str] = frozenset({
     "model.persons_per_building", "model.precollect_radius_m", "model.truck_trips_per_day", "model.cell_size_m",
-    "model.pilot_square_m", "model.resnap_max_m", "solver.max_dumpsite_stops", "model.truck_speed_kmh", "model.tricycle_speed_kmh",
+    "model.pilot_square_m", "model.resnap_max_m", "solver.max_dumpsite_stops", "solver.preselect_capacity_factor", "model.truck_speed_kmh", "model.tricycle_speed_kmh",
     "model.shift_minutes", "network.straight_line_factor", "network.rain_unpaved_factor", "solver.time_limit_s",
     "solver.max_collection_points", "solver.min_collection_points", "params.frequency_per_week",
 })

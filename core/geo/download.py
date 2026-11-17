@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import math
 import pickle
@@ -70,10 +71,21 @@ def _with_retry(label: str, fn: Callable[[], T]) -> T | None:
     return None
 
 
+OSMNX_MIN = "2.0"         # simplify_graph(node_attrs_include=...) n'existe qu'à partir d'OSMnx 2.0 (absent en 1.9.4)
+
+
+def check_osmnx(ox: Any) -> None:
+    """Lève une erreur claire si l'OSMnx installé n'accepte pas simplify_graph(node_attrs_include=...)."""
+    if "node_attrs_include" not in inspect.signature(ox.simplify_graph).parameters:
+        raise RuntimeError(f"Version d'OSMnx incompatible ({getattr(ox, '__version__', '?')} installée), attendu >= {OSMNX_MIN} : "
+                           "simplify_graph n'accepte pas node_attrs_include. Installer requirements.txt.")
+
+
 def _configure_osmnx(cache_dir: Path) -> Any:
-    """Importe osmnx et règle le cache disque et les délais."""
+    """Importe osmnx (version vérifiée) et règle le cache disque et les délais."""
     import osmnx as ox
 
+    check_osmnx(ox)
     ox.settings.use_cache = True
     ox.settings.cache_folder = str(cache_dir)
     ox.settings.requests_timeout = REQUEST_TIMEOUT_S
@@ -131,6 +143,7 @@ def roads_from_xml(xml_path: Path) -> Any:
     """Graphe routier osmnx construit depuis un fichier OSM XML local, balises de pluie gardées."""
     import osmnx as ox
 
+    check_osmnx(ox)
     _keep_road_tags(ox)
     graph = ox.graph_from_xml(xml_path, simplify=False, retain_all=True)
     return ox.simplify_graph(graph, node_attrs_include=list(ROAD_NODE_TAGS))

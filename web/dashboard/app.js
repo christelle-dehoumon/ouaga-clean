@@ -200,6 +200,7 @@ function afficherResultat(r) {
     ? '—' : nombreFr(r.cout_m_fcfa, 2) + ' M FCFA';
   $('k-depots').textContent = r.depotoirs_restants === null || r.depotoirs_restants === undefined
     ? '—' : String(r.depotoirs_restants);
+  $('k-depots').title = r.unite_depotoirs_restants || 'proxy : ménages synthétiques';
   rendreActeurs(r);
   rendreJournal(r);
   rendreSeries(r);

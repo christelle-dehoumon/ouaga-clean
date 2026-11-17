@@ -23,7 +23,7 @@ header h1{font-size:18px}
 .btn-rouge{background:var(--rouge);color:#fff}
 .btn-vert{background:var(--vert);color:#fff}
 .btn-ghost{background:#fff;border:1px solid var(--bord)}
-.pill{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.pill{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 .pill-vert{background:#e6f7ed;color:var(--vert-f)}
 .pill-rouge{background:#fde8e8;color:var(--rouge-f)}
 .pill-jaune{background:#fff6cc;color:var(--jaune-f)}
@@ -33,6 +33,17 @@ header h1{font-size:18px}
 .slider label{font-size:12px;color:var(--muted)}
 .slider input{width:100%}
 .change{padding:8px;border-left:3px solid var(--vert);background:var(--fond);border-radius:6px;margin-top:6px;font-size:13px}
+
+/* Jeu d'icônes SVG maison : une seule graisse, une seule palette, zéro CDN.
+   Les icônes héritent de la couleur du bouton ou du badge qui les contient. */
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+.ic{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ic-sm{width:14px;height:14px;stroke-width:2}
+.ic-lg{width:25px;height:25px;stroke-width:1.7}
+.logo-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#e6f4ea;color:#006B36;box-shadow:inset 0 0 0 1px #cfe8d6}
+.ic-warn{color:#A16207;vertical-align:-3px;margin-right:3px}
+.legend-ic{width:15px;height:15px;flex:none;vertical-align:-3px;margin-right:2px}
+.pill-rouge .legend-ic{color:#A33A32}.pill-vert .legend-ic{color:#0A7A35}.pill-jaune .legend-ic{color:#8A6D16}
 
 .btn{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
 .btn:hover{transform:translateY(-2px);filter:brightness(.95);box-shadow:0 4px 10px #0002}
@@ -79,12 +90,59 @@ body>*{position:relative;z-index:1}
 </style>
 </head>
 <body>
+<!-- Bibliothèque d'icônes locale : mêmes traits arrondis, couleur héritée, aucun réseau. -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-bin-leaf" viewBox="0 0 24 24">
+    <path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13h10l1-13"/>
+    <path d="M12 11.5c2.2 0 3.5-1.3 3.5-3.5C12.3 8 11 9.3 11 11.5c0 .3 0 .6.1.9"/><path d="M10 16c0-1 .7-1.8 1.7-2"/>
+  </symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24">
+    <rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10 5h4"/><path d="M11 18.5h2"/>
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <path d="M21 12a9 9 0 1 1-6.2-8.6"/><path d="M21 3v6h-6"/>
+  </symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24">
+    <path d="M3 6h11v10H3z"/><path d="M14 9h3.5L21 12.5V16h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/>
+  </symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24">
+    <path d="M7 15a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 18 15H7z"/><path d="M8 18.5 7 21"/><path d="M13 18.5 12 21"/><path d="M18 18.5 17 21"/>
+  </symbol>
+  <symbol id="i-quartier" viewBox="0 0 24 24">
+    <path d="M2.5 21h19"/><path d="M3 21V10l5-3.5 5 3.5v11"/><path d="M13 21V12l4-2.5 4 2.5v9"/>
+    <path d="M5.5 13h1"/><path d="M9.5 13h1"/><path d="M5.5 16.5h1"/><path d="M9.5 16.5h1"/><path d="M16 15h1"/><path d="M19 15h1"/>
+  </symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24">
+    <path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/>
+  </symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24">
+    <path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7 15h10"/>
+  </symbol>
+  <symbol id="i-play" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="i-file" viewBox="0 0 24 24">
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>
+  </symbol>
+  <symbol id="i-shield-check" viewBox="0 0 24 24">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24">
+    <path d="M10.3 3.9 2.6 17.3a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+  </symbol>
+  <symbol id="i-bike" viewBox="0 0 24 24">
+    <circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M5.5 17 10 9h4l4.5 8"/><path d="M9 9h6"/><path d="M12 9 10.5 17"/>
+  </symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24">
+    <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>
+  </symbol>
+</svg>
 <header>
-  <span aria-hidden="true">♻️</span><h1>Ouaga Clean</h1>
+  <span class="logo-mark"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-bin-leaf"/></svg></span><h1>Ouaga Clean</h1>
   <span class="badge">Tableau de bord mairie — 80%</span>
   <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
     <span class="muted" style="font-size:12px">L'outil éclaire, la mairie décide.</span>
-    <a href="/citizen" class="btn btn-ghost">📱 Page citoyenne</a>
+    <a href="/citizen" class="btn btn-ghost"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg>Page citoyenne</a>
     <a href="/docs" class="btn btn-ghost">API</a>
   </span>
 </header>
@@ -103,24 +161,24 @@ body>*{position:relative;z-index:1}
         <label>Fréquence camions <b id="v-fc">3/sem</b></label><input type="range" id="fc" min="1" max="7" step="1" value="3">
         <label>Budget <b id="v-bud">1 200 M</b></label><input type="range" id="bud" min="400" max="2500" step="100" value="1200">
       </div>
-      <button class="btn btn-vert" style="width:100%;margin-top:10px;justify-content:center" onclick="recalculer()">🔄 Recalculer le plan</button>
+      <button class="btn btn-vert" style="width:100%;margin-top:10px;justify-content:center" onclick="recalculer()"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Recalculer le plan</button>
       <div id="chrono" class="muted" style="text-align:center;margin-top:6px;font-size:12px"></div>
     </div>
 
     <div class="card" style="margin-top:12px">
       <h2>Crises (épreuve en direct)</h2>
-      <button class="btn btn-rouge btn-crise" onclick="crise('panne_camions')">🚚 Panne de camions (−3)</button>
-      <button class="btn btn-rouge btn-crise" onclick="crise('saison_pluies')">🌧️ Saison des pluies (−1 passage)</button>
-      <button class="btn btn-vert btn-crise" onclick="crise('nouveau_quartier')">🏘️ Nouveau quartier (Saaba)</button>
-      <button class="btn btn-ghost btn-crise" onclick="resetCrises()">↩️ Réinitialiser les crises</button>
+      <button class="btn btn-rouge btn-crise" onclick="crise('panne_camions')"><svg class="ic" aria-hidden="true"><use href="#i-truck"/></svg>Panne de camions (−3)</button>
+      <button class="btn btn-rouge btn-crise" onclick="crise('saison_pluies')"><svg class="ic" aria-hidden="true"><use href="#i-rain"/></svg>Saison des pluies (−1 passage)</button>
+      <button class="btn btn-vert btn-crise" onclick="crise('nouveau_quartier')"><svg class="ic" aria-hidden="true"><use href="#i-quartier"/></svg>Nouveau quartier (Saaba)</button>
+      <button class="btn btn-ghost btn-crise" onclick="resetCrises()"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg>Réinitialiser les crises</button>
       <p class="muted" style="font-size:11px;margin-top:6px">Chaque crise change les paramètres, relance le plan et la simulation. Chronomètre visible.</p>
     </div>
 
     <div class="card" style="margin-top:12px">
       <h2>Signalements (tri automatique)</h2>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost" style="flex:1" onclick="chargerSignalements()">🔄 Actualiser</button>
-        <button class="btn btn-ghost" onclick="injecterPieges()">🧪 Injecter pièges (jury)</button>
+        <button class="btn btn-ghost" style="flex:1" onclick="chargerSignalements()"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Actualiser</button>
+        <button class="btn btn-ghost" onclick="injecterPieges()"><svg class="ic" aria-hidden="true"><use href="#i-flask"/></svg>Injecter pièges (jury)</button>
       </div>
       <div id="statsSig" style="margin-top:8px"></div>
     </div>
@@ -134,7 +192,7 @@ body>*{position:relative;z-index:1}
     </div>
     <div id="map"></div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-      <span class="pill pill-rouge">● Camions (goudron)</span><span class="pill pill-vert">● Tricycles (pistes)</span><span class="pill pill-jaune">● En attente</span>
+      <span class="pill pill-rouge"><svg class="ic legend-ic" aria-hidden="true"><use href="#i-truck"/></svg>Camions (goudron)</span><span class="pill pill-vert"><svg class="ic legend-ic" aria-hidden="true"><use href="#i-bike"/></svg>Tricycles (pistes)</span><span class="pill pill-jaune"><svg class="ic legend-ic" aria-hidden="true"><use href="#i-pin"/></svg>En attente</span>
     </div>
   </div>
 
@@ -149,7 +207,7 @@ body>*{position:relative;z-index:1}
         <div><div class="muted" style="font-size:11px">Part ramassée (sim)</div><b id="k-part">—</b></div>
       </div>
       <canvas id="courbes" width="340" height="120" style="width:100%;margin-top:10px;background:var(--fond);border-radius:8px"></canvas>
-      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="simulerPlan()">▶️ Lancer la simulation (Mesa)</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="simulerPlan()"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Lancer la simulation (Mesa)</button>
       <div id="simOut" class="muted" style="font-size:12px;margin-top:6px"></div>
     </div>
 
@@ -167,7 +225,7 @@ body>*{position:relative;z-index:1}
     <div class="card" style="margin-top:12px">
       <h2>Historique des scénarios</h2>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost" style="flex:1" onclick="chargerHistorique()">🔄 Actualiser l'historique</button>
+        <button class="btn btn-ghost" style="flex:1" onclick="chargerHistorique()"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Actualiser l'historique</button>
       </div>
       <div id="historique" class="muted" style="font-size:12px;margin-top:8px;max-height:210px;overflow:auto">Chargement…</div>
       <p class="muted" style="font-size:11px;margin-top:6px">Chaque calcul est enregistré avec ses paramètres. Choisis deux entrées pour les comparer.</p>
@@ -176,8 +234,8 @@ body>*{position:relative;z-index:1}
     <div class="card" style="margin-top:12px">
       <h2>Ce qui a changé dans le plan</h2>
       <div id="changements" class="muted">En attente du premier calcul…</div>
-      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="exportOsm()">📄 Export OSM (fichier)</button>
-      <button class="btn btn-vert" style="width:100%;margin-top:8px" onclick="validerPlan()">✅ Valider ce plan</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="exportOsm()"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg>Export OSM (fichier)</button>
+      <button class="btn btn-vert" style="width:100%;margin-top:8px" onclick="validerPlan()"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg>Valider ce plan</button>
     </div>
   </div>
 </div>
@@ -186,6 +244,8 @@ body>*{position:relative;z-index:1}
 
 <script>
 const API=location.origin;
+// Icônes injectées dans le HTML dynamique (même jeu que les boutons statiques).
+const ico=(nom,classe='')=>`<svg class="ic ${classe}" aria-hidden="true"><use href="#${nom}"></use></svg>`;
 let crisesActives=[];
 let dernierPlan=null, planA=null, planB=null;
 let scenariosHistorique=[];
@@ -250,7 +310,7 @@ function majBandeau(plan){
   const coh=plan.coherence;
   if(coh && (!coh.capacite_ok || !coh.budget_ok)){
     el.style.display='block';
-    el.innerHTML+=(coh.capacite_ok?'':'<br>⚠️ Capacité dépassée — ajouter un PR ou un camion') + (coh.budget_ok?'':'<br>⚠️ Budget dépassé');
+    el.innerHTML+=(coh.capacite_ok?'':'<br>'+ico('i-alert','ic-warn')+'Capacité dépassée — ajouter un PR ou un camion') + (coh.budget_ok?'':'<br>'+ico('i-alert','ic-warn')+'Budget dépassé');
   }
 }
 
@@ -408,7 +468,7 @@ function choisirScenario(id, which){
 }
 async function exportOsm(){
   const r=await fetch(API+'/api/exports/osm'); const j=await r.json();
-  alert(`Export : ${j.fichier} — ${j.nb_noeuds} nœuds. ${j.message}\n\n⚠️ Aucun envoi auto — à verser manuellement dans JOSM.`);
+  alert(`Export : ${j.fichier} — ${j.nb_noeuds} nœuds. ${j.message}\n\nAttention : aucun envoi auto — à verser manuellement dans JOSM.`);
 }
 async function validerPlan(){
   if(!dernierPlan){ alert('Rien à valider'); return; }

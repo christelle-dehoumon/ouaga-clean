@@ -328,10 +328,93 @@ def simuler(
 # ---------------------------------------------------------------------------
 # Fonctions partagées du contrat (docs/contracts.md §6)
 # ---------------------------------------------------------------------------
-def run_scenario(params: dict[str, Any] | None, plan: dict[str, Any] | None, days: int) -> dict[str, Any]:
-    """Lance un scénario. Le plan est obligatoire dans le contrat ; la fonction ne lève jamais."""
+def _scenario_id() -> str:
+    return "s_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + uuid.uuid4().hex[:6]
+
+
+def _repli(exc: Exception | None = None) -> dict[str, Any]:
+    """Dernier état valide connu, toujours marqué « simulé » et jamais d'exception."""
+    sortie: dict[str, Any] = {
+        "part_ramassee": 0.0,
+        "cout_m_fcfa": 0.0,
+        "depotoirs_restants": 0,
+        "jours": 1,
+        "days": 1,
+        "moteur": MOTEUR,
+        "unite_depotoirs_restants": "ménages synthétiques (proxy)",
+        "menages_synthetiques": 0,
+        "crises_actives": [],
+        "graine": 0,
+        "agents": [dict(a) for a in AGENTS],
+        "fonction": "run_scenario",
+        "source_plan": "indisponible",
+        "data_tag": "simulated",
+        "series": [],
+        "agent_states": [],
+        "events": [],
+    }
+    if exc is not None:
+        sortie["warnings"] = [f"Simulation de repli : {type(exc).__name__} — {exc}"]
+    return sortie
+
+
+def run_scenario(
+    params: dict[str, Any] | None = None,
+    plan: dict[str, Any] | int | None = None,
+    days: int | dict[str, bool] | None = None,
+    actors_enabled: dict[str, bool] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Lance un scénario et ne lève jamais d'exception vers l'appelant.
+
+    Deux signatures sont acceptées :
+    * historique (contrat §6) : ``run_scenario(params, plan, days)`` ;
+    * étendue (démo acteurs)  : ``run_scenario(params, days, actors_enabled)``.
+
+    La détection repose sur le type du 2ᵉ argument positionnel : un dictionnaire
+    est un plan (ancienne signature), un nombre est le nombre de jours (nouvelle).
+    """
     try:
-        parametres = params if isinstance(params, dict) else {}
+        parametres = dict(params) if isinstance(params, dict) else {}
+        nouveaux_acteurs = (
+            actors_enabled is not None
+            or isinstance(days, dict)
+            or (plan is not None and not isinstance(plan, dict))
+        )
+
+        if nouveaux_acteurs:
+            # --- Nouvelle signature : jours + drapeaux d'acteurs -------------
+            if isinstance(days, dict):
+                # run_scenario(params, 7, {"brigade": False})
+                acteurs = days
+                jours_bruts = plan
+            else:
+                acteurs = actors_enabled
+                jours_bruts = plan if (plan is not None and not isinstance(plan, dict)) else days
+            if isinstance(plan, dict):  # plan explicite fourni en plus des acteurs
+                parametres["plan"] = plan
+            if "actors_enabled" in kwargs and isinstance(kwargs["actors_enabled"], dict):
+                acteurs = kwargs["actors_enabled"]
+            try:
+                duree = max(1, int(jours_bruts))
+            except (TypeError, ValueError):
+                duree = 7
+            try:
+                graine = int(parametres.get("graine", parametres.get("seed", 42)))
+            except (TypeError, ValueError):
+                graine = 42
+
+            from .actors import executer  # import différé : évite tout cycle
+
+            resultat = executer(parametres, duree, acteurs, graine)
+            resultat.update({
+                "scenario_id": _scenario_id(),
+                "plan_id": (parametres.get("plan") or {}).get("plan_id")
+                if isinstance(parametres.get("plan"), dict) else None,
+            })
+            return resultat
+
+        # --- Signature historique : plan + jours ---------------------------
         try:
             duree = max(1, int(days))
         except (TypeError, ValueError):
@@ -341,39 +424,32 @@ def run_scenario(params: dict[str, Any] | None, plan: dict[str, Any] | None, day
         except (TypeError, ValueError):
             graine = 42
 
-        resultat = simuler(plan, parametres, _config_defaut(), jours=duree, seed=graine)
+        plan_dict = plan if isinstance(plan, dict) else None
+        resultat = simuler(plan_dict, parametres, _config_defaut(), jours=duree, seed=graine)
         resultat.update({
             "fonction": "run_scenario",
-            "scenario_id": "s_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + uuid.uuid4().hex[:6],
-            "plan_id": (plan or {}).get("id") or (plan or {}).get("plan_id"),
+            "scenario_id": _scenario_id(),
+            "plan_id": (plan_dict or {}).get("id") or (plan_dict or {}).get("plan_id"),
             "params_used": parametres,
             "days": duree,
             "source_plan": "plan fourni par A",
+            "data_tag": "simulated",
         })
         return resultat
     except Exception as exc:  # règle commune : jamais d'exception vers l'appelant
-        return {
-            "part_ramassee": 0.0,
-            "cout_m_fcfa": 0.0,
-            "depotoirs_restants": 0,
-            "jours": 1,
-            "moteur": MOTEUR,
-            "unite_depotoirs_restants": "ménages synthétiques (proxy)",
-            "menages_synthetiques": 0,
-            "crises_actives": [],
-            "graine": 0,
-            "agents": [dict(a) for a in AGENTS],
-            "fonction": "run_scenario",
-            "source_plan": "indisponible",
-            "warnings": [f"Simulation de repli : {type(exc).__name__} — {exc}"],
-        }
+        return _repli(exc)
 
 
-def run_simulation(params: dict[str, Any] | None = None, days: int = 7) -> dict[str, Any]:
-    """Signature demandée dans le message d'équipe.
+def run_simulation(
+    params: dict[str, Any] | None = None,
+    days: int = 7,
+    actors_enabled: dict[str, bool] | None = None,
+) -> dict[str, Any]:
+    """Signature du message d'équipe, avec support optionnel des acteurs.
 
-    Le contrat rendant le plan obligatoire, on utilise `params["plan"]` s'il est
-    fourni, sinon le plan de référence local, explicitement étiqueté.
+    Sans ``actors_enabled``, le comportement historique est conservé (le même
+    calcul que ``run_scenario(params, plan, days)`` avec le plan de référence),
+    ce qui garantit l'égalité attendue par les tests du contrat.
     """
     parametres = params if isinstance(params, dict) else {}
     plan = parametres.get("plan")
@@ -381,7 +457,13 @@ def run_simulation(params: dict[str, Any] | None = None, days: int = 7) -> dict[
     if not isinstance(plan, dict):
         plan = _plan_reference()
         source = "plan de référence simulé (mock local)"
-    resultat = run_scenario(parametres, plan, days)
+    if actors_enabled is None:
+        resultat = run_scenario(parametres, plan, days)
+    else:
+        avec_plan = dict(parametres)
+        avec_plan["plan"] = plan
+        resultat = run_scenario(avec_plan, days, actors_enabled)
+        resultat["source_plan"] = source
     resultat["fonction"] = "run_simulation"
     resultat["source_plan"] = source
     return resultat

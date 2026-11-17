@@ -14,23 +14,46 @@ from .model import (
     run_simulation,
     simuler,
 )
+from .actors import (
+    ACTIFS_PAR_DEFAUT,
+    NOMS_ACTEURS,
+    Brigade as BrigadeActive,
+    Foyer,
+    Mairie as MairieActive,
+    PreCollecteur as PreCollecteurActif,
+    SimulationActeurs,
+    executer,
+)
+from .hypotheses import DEFAUTS_C, charger_configuration, hypotheses, valeur
 from .scenarios import HistoriqueScenarios, comparer, resumer
 
 __all__ = [
     "AGENTS",
+    "ACTIFS_PAR_DEFAUT",
     "Brigade",
+    "BrigadeActive",
     "BrigadeLaabal",
+    "DEFAUTS_C",
+    "Foyer",
+    "HistoriqueScenarios",
     "Menage",
     "Menages",
     "Mairie",
+    "MairieActive",
     "Municipalite",
+    "NOMS_ACTEURS",
     "OuagaModel",
     "PreCollecteur",
+    "PreCollecteurActif",
     "PreCollecteurs",
-    "HistoriqueScenarios",
+    "SimulationActeurs",
+    "charger_configuration",
     "comparer",
+    "executer",
+    "hypotheses",
     "resumer",
     "run_scenario",
     "run_simulation",
     "simuler",
+    "valeur",
 ]

@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-:root{--vert:#009E49;--vert-f:#007A38;--rouge:#EF2B2D;--rouge-f:#B21E23;--jaune:#FCD116;--jaune-f:#6B5200;--fond:#F7F6F2;--texte:#1a1a1a;--muted:#6b7280;--bord:#e5e7eb}
+:root{--vert:#637A77;--vert-f:#405B57;--rouge:#966F68;--rouge-f:#76534D;--jaune:#B9A16A;--jaune-f:#65583C;--fond:#F5F3EE;--texte:#27323A;--muted:#74808A;--bord:#E5E0D7}
 *{box-sizing:border-box;margin:0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--fond);color:var(--texte);line-height:1.5}
 header{background:#fff;border-bottom:1px solid var(--bord);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -37,7 +37,46 @@ header h1{font-size:18px}
 .btn{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
 .btn:hover{transform:translateY(-2px);filter:brightness(.95);box-shadow:0 4px 10px #0002}
 .btn:active{transform:translateY(1px) scale(.98);filter:brightness(.88)}
-\n</style>
+.btn:focus-visible{outline:2px solid var(--jaune-f);outline-offset:2px}
+
+/* Bandeau de filtres Ouaga Clean — CSS seulement, sans bibliothèque ajoutée */
+.slider{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+@media (min-width:1101px){
+  .layout{grid-template-columns:270px minmax(0,1fr) 330px;grid-template-rows:auto auto minmax(0,1fr);align-items:start}
+  .layout>div:first-child{display:contents}
+  .layout>div:first-child>.card:first-child{grid-column:1/-1;grid-row:1}
+  .layout>div:first-child>.card:nth-child(2){grid-column:1;grid-row:2}
+  .layout>div:first-child>.card:nth-child(3){grid-column:1;grid-row:3}
+  .layout>.card{grid-column:2;grid-row:2/4}
+  .layout>div:nth-child(3){grid-column:3;grid-row:2/4}
+  .slider{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-areas:"p1 p2 p3 p4 p5" "r1 r2 r3 r4 r5";gap:8px 14px}
+  .slider label{display:flex;justify-content:space-between;gap:5px;padding:8px;border-radius:8px;background:#f5f3ee}
+  .slider label:nth-child(1){grid-area:p1}.slider input:nth-child(2){grid-area:r1}
+  .slider label:nth-child(3){grid-area:p2}.slider input:nth-child(4){grid-area:r2}
+  .slider label:nth-child(5){grid-area:p3}.slider input:nth-child(6){grid-area:r3}
+  .slider label:nth-child(7){grid-area:p4}.slider input:nth-child(8){grid-area:r4}
+  .slider label:nth-child(9){grid-area:p5}.slider input:nth-child(10){grid-area:r5}
+  .slider input{width:100%;accent-color:#637A77}
+}
+.card{background:rgba(255,254,250,.94)}
+header{background:rgba(255,254,250,.97)}
+
+/* Étoile du Burkina en filigrane */
+body::before{content:"";position:fixed;z-index:0;pointer-events:none;width:clamp(190px,34vw,400px);aspect-ratio:1;right:-95px;top:100px;background:rgba(184,155,94,.22);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+body>*{position:relative;z-index:1}
+
+/* Filtres horizontaux dès 700px */
+@media (min-width:700px) and (max-width:1100px){
+  .slider{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-areas:"p1 p2 p3 p4 p5" "r1 r2 r3 r4 r5";gap:8px}
+  .slider label{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:7px;background:#f5f3ee;border-radius:8px;font-size:11px}
+  .slider input{width:100%;min-width:0;margin:0;accent-color:#637A77}
+  .slider label:nth-child(1){grid-area:p1}.slider input:nth-child(2){grid-area:r1}
+  .slider label:nth-child(3){grid-area:p2}.slider input:nth-child(4){grid-area:r2}
+  .slider label:nth-child(5){grid-area:p3}.slider input:nth-child(6){grid-area:r3}
+  .slider label:nth-child(7){grid-area:p4}.slider input:nth-child(8){grid-area:r4}
+  .slider label:nth-child(9){grid-area:p5}.slider input:nth-child(10){grid-area:r5}
+}
+</style>
 </head>
 <body>
 <header>
@@ -120,7 +159,8 @@ header h1{font-size:18px}
         <button class="btn btn-ghost" style="flex:1" onclick="figer('A')">Mémoriser le scénario A</button>
         <button class="btn btn-ghost" style="flex:1" onclick="figer('B')">Mémoriser le scénario B</button>
       </div>
-      <p class="muted" style="margin-top:6px">Calcule un plan et mémorise-le en A. Change les paramètres, recalcule, puis mémorise le second en B pour comparer.</p>\n      <div id="ab" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
+      <p class="muted" style="margin-top:6px">Calcule un plan et mémorise-le en A. Change les paramètres, recalcule, puis mémorise le second en B pour comparer.</p>
+      <div id="ab" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
       <div id="diff" class="muted" style="font-size:12px;margin-top:6px"></div>
     </div>
 
@@ -139,9 +179,16 @@ header h1{font-size:18px}
 const API=location.origin;
 let crisesActives=[];
 let dernierPlan=null, planA=null, planB=null;
-let map=L.map('map').setView([12.3615,-1.5283],12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
-let couches=L.layerGroup().addTo(map);
+let map=null, couches=null;
+// La démo doit rester utilisable sans accès aux tuiles : si Leaflet n'est pas
+// chargé, l'API, les indicateurs et les boutons continuent de fonctionner.
+if(typeof L!=='undefined'){
+  try{
+    map=L.map('map').setView([12.3615,-1.5283],12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+    couches=L.layerGroup().addTo(map);
+  }catch(e){ console.warn('Carte indisponible, indicateurs conservés:',e); }
+} else { console.warn('Leaflet absent (hors-ligne) : carte désactivée, indicateurs actifs.'); }
 
 // sliders
 for(const [id,fmt] of [['pop',v=>Number(v).toLocaleString('fr-FR')], ['abo',v=>v+'%'], ['cam',v=>v], ['fc',v=>v+'/sem'], ['bud',v=>v+' M']]){
@@ -197,6 +244,12 @@ function majBandeau(plan){
 }
 
 function majCarte(plan){
+  const setMode=()=>{
+    const mode=String(plan.mode||'—');
+    document.getElementById('modePlan').textContent=mode;
+    document.getElementById('modePlan').className='pill '+(mode.includes('secours')||mode.includes('dégradé')?'pill-rouge':'pill-vert');
+  };
+  if(!couches){ setMode(); return; }
   couches.clearLayers();
   // PR
   for(const pr of plan.points_regroupement){
@@ -222,8 +275,7 @@ function majCarte(plan){
       L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#FCD116', color:'#333', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · à vérifier`);
     }
   });
-  document.getElementById('modePlan').textContent=plan.mode;
-  document.getElementById('modePlan').className='pill '+(plan.mode.includes('secours')||plan.mode.includes('dégradé')?'pill-rouge':'pill-vert');
+  setMode();
 }
 
 function majKpi(plan){

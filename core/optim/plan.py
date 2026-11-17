@@ -454,6 +454,17 @@ def _score(plan: dict[str, Any]) -> tuple[int, float]:
     return len(plan["unserved"]), float(plan["totals"]["cost"])
 
 
+def _service_totals(plan: dict[str, Any]) -> None:
+    """Ajoute à totals la part des non-abonnés, le manque de capacité (kg) et le taux de couverture des abonnés servis."""
+    t = plan["totals"]
+    demand = {p.get("id"): float(p.get("demand_kg") or 0.0) for p in plan.get("collection_points", []) if isinstance(p, dict)}
+    shortfall = sum(demand.get(u.get("point_id"), 0.0) for u in plan.get("unserved", []) if u.get("reason") == "capacity")
+    collected = float(t.get("collected_kg") or 0.0)
+    t["demand_non_subscribers_kg"] = t.get("uncollected_kg", 0)
+    t["capacity_shortfall_kg"] = round(shortfall, 1)
+    t["coverage_rate_subscribers"] = round(collected / (collected + shortfall), 4) if collected + shortfall > 0 else None
+
+
 def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None = None, changed: dict | None = None,
                  *, cfg: dict[str, Any] | None = None, net: Network | None = None) -> dict:
     """Plan du contrat (section 5) ; ne lève jamais : en dernier recours, plan vide valide et erreur dans warnings."""
@@ -497,5 +508,6 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
         plan["ignored_reports"] = []
         plan["warnings"] = [f"Erreur interne, plan vide : {type(exc).__name__}: {exc}"]
         plan["checks"]["messages"] = [traceback.format_exc(limit=3)]
+    _service_totals(plan)
     plan["compute_ms"] = round((time.perf_counter() - t0) * 1000)
     return plan

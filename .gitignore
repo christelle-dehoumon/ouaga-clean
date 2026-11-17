@@ -42,3 +42,4 @@ data/processed/
 !data/mock/
 !data/mock/*.geojson
 !data/mock/*.json
+data/reports.db

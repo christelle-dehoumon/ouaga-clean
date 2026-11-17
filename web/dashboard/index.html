@@ -1,487 +1,130 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ouaga Clean — Tableau de bord mairie</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-:root{--vert:#637A77;--vert-f:#405B57;--rouge:#966F68;--rouge-f:#76534D;--jaune:#B9A16A;--jaune-f:#65583C;--fond:#F5F3EE;--texte:#27323A;--muted:#74808A;--bord:#E5E0D7}
-*{box-sizing:border-box;margin:0}
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--fond);color:var(--texte);line-height:1.5}
-header{background:#fff;border-bottom:1px solid var(--bord);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-header h1{font-size:18px}
-.badge{background:var(--vert);color:#fff;padding:4px 10px;border-radius:999px;font-size:12px}
-.layout{display:grid;grid-template-columns:340px 1fr 360px;gap:12px;padding:12px;min-height:calc(100vh - 60px)}
-@media(max-width:1100px){.layout{grid-template-columns:1fr} #map{height:420px !important}}
-.card{background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px}
-.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
-#map{height:640px;border-radius:12px}
-.btn{padding:10px 14px;border-radius:10px;border:none;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
-.btn-crise{width:100%;margin-top:8px;justify-content:center}
-.btn-rouge{background:var(--rouge);color:#fff}
-.btn-vert{background:var(--vert);color:#fff}
-.btn-ghost{background:#fff;border:1px solid var(--bord)}
-.pill{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
-.pill-vert{background:#e6f7ed;color:var(--vert-f)}
-.pill-rouge{background:#fde8e8;color:var(--rouge-f)}
-.pill-jaune{background:#fff6cc;color:var(--jaune-f)}
-.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.kpi div{background:var(--fond);border-radius:8px;padding:10px;text-align:center}
-.kpi b{font-size:20px}
-.slider label{font-size:12px;color:var(--muted)}
-.slider input{width:100%}
-.change{padding:8px;border-left:3px solid var(--vert);background:var(--fond);border-radius:6px;margin-top:6px;font-size:13px}
-
-/* Jeu d'icônes SVG maison : une seule graisse, une seule palette, zéro CDN.
-   Les icônes héritent de la couleur du bouton ou du badge qui les contient. */
-.sprite{position:absolute;width:0;height:0;overflow:hidden}
-.ic{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.ic-sm{width:14px;height:14px;stroke-width:2}
-.ic-lg{width:25px;height:25px;stroke-width:1.7}
-.logo-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#e6f4ea;color:#006B36;box-shadow:inset 0 0 0 1px #cfe8d6}
-.ic-warn{color:#A16207;vertical-align:-3px;margin-right:3px}
-.legend-ic{width:15px;height:15px;flex:none;vertical-align:-3px;margin-right:2px}
-.pill-rouge .legend-ic{color:#A33A32}.pill-vert .legend-ic{color:#0A7A35}.pill-jaune .legend-ic{color:#8A6D16}
-
-.btn{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
-.btn:hover{transform:translateY(-2px);filter:brightness(.95);box-shadow:0 4px 10px #0002}
-.btn:active{transform:translateY(1px) scale(.98);filter:brightness(.88)}
-.btn:focus-visible{outline:2px solid var(--jaune-f);outline-offset:2px}
-
-/* Bandeau de filtres Ouaga Clean — CSS seulement, sans bibliothèque ajoutée */
-.slider{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-@media (min-width:1101px){
-  .layout{grid-template-columns:270px minmax(0,1fr) 330px;grid-template-rows:auto auto minmax(0,1fr);align-items:start}
-  .layout>div:first-child{display:contents}
-  .layout>div:first-child>.card:first-child{grid-column:1/-1;grid-row:1}
-  .layout>div:first-child>.card:nth-child(2){grid-column:1;grid-row:2}
-  .layout>div:first-child>.card:nth-child(3){grid-column:1;grid-row:3}
-  .layout>.card{grid-column:2;grid-row:2/4}
-  .layout>div:nth-child(3){grid-column:3;grid-row:2/4}
-  .slider{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-areas:"p1 p2 p3 p4 p5" "r1 r2 r3 r4 r5";gap:8px 14px}
-  .slider label{display:flex;justify-content:space-between;gap:5px;padding:8px;border-radius:8px;background:#f5f3ee}
-  .slider label:nth-child(1){grid-area:p1}.slider input:nth-child(2){grid-area:r1}
-  .slider label:nth-child(3){grid-area:p2}.slider input:nth-child(4){grid-area:r2}
-  .slider label:nth-child(5){grid-area:p3}.slider input:nth-child(6){grid-area:r3}
-  .slider label:nth-child(7){grid-area:p4}.slider input:nth-child(8){grid-area:r4}
-  .slider label:nth-child(9){grid-area:p5}.slider input:nth-child(10){grid-area:r5}
-  .slider input{width:100%;accent-color:#637A77}
-}
-.card{background:rgba(255,254,250,.94)}
-header{background:rgba(255,254,250,.97)}
-
-/* Étoile du Burkina en filigrane */
-body::before{content:"";position:fixed;z-index:0;pointer-events:none;width:clamp(190px,34vw,400px);aspect-ratio:1;right:-95px;top:100px;background:rgba(184,155,94,.22);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
-body>*{position:relative;z-index:1}
-
-/* Filtres horizontaux dès 700px */
-@media (min-width:700px) and (max-width:1100px){
-  .slider{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-areas:"p1 p2 p3 p4 p5" "r1 r2 r3 r4 r5";gap:8px}
-  .slider label{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:7px;background:#f5f3ee;border-radius:8px;font-size:11px}
-  .slider input{width:100%;min-width:0;margin:0;accent-color:#637A77}
-  .slider label:nth-child(1){grid-area:p1}.slider input:nth-child(2){grid-area:r1}
-  .slider label:nth-child(3){grid-area:p2}.slider input:nth-child(4){grid-area:r2}
-  .slider label:nth-child(5){grid-area:p3}.slider input:nth-child(6){grid-area:r3}
-  .slider label:nth-child(7){grid-area:p4}.slider input:nth-child(8){grid-area:r4}
-  .slider label:nth-child(9){grid-area:p5}.slider input:nth-child(10){grid-area:r5}
-}
-</style>
+<title>Ouaga Clean — Tableau de bord mairie (démo locale)</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="app.css">
+<script src="vendor/leaflet/leaflet.js"></script>
 </head>
 <body>
-<!-- Bibliothèque d'icônes locale : mêmes traits arrondis, couleur héritée, aucun réseau. -->
-<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-  <symbol id="i-bin-leaf" viewBox="0 0 24 24">
-    <path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13h10l1-13"/>
-    <path d="M12 11.5c2.2 0 3.5-1.3 3.5-3.5C12.3 8 11 9.3 11 11.5c0 .3 0 .6.1.9"/><path d="M10 16c0-1 .7-1.8 1.7-2"/>
-  </symbol>
-  <symbol id="i-phone" viewBox="0 0 24 24">
-    <rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10 5h4"/><path d="M11 18.5h2"/>
-  </symbol>
-  <symbol id="i-refresh" viewBox="0 0 24 24">
-    <path d="M21 12a9 9 0 1 1-6.2-8.6"/><path d="M21 3v6h-6"/>
-  </symbol>
-  <symbol id="i-truck" viewBox="0 0 24 24">
-    <path d="M3 6h11v10H3z"/><path d="M14 9h3.5L21 12.5V16h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/>
-  </symbol>
-  <symbol id="i-rain" viewBox="0 0 24 24">
-    <path d="M7 15a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 18 15H7z"/><path d="M8 18.5 7 21"/><path d="M13 18.5 12 21"/><path d="M18 18.5 17 21"/>
-  </symbol>
-  <symbol id="i-quartier" viewBox="0 0 24 24">
-    <path d="M2.5 21h19"/><path d="M3 21V10l5-3.5 5 3.5v11"/><path d="M13 21V12l4-2.5 4 2.5v9"/>
-    <path d="M5.5 13h1"/><path d="M9.5 13h1"/><path d="M5.5 16.5h1"/><path d="M9.5 16.5h1"/><path d="M16 15h1"/><path d="M19 15h1"/>
-  </symbol>
-  <symbol id="i-undo" viewBox="0 0 24 24">
-    <path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/>
-  </symbol>
-  <symbol id="i-flask" viewBox="0 0 24 24">
-    <path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7 15h10"/>
-  </symbol>
-  <symbol id="i-play" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none"/>
-  </symbol>
-  <symbol id="i-file" viewBox="0 0 24 24">
-    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>
-  </symbol>
-  <symbol id="i-shield-check" viewBox="0 0 24 24">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
-  </symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24">
-    <path d="M10.3 3.9 2.6 17.3a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
-  </symbol>
-  <symbol id="i-bike" viewBox="0 0 24 24">
-    <circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M5.5 17 10 9h4l4.5 8"/><path d="M9 9h6"/><path d="M12 9 10.5 17"/>
-  </symbol>
-  <symbol id="i-pin" viewBox="0 0 24 24">
-    <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>
-  </symbol>
-</svg>
 <header>
-  <span class="logo-mark"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-bin-leaf"/></svg></span><h1>Ouaga Clean</h1>
-  <span class="badge">Tableau de bord mairie — 80%</span>
-  <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
-    <span class="muted" style="font-size:12px">L'outil éclaire, la mairie décide.</span>
-    <a href="/citizen" class="btn btn-ghost"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg>Page citoyenne</a>
-    <a href="/docs" class="btn btn-ghost">API</a>
-  </span>
+  <span class="logo" aria-hidden="true"><span class="ic" data-icon="ctvd"></span></span>
+  <div>
+    <h1>Ouaga Clean</h1>
+    <p class="sous-titre">Tableau de bord mairie — démonstration locale des 4 acteurs · commune : <span id="commune">—</span></p>
+  </div>
+  <span class="badge-simule">simulé</span>
+  <span class="badge-offline" id="etat-reseau">hors ligne · données mock</span>
+  <span class="header-fin">L’outil éclaire, la mairie décide.</span>
 </header>
 
-<div id="bandeau" style="display:none;margin:12px 12px 0;padding:10px 14px;border-radius:10px;background:#fff;border:1px solid var(--bord)"></div>
+<div id="bandeau" class="bandeau" hidden role="status" aria-live="polite"></div>
 
-<div class="layout">
-  <!-- Gauche : curseurs + crises -->
-  <div>
-    <div class="card">
-      <h2>Paramètres (mairie)</h2>
-      <div class="slider">
-        <label>Population <b id="v-pop">2 450 000</b></label><input type="range" id="pop" min="1200000" max="3500000" step="50000" value="2450000">
-        <label>Taux d'abonnement <b id="v-abo">35%</b></label><input type="range" id="abo" min="10" max="80" step="5" value="35">
-        <label>Camions <b id="v-cam">12</b></label><input type="range" id="cam" min="2" max="30" step="1" value="12">
-        <label>Fréquence camions <b id="v-fc">3/sem</b></label><input type="range" id="fc" min="1" max="7" step="1" value="3">
-        <label>Budget <b id="v-bud">1 200 M</b></label><input type="range" id="bud" min="400" max="2500" step="100" value="1200">
+<section class="kpis" aria-label="Trois chiffres de sortie de la simulation">
+  <article class="kpi">
+    <div class="kpi-titre">Part ramassée <span class="tag-sim">simulé</span></div>
+    <div class="kpi-valeur" id="k-part">—</div>
+    <div class="kpi-note">pourcentage du flux traité à la fin de la période</div>
+  </article>
+  <article class="kpi">
+    <div class="kpi-titre">Coût de collecte <span class="tag-sim">simulé</span></div>
+    <div class="kpi-valeur" id="k-cout">—</div>
+    <div class="kpi-note">millions de FCFA cumulés, distances et coûts de la configuration</div>
+  </article>
+  <article class="kpi">
+    <div class="kpi-titre">Dépôts restants <span class="tag-sim">simulé</span></div>
+    <div class="kpi-valeur" id="k-depots">—</div>
+    <div class="kpi-note">proxy : ménages synthétiques avec dépôt + dépotoirs non collectés</div>
+  </article>
+</section>
+
+<main class="layout">
+  <div class="colonne colonne-gauche">
+    <section class="card">
+      <h2>Les acteurs</h2>
+      <p class="aide">Retirez un acteur : les trois chiffres ci-dessus sont recalculés immédiatement.</p>
+      <div id="acteurs" class="acteurs"></div>
+    </section>
+
+    <section class="card">
+      <h2>Paramètres de simulation</h2>
+      <div class="parametres">
+        <label>Jours <b id="v-jours">—</b>
+          <input type="range" id="p-jours" min="2" max="30" step="1">
+        </label>
+        <label>Population <b id="v-population">—</b>
+          <input type="range" id="p-population" min="500000" max="5000000" step="100000">
+        </label>
+        <label>Abonnés <b id="v-abonnement">—</b>
+          <input type="range" id="p-abonnement" min="10" max="90" step="5">
+        </label>
+        <label>Camions <b id="v-trucks">—</b>
+          <input type="range" id="p-trucks" min="0" max="30" step="1">
+        </label>
+        <label>Tricycles <b id="v-tricycles">—</b>
+          <input type="range" id="p-tricycles" min="0" max="60" step="1">
+        </label>
+        <label>Budget (FCFA) <b id="v-budget">—</b>
+          <input type="range" id="p-budget" min="1000000" max="50000000" step="500000">
+        </label>
+        <label class="case">
+          <input type="checkbox" id="p-pluie"> Saison des pluies
+        </label>
+        <label class="graine">Graine (reproductibilité)
+          <input type="number" id="p-graine" min="0" step="1">
+        </label>
       </div>
-      <button class="btn btn-vert" style="width:100%;margin-top:10px;justify-content:center" onclick="recalculer()"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Recalculer le plan</button>
-      <div id="chrono" class="muted" style="text-align:center;margin-top:6px;font-size:12px"></div>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <h2>Crises (épreuve en direct)</h2>
-      <button class="btn btn-rouge btn-crise" onclick="crise('panne_camions')"><svg class="ic" aria-hidden="true"><use href="#i-truck"/></svg>Panne de camions (−3)</button>
-      <button class="btn btn-rouge btn-crise" onclick="crise('saison_pluies')"><svg class="ic" aria-hidden="true"><use href="#i-rain"/></svg>Saison des pluies (−1 passage)</button>
-      <button class="btn btn-vert btn-crise" onclick="crise('nouveau_quartier')"><svg class="ic" aria-hidden="true"><use href="#i-quartier"/></svg>Nouveau quartier (Saaba)</button>
-      <button class="btn btn-ghost btn-crise" onclick="resetCrises()"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg>Réinitialiser les crises</button>
-      <p class="muted" style="font-size:11px;margin-top:6px">Chaque crise change les paramètres, relance le plan et la simulation. Chronomètre visible.</p>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <h2>Signalements (tri automatique)</h2>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost" style="flex:1" onclick="chargerSignalements()"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Actualiser</button>
-        <button class="btn btn-ghost" onclick="injecterPieges()"><svg class="ic" aria-hidden="true"><use href="#i-flask"/></svg>Injecter pièges (jury)</button>
-      </div>
-      <div id="statsSig" style="margin-top:8px"></div>
-    </div>
+      <button type="button" id="btn-recalculer" class="btn btn-primaire">Recalculer la simulation</button>
+    </section>
   </div>
 
-  <!-- Centre : carte -->
-  <div class="card" style="padding:8px">
-    <div style="display:flex;align-items:center;gap:8px;padding:6px">
-      <h2 style="margin:0">Carte — dépotoirs, points de regroupement, tournées</h2>
-      <span id="modePlan" class="pill pill-vert" style="margin-left:auto">—</span>
-    </div>
-    <div id="map"></div>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-      <span class="pill pill-rouge"><svg class="ic legend-ic" aria-hidden="true"><use href="#i-truck"/></svg>Camions (goudron)</span><span class="pill pill-vert"><svg class="ic legend-ic" aria-hidden="true"><use href="#i-bike"/></svg>Tricycles (pistes)</span><span class="pill pill-jaune"><svg class="ic legend-ic" aria-hidden="true"><use href="#i-pin"/></svg>En attente</span>
-    </div>
+  <div class="colonne colonne-centre">
+    <section class="card carte">
+      <div class="carte-entete">
+        <h2>Carte — acteurs et flux</h2>
+        <span class="tag-sim">simulé + fond mock</span>
+      </div>
+      <div id="map" role="application" aria-label="Carte locale des points, dépotoirs, tournées et acteurs"></div>
+      <div id="legende" class="legende" aria-label="Légende de la carte"></div>
+    </section>
+
+    <section class="card">
+      <h2>Séries jour par jour <span class="tag-sim">simulé</span></h2>
+      <canvas id="series" width="720" height="200" role="img" aria-label="Courbes simulées de part ramassée, coût et dépôts restants"></canvas>
+    </section>
   </div>
 
-  <!-- Droite : indicateurs + scénarios -->
-  <div>
-    <div class="card">
-      <h2>3 indicateurs + simulation</h2>
-      <div class="kpi">
-        <div><div class="muted" style="font-size:11px">Tonnes dans la rue /j</div><b id="k-tonnes">—</b></div>
-        <div><div class="muted" style="font-size:11px">Budget restant</div><b id="k-budget">—</b></div>
-        <div><div class="muted" style="font-size:11px" title="Proxy de simulation : ménages synthétiques, pas des dépotoirs réels">Dépôts non collectés (proxy)</div><b id="k-depots">—</b><div class="muted" style="font-size:10px">ménages synthétiques</div></div>
-        <div><div class="muted" style="font-size:11px">Part ramassée (sim)</div><b id="k-part">—</b></div>
+  <div class="colonne colonne-droite">
+    <section class="card">
+      <div class="carte-entete">
+        <h2>Journal d’événements</h2>
+        <span class="tag-sim">simulé</span>
       </div>
-      <canvas id="courbes" width="340" height="120" style="width:100%;margin-top:10px;background:var(--fond);border-radius:8px"></canvas>
-      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="simulerPlan()"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Lancer la simulation (Mesa)</button>
-      <div id="simOut" class="muted" style="font-size:12px;margin-top:6px"></div>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <h2>Scénario A vs B</h2>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" style="flex:1" onclick="figer('A')">Mémoriser le scénario A</button>
-        <button class="btn btn-ghost" style="flex:1" onclick="figer('B')">Mémoriser le scénario B</button>
+      <div class="filtres-journal" role="group" aria-label="Filtrer le journal par acteur">
+        <button type="button" class="filtre actif" data-filtre="tous">Tous</button>
+        <button type="button" class="filtre" data-filtre="menages">Ménages</button>
+        <button type="button" class="filtre" data-filtre="pre_collecteurs">Pré-collecteurs</button>
+        <button type="button" class="filtre" data-filtre="brigade">Brigade</button>
+        <button type="button" class="filtre" data-filtre="mairie">Mairie</button>
       </div>
-      <p class="muted" style="margin-top:6px">Calcule un plan et mémorise-le en A. Change les paramètres, recalcule, puis mémorise le second en B pour comparer.</p>
-      <div id="ab" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
-      <div id="diff" class="muted" style="font-size:12px;margin-top:6px"></div>
-    </div>
+      <ol id="journal" class="journal" aria-live="polite"></ol>
+    </section>
 
-    <div class="card" style="margin-top:12px">
-      <h2>Historique des scénarios</h2>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost" style="flex:1" onclick="chargerHistorique()"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Actualiser l'historique</button>
-      </div>
-      <div id="historique" class="muted" style="font-size:12px;margin-top:8px;max-height:210px;overflow:auto">Chargement…</div>
-      <p class="muted" style="font-size:11px;margin-top:6px">Chaque calcul est enregistré avec ses paramètres. Choisis deux entrées pour les comparer.</p>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <h2>Ce qui a changé dans le plan</h2>
-      <div id="changements" class="muted">En attente du premier calcul…</div>
-      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="exportOsm()"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg>Export OSM (fichier)</button>
-      <button class="btn btn-vert" style="width:100%;margin-top:8px" onclick="validerPlan()"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg>Valider ce plan</button>
-    </div>
+    <section class="card">
+      <h2>Hypothèses à valider</h2>
+      <p class="aide">Tout nombre non présent dans la configuration est une hypothèse du membre C, explicitement étiquetée.</p>
+      <div id="hypotheses" class="hypotheses"></div>
+    </section>
   </div>
-</div>
+</main>
 
-<p class="muted" style="text-align:center;padding:10px;font-size:12px">Logiciel libre – licence MIT – données OpenStreetMap · <a href="/citizen">Page citoyenne</a> · Maquette mono-fichier : <a href="/docs/mockup/index.html">docs/mockup</a></p>
+<footer>
+  <span>Démonstration hors ligne — aucune tuile, police ou service externe.</span>
+  <span id="source-donnees">Sources : data/mock/ · config/commune_config.json (lecture seule)</span>
+</footer>
 
-<script>
-const API=location.origin;
-// Icônes injectées dans le HTML dynamique (même jeu que les boutons statiques).
-const ico=(nom,classe='')=>`<svg class="ic ${classe}" aria-hidden="true"><use href="#${nom}"></use></svg>`;
-let crisesActives=[];
-let dernierPlan=null, planA=null, planB=null;
-let scenariosHistorique=[];
-let map=null, couches=null;
-// La démo doit rester utilisable sans accès aux tuiles : si Leaflet n'est pas
-// chargé, l'API, les indicateurs et les boutons continuent de fonctionner.
-if(typeof L!=='undefined'){
-  try{
-    map=L.map('map').setView([12.3615,-1.5283],12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
-    couches=L.layerGroup().addTo(map);
-  }catch(e){ console.warn('Carte indisponible, indicateurs conservés:',e); }
-} else { console.warn('Leaflet absent (hors-ligne) : carte désactivée, indicateurs actifs.'); }
-
-// sliders
-for(const [id,fmt] of [['pop',v=>Number(v).toLocaleString('fr-FR')], ['abo',v=>v+'%'], ['cam',v=>v], ['fc',v=>v+'/sem'], ['bud',v=>v+' M']]){
-  document.getElementById(id).addEventListener('input', e=>{
-    document.getElementById('v-'+id.replace('pop','pop').replace('abo','abo').replace('cam','cam').replace('fc','fc').replace('bud','bud')).textContent = fmt(e.target.value);
-  });
-}
-// mapping correct
-document.getElementById('pop').addEventListener('input',e=>document.getElementById('v-pop').textContent=Number(e.target.value).toLocaleString('fr-FR'));
-document.getElementById('abo').addEventListener('input',e=>document.getElementById('v-abo').textContent=e.target.value+'%');
-document.getElementById('cam').addEventListener('input',e=>document.getElementById('v-cam').textContent=e.target.value);
-document.getElementById('fc').addEventListener('input',e=>document.getElementById('v-fc').textContent=e.target.value+'/sem');
-document.getElementById('bud').addEventListener('input',e=>document.getElementById('v-bud').textContent=e.target.value+' M');
-
-function paramsActuels(){
-  return {
-    population: parseInt(document.getElementById('pop').value),
-    taux_abonnement_pct: parseInt(document.getElementById('abo').value),
-    nb_camions: parseInt(document.getElementById('cam').value),
-    freq_camions_par_semaine: parseInt(document.getElementById('fc').value),
-    budget_annuel_m_fcfa: parseInt(document.getElementById('bud').value),
-    nb_tricycles: 40,
-    freq_tricycles_par_semaine: 6,
-    crises_actives: crisesActives
-  };
-}
-
-async function recalculer(){
-  const t0=performance.now();
-  document.getElementById('chrono').textContent='Calcul… (limite 5 s)';
-  const res=await fetch(API+'/api/plan/calculer',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({parametres: paramsActuels()})});
-  const plan=await res.json();
-  document.getElementById('chrono').textContent=`Calculé en ${plan.duree_calcul_ms} ms — mode ${plan.mode} — ${res.ok?'OK':'erreur'}`;
-  dernierPlan=plan;
-  majBandeau(plan);
-  majCarte(plan);
-  majKpi(plan);
-  majChangements(plan);
-  majAB();
-  chargerHistorique();
-}
-
-function majBandeau(plan){
-  const el=document.getElementById('bandeau');
-  if(plan.changements && plan.changements.length){
-    el.style.display='block';
-    el.innerHTML='<b>Ce qui a changé dans le plan :</b><br>' + plan.changements.map(c=>`• ${c.quoi} — <em>${c.pourquoi}</em> <span class="muted">${c.impact||''}</span>`).join('<br>');
-  }
-  const coh=plan.coherence;
-  if(coh && (!coh.capacite_ok || !coh.budget_ok)){
-    el.style.display='block';
-    el.innerHTML+=(coh.capacite_ok?'':'<br>'+ico('i-alert','ic-warn')+'Capacité dépassée — ajouter un PR ou un camion') + (coh.budget_ok?'':'<br>'+ico('i-alert','ic-warn')+'Budget dépassé');
-  }
-}
-
-function majCarte(plan){
-  const setMode=()=>{
-    const mode=String(plan.mode||'—');
-    document.getElementById('modePlan').textContent=mode;
-    document.getElementById('modePlan').className='pill '+(mode.includes('secours')||mode.includes('dégradé')?'pill-rouge':'pill-vert');
-  };
-  if(!couches){ setMode(); return; }
-  couches.clearLayers();
-  // PR
-  for(const pr of plan.points_regroupement){
-    L.circleMarker([pr.lat, pr.lon], {radius:7, color:'#333', weight:1, fillColor:'#fff', fillOpacity:1}).addTo(couches).bindPopup(`<b>${pr.id}</b><br>${pr.quartier_id}<br>Capacité ${pr.capacite_t} t`);
-  }
-  // tournées camions rouge
-  for(const t of plan.tournees_camions){
-    if(t.trace && t.trace.length>1) L.polyline(t.trace, {color:'#EF2B2D', weight:4, opacity:.85}).addTo(couches).bindPopup(`<b>${t.id}</b> · ${t.distance_km} km · ${t.duree_h} h`);
-    for(const p of (t.trace||[])) L.circleMarker(p, {radius:4, fillColor:'#EF2B2D', color:'#fff', weight:1, fillOpacity:1}).addTo(couches);
-  }
-  for(const t of plan.tournees_tricycles){
-    if(t.trace && t.trace.length>1) L.polyline(t.trace, {color:'#009E49', weight:3, opacity:.9, dashArray:'6,6'}).addTo(couches).bindPopup(`<b>${t.id}</b> · ${t.distance_km} km`);
-  }
-  // dépôts
-  fetch(API+'/api/signalements').then(r=>r.json()).then(sigs=>{
-    for(const s of sigs.filter(x=>x.statut==='accepté')){
-      L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#009E49', color:'#fff', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · accepté<br>${s.adresse_texte||''}`);
-    }
-    for(const s of sigs.filter(x=>x.statut==='rejeté')){
-      L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#EF2B2D', color:'#fff', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · rejeté<br>${s.motif_rejet||''}`);
-    }
-    for(const s of sigs.filter(x=>x.statut==='à vérifier')){
-      L.circleMarker([s.lat,s.lon], {radius:6, fillColor:'#FCD116', color:'#333', weight:2, fillOpacity:1}).addTo(couches).bindPopup(`<b>${s.id}</b> · à vérifier`);
-    }
-  });
-  setMode();
-}
-
-function majKpi(plan){
-  const c=plan.coherence||{};
-  document.getElementById('k-tonnes').textContent=c.tonnes_rue_par_jour!=null?c.tonnes_rue_par_jour+' t':'—';
-  document.getElementById('k-budget').textContent=c.budget_restant_m_fcfa!=null?c.budget_restant_m_fcfa+' M':'—';
-  // Ce compteur vient de la simulation, pas du nombre de points de regroupement.
-  // On n'affiche rien avant le lancement de simulerPlan() pour éviter toute
-  // confusion entre un proxy de ménages synthétiques et un dépotoir réel.
-  document.getElementById('k-depots').textContent='—';
-  // mini courbes (factices mais basées sur cohérence)
-  const ctx=document.getElementById('courbes').getContext('2d');
-  ctx.clearRect(0,0,340,120);
-  ctx.strokeStyle='#009E49'; ctx.beginPath();
-  for(let i=0;i<20;i++){ const v=40 + Math.sin(i/3)*10 - (c.tonnes_rue_par_jour||0)/2; ctx.lineTo(i*17, 80 - v/2); }
-  ctx.stroke();
-  ctx.strokeStyle='#EF2B2D'; ctx.beginPath();
-  for(let i=0;i<20;i++){ const v=60 - i*1.2; ctx.lineTo(i*17, 110 - v/2); }
-  ctx.stroke();
-}
-
-function majChangements(plan){
-  const el=document.getElementById('changements');
-  if(!plan.changements || !plan.changements.length){ el.innerHTML='<span class="muted">Aucun changement — plan nominal</span>'; return; }
-  el.innerHTML=plan.changements.map(c=>`<div class="change"><b>${c.quoi}</b><br><span class="muted">${c.pourquoi} — ${c.impact||''}</span></div>`).join('');
-}
-
-async function crise(id){
-  if(!crisesActives.includes(id)) crisesActives.push(id);
-  await recalculer();
-}
-async function resetCrises(){ crisesActives=[]; await recalculer(); }
-
-async function chargerSignalements(){
-  const r=await fetch(API+'/api/signalements'); const data=await r.json();
-  const stats={accepté:0,rejeté:0,'à vérifier':0};
-  for(const s of data) stats[s.statut]=(stats[s.statut]||0)+1;
-  document.getElementById('statsSig').innerHTML=`
-    <div style="display:flex;gap:6px;margin-top:6px"><span class="pill pill-vert">${stats.accepté||0} acceptés</span><span class="pill pill-rouge">${stats.rejeté||0} rejetés</span><span class="pill pill-jaune">${stats['à vérifier']||0} à vérifier</span></div>
-    <div class="muted" style="font-size:11px;margin-top:6px">${data.slice(0,3).map(s=>`${s.id}: ${s.statut} ${s.motif_rejet?'— '+s.motif_rejet:''}`).join('<br>')}</div>
-  `;
-}
-async function injecterPieges(){
-  const r=await fetch(API+'/data/mock/signalements.json'); // fallback
-  let lot=null;
-  try{ lot=await (await fetch(API+'/api/signalements/bulk')).json(); }catch{}
-  // génère 10 pièges côté front si pas de mock
-  const pieges=[
-    {lat:12.60,lon:-1.55,taille:'moyen',photo_hash:'dup1',photo_exif_date:new Date().toISOString()},
-    {lat:12.3615,lon:-1.5283,taille:'petit',photo_hash:'dup1',photo_exif_date:new Date().toISOString()},
-    {lat:12.403,lon:-1.559,taille:'moyen',photo_hash:'eau1',photo_exif_date:new Date().toISOString()},
-    {lat:13.0,lon:-1.5,taille:'gros',photo_hash:'hz1',photo_exif_date:new Date().toISOString()},
-  ];
-  const res=await fetch(API+'/api/signalements/bulk',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(pieges)});
-  const out=await res.json();
-  alert(`Injectés : ${out.stats.acceptés} acceptés, ${out.stats.rejetés} rejetés, ${out.stats['à vérifier']} à vérifier`);
-  chargerSignalements(); majCarte(dernierPlan||{points_regroupement:[],tournees_camions:[],tournees_tricycles:[]});
-}
-async function simulerPlan(){
-  if(!dernierPlan){ alert('Calcule d’abord un plan'); return; }
-  const r=await fetch(API+'/api/plans/'+dernierPlan.id+'/simuler',{method:'POST'});
-  const s=await r.json();
-  const unite=s.unite_depotoirs_restants||'ménages synthétiques (proxy)';
-  document.getElementById('simOut').textContent=`Moteur ${s.moteur} — part ramassée ${Math.round(s.part_ramassee*100)}% — dépôts non collectés ${s.depotoirs_restants} (${unite})`;
-  document.getElementById('k-part').textContent=Math.round(s.part_ramassee*100)+'%';
-  document.getElementById('k-depots').textContent=s.depotoirs_restants;
-  document.getElementById('k-depots').title=unite;
-}
-function figer(which){
-  if(!dernierPlan){ alert('Calcule d’abord un plan'); return; }
-  if(which==='A') planA=dernierPlan; else planB=dernierPlan;
-  majAB();
-}
-async function majAB(){
-  const el=document.getElementById('ab');
-  if(!planA && !planB){ el.innerHTML='<span class="muted">Fige A puis B pour comparer</span>'; return; }
-  el.innerHTML=`
-    <div class="card" style="padding:8px"><b>A</b><br>${planA?planA.id.slice(0,16)+'…':''}<br><span class="muted">${planA?planA.coherence.cout_annuel_m_fcfa+' M · '+planA.coherence.tonnes_rue_par_jour+' t/j':''}</span></div>
-    <div class="card" style="padding:8px"><b>B</b><br>${planB?planB.id.slice(0,16)+'…':''}<br><span class="muted">${planB?planB.coherence.cout_annuel_m_fcfa+' M · '+planB.coherence.tonnes_rue_par_jour+' t/j':''}</span></div>
-  `;
-  if(planA && planB){
-    const r=await fetch(API+`/api/scenarios/compare?a_id=${planA.id}&b_id=${planB.id}`,{method:'POST'});
-    const d=await r.json();
-    document.getElementById('diff').innerHTML=`Diff B−A : <b>${d.diff_cout} M FCFA</b> · <b>${d.diff_tonnes} t/j</b> dans la rue`;
-  }
-}
-function esc(v){
-  return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-async function chargerHistorique(){
-  const el=document.getElementById('historique');
-  try{
-    const r=await fetch(API+'/api/scenarios');
-    if(!r.ok) throw new Error('http '+r.status);
-    const data=await r.json();
-    scenariosHistorique=Array.isArray(data)?data:[];
-    if(!scenariosHistorique.length){ el.innerHTML='<span class="muted">Aucun scénario enregistré.</span>'; return; }
-    el.innerHTML=scenariosHistorique.slice(0,12).map((s,i)=>{
-      const p=s.plan||{}, sim=s.simulation||{}, cr=(s.params&&s.params.crises_actives)||[];
-      const cout=p.cout_annuel_m_fcfa!=null?p.cout_annuel_m_fcfa+' M':'—';
-      const tonnes=p.tonnes_rue_par_jour!=null?p.tonnes_rue_par_jour+' t/j':'—';
-      const part=sim.part_ramassee!=null?Math.round(sim.part_ramassee*100)+'%':'—';
-      const id=esc(s.id||s.plan_id||'');
-      return `<div class="change" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <span style="flex:1;min-width:150px"><b>#${i+1}</b> ${id.slice(0,14)}<br><span class="muted">${esc(cout)} · ${esc(tonnes)} · part ${esc(part)}${cr.length?' · '+esc(cr.join(', ')):''}</span></span>
-        <button class="btn btn-ghost" style="width:auto;padding:4px 8px" onclick="choisirScenario('${id}','A')">A</button>
-        <button class="btn btn-ghost" style="width:auto;padding:4px 8px" onclick="choisirScenario('${id}','B')">B</button>
-      </div>`;
-    }).join('');
-  }catch(e){ el.innerHTML='<span class="muted">Historique indisponible hors ligne.</span>'; }
-}
-function choisirScenario(id, which){
-  const s=scenariosHistorique.find(x=>x.id===id||x.plan_id===id);
-  if(!s) return;
-  const plan={
-    id:s.plan_id||s.id,
-    coherence:{
-      cout_annuel_m_fcfa:(s.plan||{}).cout_annuel_m_fcfa,
-      tonnes_rue_par_jour:(s.plan||{}).tonnes_rue_par_jour
-    }
-  };
-  if(which==='A') planA=plan; else planB=plan;
-  majAB();
-}
-async function exportOsm(){
-  const r=await fetch(API+'/api/exports/osm'); const j=await r.json();
-  alert(`Export : ${j.fichier} — ${j.nb_noeuds} nœuds. ${j.message}\n\nAttention : aucun envoi auto — à verser manuellement dans JOSM.`);
-}
-async function validerPlan(){
-  if(!dernierPlan){ alert('Rien à valider'); return; }
-  alert('Plan validé : '+dernierPlan.id+' — mode '+dernierPlan.mode);
-}
-
-// init
-recalculer(); chargerSignalements();
-</script>
+<script src="app.js"></script>
 </body>
 </html>

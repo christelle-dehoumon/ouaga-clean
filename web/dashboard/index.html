@@ -203,7 +203,7 @@ body>*{position:relative;z-index:1}
       <div class="kpi">
         <div><div class="muted" style="font-size:11px">Tonnes dans la rue /j</div><b id="k-tonnes">—</b></div>
         <div><div class="muted" style="font-size:11px">Budget restant</div><b id="k-budget">—</b></div>
-        <div><div class="muted" style="font-size:11px">Dépotoirs restants</div><b id="k-depots">—</b></div>
+        <div><div class="muted" style="font-size:11px" title="Proxy de simulation : ménages synthétiques, pas des dépotoirs réels">Dépôts non collectés (proxy)</div><b id="k-depots">—</b><div class="muted" style="font-size:10px">ménages synthétiques</div></div>
         <div><div class="muted" style="font-size:11px">Part ramassée (sim)</div><b id="k-part">—</b></div>
       </div>
       <canvas id="courbes" width="340" height="120" style="width:100%;margin-top:10px;background:var(--fond);border-radius:8px"></canvas>
@@ -353,7 +353,10 @@ function majKpi(plan){
   const c=plan.coherence||{};
   document.getElementById('k-tonnes').textContent=c.tonnes_rue_par_jour!=null?c.tonnes_rue_par_jour+' t':'—';
   document.getElementById('k-budget').textContent=c.budget_restant_m_fcfa!=null?c.budget_restant_m_fcfa+' M':'—';
-  document.getElementById('k-depots').textContent=c.points_non_desservis?c.points_non_desservis.length: (plan.points_regroupement?plan.points_regroupement.length:'—');
+  // Ce compteur vient de la simulation, pas du nombre de points de regroupement.
+  // On n'affiche rien avant le lancement de simulerPlan() pour éviter toute
+  // confusion entre un proxy de ménages synthétiques et un dépotoir réel.
+  document.getElementById('k-depots').textContent='—';
   // mini courbes (factices mais basées sur cohérence)
   const ctx=document.getElementById('courbes').getContext('2d');
   ctx.clearRect(0,0,340,120);
@@ -406,9 +409,11 @@ async function simulerPlan(){
   if(!dernierPlan){ alert('Calcule d’abord un plan'); return; }
   const r=await fetch(API+'/api/plans/'+dernierPlan.id+'/simuler',{method:'POST'});
   const s=await r.json();
-  document.getElementById('simOut').textContent=`Moteur ${s.moteur} — part ramassée ${Math.round(s.part_ramassee*100)}% — dépotoirs restants ${s.depotoirs_restants}`;
+  const unite=s.unite_depotoirs_restants||'ménages synthétiques (proxy)';
+  document.getElementById('simOut').textContent=`Moteur ${s.moteur} — part ramassée ${Math.round(s.part_ramassee*100)}% — dépôts non collectés ${s.depotoirs_restants} (${unite})`;
   document.getElementById('k-part').textContent=Math.round(s.part_ramassee*100)+'%';
   document.getElementById('k-depots').textContent=s.depotoirs_restants;
+  document.getElementById('k-depots').title=unite;
 }
 function figer(which){
   if(!dernierPlan){ alert('Calcule d’abord un plan'); return; }

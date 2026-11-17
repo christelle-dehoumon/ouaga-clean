@@ -18,12 +18,14 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.main import app, V
-from core.sim.model import simuler
+from core.sim.model import run_scenario, run_simulation
+from core.sim.scenarios import HistoriqueScenarios
 
 RACINE = Path(__file__).resolve().parents[1]
 PLAN_SOURCE = json.loads((RACINE / "data" / "mock" / "plan_real.json").read_text(encoding="utf-8"))
 CONFIG = json.loads((RACINE / "config" / "commune_config.json").read_text(encoding="utf-8"))
 PLANS: dict[str, dict[str, Any]] = {}
+HISTOIRE = HistoriqueScenarios(limite=50)
 
 STATUTS = {"accepte": "accepté", "rejete": "rejeté", "a_verifier": "à vérifier"}
 
@@ -173,6 +175,18 @@ async def calculer_plan(request: Request):
         parametres = {}
     plan = _plan_dashboard(parametres, PLAN_SOURCE)
     PLANS[plan["id"]] = plan
+    entree = HISTOIRE.ajouter({
+        "plan_id": plan["id"],
+        "params": parametres,
+        "plan": {
+            "mode": plan["mode"],
+            "cout_annuel_m_fcfa": plan["coherence"]["cout_annuel_m_fcfa"],
+            "tonnes_rue_par_jour": plan["coherence"]["tonnes_rue_par_jour"],
+            "points": len(plan["points_regroupement"]),
+        },
+        "simulation": None,
+    })
+    plan["scenario_id"] = entree["id"]
     return plan
 
 
@@ -181,19 +195,41 @@ def simuler_plan(plan_id: str):
     plan = PLANS.get(plan_id)
     if plan is None:
         return JSONResponse({"error": "plan introuvable"}, status_code=404)
-    return simuler(plan.get("_source"), plan.get("parametres", {}), CONFIG, jours=7, seed=42)
+    resultat = run_scenario(plan.get("parametres", {}), plan.get("_source"), 7)
+    entree = HISTOIRE.attacher_simulation(plan_id, resultat)
+    if entree is not None:
+        resultat["scenario_id"] = entree["id"]
+    return resultat
+
+
+@app.post("/api/simulation")
+async def simulation_directe(request: Request):
+    """Route du message d'équipe : run_simulation(params, days)."""
+    try:
+        corps = await request.json()
+    except Exception:
+        corps = {}
+    parametres = corps.get("params", corps) if isinstance(corps, dict) else {}
+    if not isinstance(parametres, dict):
+        parametres = {}
+    try:
+        days = int(corps.get("days", 7)) if isinstance(corps, dict) else 7
+    except (TypeError, ValueError):
+        days = 7
+    return run_simulation(parametres, days)
+
+
+@app.get("/api/scenarios")
+def liste_scenarios():
+    return HISTOIRE.liste()
 
 
 @app.post("/api/scenarios/compare")
 def comparer(a_id: str = "", b_id: str = ""):
-    a, b = PLANS.get(a_id), PLANS.get(b_id)
-    if a is None or b is None:
-        return JSONResponse({"error": "scénario introuvable"}, status_code=404)
-    ca = a["coherence"]["cout_annuel_m_fcfa"]
-    cb = b["coherence"]["cout_annuel_m_fcfa"]
-    ta = a["coherence"]["tonnes_rue_par_jour"]
-    tb = b["coherence"]["tonnes_rue_par_jour"]
-    return {"diff_cout": round(cb - ca, 3), "diff_tonnes": round(tb - ta, 1)}
+    resultat = HISTOIRE.comparer_ids(a_id, b_id)
+    if "error" in resultat:
+        return JSONResponse(resultat, status_code=404)
+    return resultat
 
 
 @app.get("/api/exports/osm")

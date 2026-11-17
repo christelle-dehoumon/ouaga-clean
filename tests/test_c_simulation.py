@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from core.sim import model as sim
+from core.sim import scenarios
 
 RACINE = Path(__file__).resolve().parents[1]
 PLAN = json.loads((RACINE / "data" / "mock" / "plan_real.json").read_text(encoding="utf-8"))
@@ -90,6 +91,58 @@ class SimulationTest(unittest.TestCase):
             else:
                 sys.modules["mesa"] = sauvegarde
             importlib.reload(sim)
+
+    def test_quatre_agents_du_guide(self):
+        self.assertEqual([a["nom"] for a in sim.AGENTS],
+                         ["Ménages", "Précollecteurs", "Brigade Laabal", "Municipalité"])
+        regles = sim._regles(BASE, {})
+        modele = sim.OuagaModel(BASE, {}, regles, 0)
+        classes = {type(a) for a in modele.agents}
+        self.assertTrue({sim.Menages, sim.PreCollecteurs, sim.BrigadeLaabal, sim.Municipalite} <= classes)
+
+    def test_run_scenario_contrat(self):
+        r = sim.run_scenario(BASE, PLAN, 7)
+        for cle in ("part_ramassee", "cout_m_fcfa", "depotoirs_restants", "days", "fonction", "params_used"):
+            self.assertIn(cle, r)
+        self.assertEqual(r["fonction"], "run_scenario")
+        self.assertEqual(r["days"], 7)
+        self.assertEqual(r["plan_id"], PLAN.get("plan_id"))
+
+    def test_run_simulation_signature_equipe(self):
+        r = sim.run_simulation(BASE, 7)
+        self.assertEqual(r["fonction"], "run_simulation")
+        self.assertIn("plan de référence", r["source_plan"])
+        self.assertAlmostEqual(r["part_ramassee"], sim.run_scenario(BASE, PLAN, 7)["part_ramassee"])
+
+    def test_fonctions_partagees_ne_levent_jamais(self):
+        for appellable, args in (
+            (sim.run_scenario, (None, None, "bizarre")),
+            (sim.run_simulation, (None, None)),
+            (scenarios.comparer, ({}, {})),
+        ):
+            with self.subTest(fonction=appellable.__name__):
+                self.assertIsInstance(appellable(*args), dict)
+
+    def test_historique_et_comparaison(self):
+        hist = scenarios.HistoriqueScenarios(limite=3)
+        a = hist.ajouter({
+            "plan_id": "pA",
+            "params": {"nb_camions": 12},
+            "plan": {"cout_annuel_m_fcfa": 0.405, "tonnes_rue_par_jour": 180.9},
+            "simulation": {"part_ramassee": 0.70, "depotoirs_restants": 274},
+        })
+        b = hist.ajouter({
+            "plan_id": "pB",
+            "params": {"nb_camions": 9},
+            "plan": {"cout_annuel_m_fcfa": 0.396, "tonnes_rue_par_jour": 186.6},
+            "simulation": {"part_ramassee": 0.66, "depotoirs_restants": 308},
+        })
+        self.assertEqual(len(hist.liste()), 2)
+        d = hist.comparer_ids(a["id"], b["id"])
+        self.assertAlmostEqual(d["diff_cout"], -0.009)
+        self.assertAlmostEqual(d["diff_tonnes"], 5.7)
+        self.assertAlmostEqual(d["diff_part_ramassee"], -0.04)
+        self.assertEqual(d["diff_depotoirs"], 34)
 
 
 if __name__ == "__main__":

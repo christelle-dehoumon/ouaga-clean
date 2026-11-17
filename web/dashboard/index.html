@@ -165,6 +165,15 @@ body>*{position:relative;z-index:1}
     </div>
 
     <div class="card" style="margin-top:12px">
+      <h2>Historique des scénarios</h2>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost" style="flex:1" onclick="chargerHistorique()">🔄 Actualiser l'historique</button>
+      </div>
+      <div id="historique" class="muted" style="font-size:12px;margin-top:8px;max-height:210px;overflow:auto">Chargement…</div>
+      <p class="muted" style="font-size:11px;margin-top:6px">Chaque calcul est enregistré avec ses paramètres. Choisis deux entrées pour les comparer.</p>
+    </div>
+
+    <div class="card" style="margin-top:12px">
       <h2>Ce qui a changé dans le plan</h2>
       <div id="changements" class="muted">En attente du premier calcul…</div>
       <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="exportOsm()">📄 Export OSM (fichier)</button>
@@ -179,6 +188,7 @@ body>*{position:relative;z-index:1}
 const API=location.origin;
 let crisesActives=[];
 let dernierPlan=null, planA=null, planB=null;
+let scenariosHistorique=[];
 let map=null, couches=null;
 // La démo doit rester utilisable sans accès aux tuiles : si Leaflet n'est pas
 // chargé, l'API, les indicateurs et les boutons continuent de fonctionner.
@@ -228,6 +238,7 @@ async function recalculer(){
   majKpi(plan);
   majChangements(plan);
   majAB();
+  chargerHistorique();
 }
 
 function majBandeau(plan){
@@ -356,6 +367,44 @@ async function majAB(){
     const d=await r.json();
     document.getElementById('diff').innerHTML=`Diff B−A : <b>${d.diff_cout} M FCFA</b> · <b>${d.diff_tonnes} t/j</b> dans la rue`;
   }
+}
+function esc(v){
+  return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+async function chargerHistorique(){
+  const el=document.getElementById('historique');
+  try{
+    const r=await fetch(API+'/api/scenarios');
+    if(!r.ok) throw new Error('http '+r.status);
+    const data=await r.json();
+    scenariosHistorique=Array.isArray(data)?data:[];
+    if(!scenariosHistorique.length){ el.innerHTML='<span class="muted">Aucun scénario enregistré.</span>'; return; }
+    el.innerHTML=scenariosHistorique.slice(0,12).map((s,i)=>{
+      const p=s.plan||{}, sim=s.simulation||{}, cr=(s.params&&s.params.crises_actives)||[];
+      const cout=p.cout_annuel_m_fcfa!=null?p.cout_annuel_m_fcfa+' M':'—';
+      const tonnes=p.tonnes_rue_par_jour!=null?p.tonnes_rue_par_jour+' t/j':'—';
+      const part=sim.part_ramassee!=null?Math.round(sim.part_ramassee*100)+'%':'—';
+      const id=esc(s.id||s.plan_id||'');
+      return `<div class="change" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="flex:1;min-width:150px"><b>#${i+1}</b> ${id.slice(0,14)}<br><span class="muted">${esc(cout)} · ${esc(tonnes)} · part ${esc(part)}${cr.length?' · '+esc(cr.join(', ')):''}</span></span>
+        <button class="btn btn-ghost" style="width:auto;padding:4px 8px" onclick="choisirScenario('${id}','A')">A</button>
+        <button class="btn btn-ghost" style="width:auto;padding:4px 8px" onclick="choisirScenario('${id}','B')">B</button>
+      </div>`;
+    }).join('');
+  }catch(e){ el.innerHTML='<span class="muted">Historique indisponible hors ligne.</span>'; }
+}
+function choisirScenario(id, which){
+  const s=scenariosHistorique.find(x=>x.id===id||x.plan_id===id);
+  if(!s) return;
+  const plan={
+    id:s.plan_id||s.id,
+    coherence:{
+      cout_annuel_m_fcfa:(s.plan||{}).cout_annuel_m_fcfa,
+      tonnes_rue_par_jour:(s.plan||{}).tonnes_rue_par_jour
+    }
+  };
+  if(which==='A') planA=plan; else planB=plan;
+  majAB();
 }
 async function exportOsm(){
   const r=await fetch(API+'/api/exports/osm'); const j=await r.json();

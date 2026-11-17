@@ -8,7 +8,11 @@ donc le même résultat pour une même graine, quel que soit le moteur.
 """
 from __future__ import annotations
 
+import json
 import random
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -49,6 +53,27 @@ except Exception:  # pragma: no cover - environnement sans Mesa
             self.random = random.Random(seed)
             self._agents: list[Agent] = []
             self.agents = _AgentSet(self)
+
+
+RACINE = Path(__file__).resolve().parents[2]
+
+
+def _charger_json(chemin: Path) -> dict[str, Any]:
+    try:
+        with chemin.open(encoding="utf-8") as f:
+            donnees = json.load(f)
+        return donnees if isinstance(donnees, dict) else {}
+    except Exception:  # un fichier absent ne doit jamais casser la simulation
+        return {}
+
+
+def _config_defaut() -> dict[str, Any]:
+    return _charger_json(RACINE / "config" / "commune_config.json")
+
+
+def _plan_reference() -> dict[str, Any]:
+    """Plan de démonstration utilisé par run_simulation quand aucun plan n'est fourni."""
+    return _charger_json(RACINE / "data" / "mock" / "plan_real.json")
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +246,20 @@ class Mairie(Agent):
                     agent.a_depose = False
 
 
+# Noms exigés par le guide final (les alias gardent les anciens imports valides).
+Menages = Menage
+PreCollecteurs = PreCollecteur
+BrigadeLaabal = Brigade
+Municipalite = Mairie
+
+AGENTS = (
+    {"nom": "Ménages", "classe": "Menage", "regle": "déposent ou non selon la desserte et la saturation"},
+    {"nom": "Précollecteurs", "classe": "PreCollecteur", "regle": "ramassent une part des dépôts, panne possible"},
+    {"nom": "Brigade Laabal", "classe": "Brigade", "regle": "sensibilise et évite certains dépôts sauvages"},
+    {"nom": "Municipalité", "classe": "Mairie", "regle": "envoie la brigade mécanisée selon camions, fréquence et budget"},
+)
+
+
 class OuagaModel(Model):
     def __init__(self, parametres: dict[str, Any], config: dict[str, Any], r: dict[str, Any], seed: int):
         super().__init__(seed=seed)
@@ -281,5 +320,68 @@ def simuler(
         "menages_synthetiques": total,
         "crises_actives": r["crises"],
         "graine": seed,
+        "agents": [dict(a) for a in AGENTS],
         "hypotheses": "paramètres de démonstration à valider avec la mairie",
     }
+
+
+# ---------------------------------------------------------------------------
+# Fonctions partagées du contrat (docs/contracts.md §6)
+# ---------------------------------------------------------------------------
+def run_scenario(params: dict[str, Any] | None, plan: dict[str, Any] | None, days: int) -> dict[str, Any]:
+    """Lance un scénario. Le plan est obligatoire dans le contrat ; la fonction ne lève jamais."""
+    try:
+        parametres = params if isinstance(params, dict) else {}
+        try:
+            duree = max(1, int(days))
+        except (TypeError, ValueError):
+            duree = 7
+        try:
+            graine = int(parametres.get("graine", parametres.get("seed", 42)))
+        except (TypeError, ValueError):
+            graine = 42
+
+        resultat = simuler(plan, parametres, _config_defaut(), jours=duree, seed=graine)
+        resultat.update({
+            "fonction": "run_scenario",
+            "scenario_id": "s_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + uuid.uuid4().hex[:6],
+            "plan_id": (plan or {}).get("id") or (plan or {}).get("plan_id"),
+            "params_used": parametres,
+            "days": duree,
+            "source_plan": "plan fourni par A",
+        })
+        return resultat
+    except Exception as exc:  # règle commune : jamais d'exception vers l'appelant
+        return {
+            "part_ramassee": 0.0,
+            "cout_m_fcfa": 0.0,
+            "depotoirs_restants": 0,
+            "jours": 1,
+            "moteur": MOTEUR,
+            "unite_depotoirs_restants": "ménages synthétiques (proxy)",
+            "menages_synthetiques": 0,
+            "crises_actives": [],
+            "graine": 0,
+            "agents": [dict(a) for a in AGENTS],
+            "fonction": "run_scenario",
+            "source_plan": "indisponible",
+            "warnings": [f"Simulation de repli : {type(exc).__name__} — {exc}"],
+        }
+
+
+def run_simulation(params: dict[str, Any] | None = None, days: int = 7) -> dict[str, Any]:
+    """Signature demandée dans le message d'équipe.
+
+    Le contrat rendant le plan obligatoire, on utilise `params["plan"]` s'il est
+    fourni, sinon le plan de référence local, explicitement étiqueté.
+    """
+    parametres = params if isinstance(params, dict) else {}
+    plan = parametres.get("plan")
+    source = "plan fourni dans params"
+    if not isinstance(plan, dict):
+        plan = _plan_reference()
+        source = "plan de référence simulé (mock local)"
+    resultat = run_scenario(parametres, plan, days)
+    resultat["fonction"] = "run_simulation"
+    resultat["source_plan"] = source
+    return resultat

@@ -99,7 +99,21 @@ def test_no_network_never_raises(setup: tuple[dict[str, Any], g.Network, dict[st
     empty = g.load_network({**cfg, "paths": {**cfg["paths"], "processed_dir": str(tmp_path / "rien")}})
     plan = compute_plan(params, [], cfg=cfg, net=empty)
     _consistent(plan)
+    assert plan["mode"] == "fallback"
     assert not plan["routes"] and all(u["reason"] == "no_route" for u in plan["unserved"])
+
+
+def test_missing_network_and_buildings_never_claims_optimized(tmp_path: Path) -> None:
+    """Un environnement sans données géographiques renvoie un fallback explicite, pas un plan optimisé vide."""
+    cfg = load_config(REPO_CONFIG)
+    cfg["paths"]["processed_dir"] = str(tmp_path / "missing")
+    net = g.load_network(cfg)
+
+    plan = compute_plan(cfg["params"], [], cfg=cfg, net=net)
+
+    assert plan["mode"] == "fallback"
+    assert not plan["collection_points"] and not plan["routes"]
+    assert any("Réseau routier introuvable" in warning for warning in plan["warnings"])
 
 
 def test_ignored_reports_listed(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:

@@ -334,7 +334,8 @@ def _solve(ctx: Ctx, base: dict[str, Any], cand: list[dict[str, Any]], cand_node
     if routes is not None:
         filled = _fill(ctx, base, routes, cand, cand_nodes, dist, all_nodes, use_network, extra)
         result = _build(ctx, filled[0], filled[1], filled[2], filled[3], filled[4], filled[5], filled[6])
-        result["mode"] = "optimized" if filled[5] else "fallback"
+        network_available = ctx.net.views[ctx.view].n_nodes > 0
+        result["mode"] = "optimized" if filled[5] and network_available else "fallback"
         if all_ok(result["checks"]):
             return result
         ctx.warnings.append("Plan du solveur incohérent : secours glouton. " + " ".join(result["checks"]["messages"]))
@@ -445,7 +446,8 @@ def _partial(ctx: Ctx, prev: dict[str, Any], reports: Any, kind: str) -> dict[st
     ctx.assumptions.append(f"Recalcul partiel ({kind}) : tournées gardées, {len(to_insert)} arrêt(s) réinséré(s) au moindre "
                            "coût, puis amélioration locale (2-opt, déplacement d'arrêt).")
     result = _build(ctx, base, routes, cand, all_nodes, dist, use_network, reasons)
-    result["mode"] = "partial" if use_network else "fallback"
+    network_available = ctx.net.views[ctx.view].n_nodes > 0
+    result["mode"] = "partial" if use_network and network_available else "fallback"
     return result
 
 

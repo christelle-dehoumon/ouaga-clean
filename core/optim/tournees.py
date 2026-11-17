@@ -7,6 +7,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
+from ortools.constraint_solver import pywrapcp, routing_enums_pb2
+
+ORTOOLS_MIN = "9.12"      # première version vérifiée avec routing_enums_pb2.RoutingSearchStatus (absent en 9.11.4210)
+
+
+def check_ortools() -> None:
+    """Lève une erreur claire si l'OR-Tools installé n'a pas l'API attendue (au lieu d'un repli glouton silencieux)."""
+    if not hasattr(routing_enums_pb2, "RoutingSearchStatus"):
+        from importlib.metadata import version
+        raise RuntimeError(f"Version d'OR-Tools incompatible ({version('ortools')} installée), attendu >= {ORTOOLS_MIN} : "
+                           "routing_enums_pb2.RoutingSearchStatus est absent. Installer requirements.txt.")
+
+
+check_ortools()   # au chargement du module : l'application refuse de démarrer plutôt que de basculer en secours
 
 # Pénalité d'abandon d'un point (en mètres de trajet) : bien plus grande que toute tournée, donc le solveur sert
 # tout ce qu'il peut ; le terme proportionnel à la masse fait abandonner d'abord les petits points.
@@ -38,8 +52,6 @@ def route_minutes(stops: list[int], dist: np.ndarray, fleet: Fleet) -> float:
 def solve_ortools(dist: np.ndarray, demand: list[float], fleet: Fleet, time_limit_s: float
                   ) -> tuple[list[list[int]] | None, bool]:
     """Tournées OR-Tools (nœud 0 = dépôt), une liste d'arrêts par véhicule (None si échec), et vrai si la limite de temps a coupé."""
-    from ortools.constraint_solver import pywrapcp, routing_enums_pb2
-
     n, n_veh = len(demand) + 1, len(fleet.vehicles)
     if n_veh == 0 or n == 1:
         return [[] for _ in fleet.vehicles], False

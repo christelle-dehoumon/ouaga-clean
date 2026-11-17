@@ -266,7 +266,8 @@ def _solve(ctx: Ctx, base: dict[str, Any], cand: list[dict[str, Any]], cand_node
                             "meilleure solution trouvée à ce moment, résultat possiblement non reproductible.")
     if routes is not None:
         result = _build(ctx, base, routes, cand, all_nodes, dist, use_network)
-        result["mode"] = "optimized" if use_network else "fallback"
+        network_available = ctx.net.views[ctx.view].n_nodes > 0
+        result["mode"] = "optimized" if use_network and network_available else "fallback"
         if all_ok(result["checks"]):
             return result
         ctx.warnings.append("Plan du solveur incohérent : secours glouton. " + " ".join(result["checks"]["messages"]))

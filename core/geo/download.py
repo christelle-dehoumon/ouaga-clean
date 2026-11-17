@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import pickle
 import sys
 import time
@@ -28,7 +29,7 @@ WATERWAYS_FILE = "waterways.geojson"
 META_FILE = "download_meta.json"
 # Réglages de téléchargement (pas des paramètres métier) : petits morceaux mis en cache pour survivre à un réseau instable.
 CHUNK_AREA_M2 = 25_000_000
-REQUEST_TIMEOUT_S = 600
+REQUEST_TIMEOUT_S = 120
 RETRY_PAUSE_S = 10
 OSM_ATTRIBUTION = "© contributeurs OpenStreetMap, licence ODbL"
 
@@ -77,6 +78,7 @@ def _configure_osmnx(cache_dir: Path) -> Any:
     ox.settings.cache_folder = str(cache_dir)
     ox.settings.requests_timeout = REQUEST_TIMEOUT_S
     ox.settings.max_query_area_size = CHUNK_AREA_M2
+    ox.settings.overpass_endpoint = "https://overpass.osm.ch/api/interpreter"
     ox.settings.log_console = False
     _keep_road_tags(ox)
     return ox
@@ -106,6 +108,23 @@ def _boundary(ox: Any, cfg: dict[str, Any], raw_dir: Path) -> Any:
     print("[contour] ATTENTION : emprise réduite au rectangle « bbox » de la configuration.")
     bbox = cfg["bbox"]
     return box(bbox["west"], bbox["south"], bbox["east"], bbox["north"])
+
+
+def _pilot_boundary(cfg: dict[str, Any], buffer_m: float = 0.0) -> Any:
+    """Emprise de la zone pilote officielle avec marge optionnelle en mètres."""
+    from shapely.geometry import box
+    from core.geo.territories import _pilot_square, METRES_PER_DEGREE_LAT
+
+    square = _pilot_square(cfg, np.zeros(0), np.zeros(0), [])
+    if square is None:
+        raise RuntimeError("Impossible de déterminer la zone pilote.")
+    if buffer_m <= 0:
+        return square
+    minx, miny, maxx, maxy = square.bounds
+    center_lat = (miny + maxy) / 2.0
+    dlat = buffer_m / METRES_PER_DEGREE_LAT
+    dlon = buffer_m / (METRES_PER_DEGREE_LAT * math.cos(math.radians(center_lat)))
+    return box(minx - dlon, miny - dlat, maxx + dlon, maxy + dlat)
 
 
 def roads_from_xml(xml_path: Path) -> Any:
@@ -175,7 +194,8 @@ def building_centroids_from_osm(osm_path: Path) -> tuple[np.ndarray, int]:
     return np.asarray(handler.coords, dtype=np.float64).reshape(-1, 2), handler.skipped
 
 
-def _prepare_roads(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: bool) -> dict[str, Any] | None:
+def _prepare_roads(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: bool,
+                   pilot: bool = False) -> dict[str, Any] | None:
     """Graphe routier enregistré en pickle : fichier local d'abord, Overpass sinon ; renvoie ses chiffres."""
     out = out_dir / ROADS_PICKLE
     if out.exists() and not force:
@@ -187,16 +207,30 @@ def _prepare_roads(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: boo
         print(f"[routes] lecture locale de {local.name} ({_human_size(local)})…", flush=True)
         graph, origin = roads_from_xml(local), f"fichier local {local.name}"
     else:
-        print(f"[routes] {local.name} absent : téléchargement Overpass.")
         ox = _configure_osmnx(raw_dir / "osm_cache")
-        polygon = _boundary(ox, cfg, raw_dir)
+        if pilot:
+            print("[routes] téléchargement Overpass (zone pilote avec marge de 500 m).", flush=True)
+            polygon = _pilot_boundary(cfg, buffer_m=500.0)
+            origin = "Overpass (zone pilote)"
+        else:
+            print(f"[routes] {local.name} absent : téléchargement Overpass.")
+            polygon = _boundary(ox, cfg, raw_dir)
+            origin = "Overpass"
         graph = _with_retry("routes", lambda: ox.graph_from_polygon(polygon, network_type="all", retain_all=True))
-        origin = "Overpass"
-        if graph is None:
+        if graph is None or graph.number_of_nodes() == 0:
+            print("[routes] Échec : graphe vide ou non récupéré.", flush=True)
             return {"ok": False}
     build_s = time.perf_counter() - start
-    with out.open("wb") as fh:
-        pickle.dump(graph, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    tmp_out = out.with_suffix(".tmp")
+    try:
+        with tmp_out.open("wb") as fh:
+            pickle.dump(graph, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp_out.replace(out)
+    except Exception as exc:
+        if tmp_out.exists():
+            tmp_out.unlink()
+        print(f"[routes] échec écriture atomique : {exc}", flush=True)
+        return {"ok": False}
     start = time.perf_counter()
     with out.open("rb") as fh:
         pickle.load(fh)
@@ -208,7 +242,8 @@ def _prepare_roads(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: boo
     return stats
 
 
-def _prepare_buildings(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: bool) -> dict[str, Any] | None:
+def _prepare_buildings(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: bool,
+                       pilot: bool = False) -> dict[str, Any] | None:
     """Centres des bâtiments en tableau lat/lon : pbf local d'abord, Overpass sinon ; renvoie leurs chiffres."""
     out = out_dir / BUILDINGS_FILE
     if out.exists() and not force:
@@ -222,16 +257,34 @@ def _prepare_buildings(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force:
         coords, skipped = building_centroids_from_osm(local)
         origin = f"fichier local {local.name}"
     else:
-        print(f"[bâtiments] {local.name} absent : téléchargement Overpass.")
         ox = _configure_osmnx(raw_dir / "osm_cache")
-        polygon = _boundary(ox, cfg, raw_dir)
+        if pilot:
+            print("[bâtiments] téléchargement Overpass (zone pilote).", flush=True)
+            polygon = _pilot_boundary(cfg, buffer_m=0.0)
+            origin = "Overpass (zone pilote)"
+        else:
+            print(f"[bâtiments] {local.name} absent : téléchargement Overpass.")
+            polygon = _boundary(ox, cfg, raw_dir)
+            origin = "Overpass"
         gdf = _with_retry("bâtiments", lambda: ox.features_from_polygon(polygon, tags={"building": True}))
-        if gdf is None:
+        if gdf is None or gdf.empty:
+            print("[bâtiments] Échec : aucun bâtiment récupéré.", flush=True)
             return {"ok": False}
         cent = gdf.geometry.centroid
-        coords, origin = np.column_stack([cent.y.to_numpy(), cent.x.to_numpy()]), "Overpass"
+        coords, origin = np.column_stack([cent.y.to_numpy(), cent.x.to_numpy()]), origin
+    if len(coords) == 0:
+        print("[bâtiments] Échec : coordonnées des bâtiments vides.", flush=True)
+        return {"ok": False}
     build_s = time.perf_counter() - start
-    np.savez_compressed(out, lat=coords[:, 0], lon=coords[:, 1], source=np.array("documented"))
+    tmp_out = out.with_suffix(".tmp.npz")
+    try:
+        np.savez_compressed(tmp_out, lat=coords[:, 0], lon=coords[:, 1], source=np.array("documented"))
+        tmp_out.replace(out)
+    except Exception as exc:
+        if tmp_out.exists():
+            tmp_out.unlink()
+        print(f"[bâtiments] échec écriture atomique : {exc}", flush=True)
+        return {"ok": False}
     stats = {"ok": True, "origin": origin, "buildings": int(len(coords)), "ways_without_location": skipped,
              "build_s": round(build_s, 1), "size": _human_size(out)}
     print(f"[bâtiments] {out.name} ({stats['size']}) — {stats['buildings']} centres ; lecture {stats['build_s']} s")
@@ -286,7 +339,7 @@ def _update_meta(out_dir: Path, roads: dict[str, Any] | None, buildings: dict[st
     return meta
 
 
-def run(config_path: str, force: bool = False) -> int:
+def run(config_path: str, force: bool = False, pilot: bool = False) -> int:
     """Prépare ce qui manque dans data/processed/ ; renvoie 0 si tout est présent, 1 sinon."""
     cfg = load_config(config_path)
     for warning in cfg["_warnings"]:
@@ -296,10 +349,11 @@ def run(config_path: str, force: bool = False) -> int:
     raw_dir.mkdir(parents=True, exist_ok=True)
     out_dir.mkdir(parents=True, exist_ok=True)
     results: dict[str, dict[str, Any] | None] = {}
-    for name, step in ((ROADS_PICKLE, _prepare_roads), (BUILDINGS_FILE, _prepare_buildings),
-                       (WATERWAYS_FILE, _prepare_waterways)):
+    for name, step, is_pilot_step in ((ROADS_PICKLE, _prepare_roads, True),
+                                      (BUILDINGS_FILE, _prepare_buildings, True),
+                                      (WATERWAYS_FILE, _prepare_waterways, False)):
         try:
-            results[name] = step(cfg, raw_dir, out_dir, force)
+            results[name] = step(cfg, raw_dir, out_dir, force, pilot) if is_pilot_step else step(cfg, raw_dir, out_dir, force)
         except Exception as exc:  # noqa: BLE001 - toute erreur devient un message, jamais un plantage
             print(f"[{name}] échec : {type(exc).__name__}: {exc}")
             results[name] = {"ok": False}
@@ -317,8 +371,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Prépare une fois les données OpenStreetMap de la commune.")
     parser.add_argument("--config", default=str(REPO_ROOT / "config" / "commune_config.json"))
     parser.add_argument("--force", action="store_true", help="refait la préparation même si les fichiers existent")
+    parser.add_argument("--pilot", action="store_true", help="limite le téléchargement Overpass à la zone pilote")
     args = parser.parse_args()
-    sys.exit(run(args.config, args.force))
+    sys.exit(run(args.config, args.force, args.pilot))
 
 
 if __name__ == "__main__":

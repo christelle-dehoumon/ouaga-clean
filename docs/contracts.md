@@ -57,7 +57,7 @@ GeoJSON `Feature` de type `Polygon` ou `MultiPolygon`, propriétés :
 ```
 Si `population` est absent, A l'estime à partir des bâtiments et marque `estimated`.
 
-## 5. Plan (A produit avec `compute_plan`, B expose par `GET /plan`, C affiche et simule)
+## 5. Plan (A produit avec `compute_plan`, B expose par `POST /api/plans`, C affiche et simule)
 ```json
 {
   "plan_id": "p_20261117T101500Z",
@@ -113,6 +113,7 @@ export_geojson(dumpsites: list[dict]) -> dict              # FeatureCollection, 
 # C — core/sim/
 run_scenario(params: dict, plan: dict, days: int) -> dict  # le plan est obligatoire
 ```
+`run_scenario` renvoie les mesures de simulation avec `plan_id`, `days`, `data_tag: "simulated"` et les hypothèses appliquées. Une entrée invalide renvoie `{"error": "..."}` sans produire de mesures.
 Avec `previous_plan` sans `changed`, A déduit le changement en comparant `previous_plan.params_used` et les signalements.
 `changed` décrit ce qui a changé depuis `previous_plan`, par exemple
 `{"broken_trucks": ["truck2"]}`, `{"rainy_season": true}` ou `{"extra_territories": ["q_new_1"]}`.
@@ -121,3 +122,26 @@ Sans `previous_plan`, calcul complet.
 ## 7. Erreurs
 Aucune fonction partagée ne lève d'exception vers l'appelant. En cas de problème :
 plan en mode `fallback`, `warnings` renseigné, et l'explication dans `checks.messages`.
+
+## 8. Routes HTTP de l’application
+
+- `GET /api/health`, `GET /api/stats` : état et statistiques des signalements.
+- `POST /api/reports`, `GET /api/reports`, `GET /api/reports/{id}` et
+  `POST /api/reports/{id}/validate` : cycle de vie des signalements. Le stockage de B
+  utilise les tailles `petit|moyen|grand` et statuts `accepte|rejete|a_verifier`;
+  l’API du plan convertit ces valeurs vers le contrat ci-dessus.
+- `POST /api/reports/bulk` : valide un tableau de signalements et renvoie chaque résultat
+  ainsi que les statistiques réelles du validateur.
+- `POST /api/plans` avec `{"params": {...}}` : calcule un plan depuis les paramètres et
+  signalements enregistrés. La réponse est le Plan de la section 5, y compris les replis
+  et avertissements si le réseau routier n’est pas disponible.
+- `GET /api/plans/{plan_id}` : relit un plan calculé conservé en mémoire par l’instance.
+- `POST /api/plans/{plan_id}/simulation` avec `{"days": 7}` : exécute `run_scenario`
+  avec les paramètres et le plan associés.
+- `GET /api/plans/{plan_id}/export` : exporte les points et géométries disponibles du plan
+  en GeoJSON; les géométries absentes ne sont pas fabriquées.
+- `GET /dashboard/` : tableau de bord; sa feuille de style et son script sont servis sous
+  `/dashboard/dashboard.css` et `/dashboard/dashboard.js`.
+
+L’accès à une simulation sans plan connu renvoie HTTP 404. Un corps invalide renvoie HTTP
+400 ou 422 avec une explication, plutôt que des mesures simulées par défaut.

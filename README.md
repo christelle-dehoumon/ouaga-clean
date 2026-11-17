@@ -38,3 +38,51 @@ sudo apt install build-essential cmake libboost-dev libexpat1-dev zlib1g-dev lib
 ```
 
 Vérifier : `.venv/bin/python -c "import osmium; print(osmium.__version__)"`.
+
+## Démarrage rapide
+
+Ouaga Propre aide à planifier la collecte et à visualiser des scénarios d'assainissement pour Ouagadougou.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Lancer l'application :
+
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+Les pages sont disponibles sur `/citizen/` et `/dashboard/`.
+
+Lancer les tests :
+
+```bash
+PYTHONPATH=. pytest -q
+```
+
+## Organisation
+
+- `api/` : API de l'application
+- `core/geo/` : données et traitements géographiques
+- `core/optim/` : optimisation des tournées et des points de collecte
+- `core/validation/` : validation des signalements
+- `core/sim/` : simulation
+- `web/citizen/` : interface citoyenne
+- `web/dashboard/` : tableau de bord
+- `config/` : configuration de la commune
+- `data/` : données et exemples
+
+Pour changer de commune, utilisez la configuration `config/commune_config.koudougou.json`.
+
+## Données et licence
+
+Les données OpenStreetMap sont soumises à l'ODbL. Les conditions d'utilisation des données Open Buildings sont à vérifier
+auprès de leur fournisseur avant toute réutilisation.
+
+Le projet est distribué sous licence Apache-2.0 (voir [LICENSE](LICENSE)).
+
+Les signalements et paramètres présentés pour la démonstration sont **SIMULÉS** ou des **HYPOTHÈSES**. Ils ne sont jamais
+versés dans OpenStreetMap.

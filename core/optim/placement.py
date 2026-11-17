@@ -179,14 +179,32 @@ def place_points(net: Network, demand: dict[str, Any], dumpsites: Any, cfg: dict
     territory: list[str | None] = [None] * len(entries)
     if names and (code >= 0).any():
         counts = np.zeros((len(entries), len(names)))
-        np.add.at(counts, (owner[code >= 0], code[code >= 0]), 1)
+        np.add.at(counts, (owner[code >= 0], code[code >= 0]), kg[code >= 0])
         territory = [names[int(r.argmax())] if r.max() > 0 else None for r in counts]
     result["walk_share"] = float(kg[dist <= radius].sum() / kg.sum())
     result["k"] = len(centers)
-    result["node_ids"] = [e["node"] for e in entries]
-    result["points"] = [{"id": f"c_{e['node']}" if e["node"] is not None else f"c_x{i + 1}", "lat": round(e["lat"], 7), "lon": round(e["lon"], 7),
-                         "demand_kg": round(float(loads[i]), 1), "access": e["access"], "territory_id": territory[i], "type": "center",
-                         "data_tag": "estimated"} for i, e in enumerate(entries)]
+    final_points = []
+    final_node_ids = []
+    for i, e in enumerate(entries):
+        load_i = float(loads[i])
+        if capacity > 0 and load_i > capacity:
+            n_splits = int(math.ceil(load_i / capacity))
+            split_load = round(load_i / n_splits, 1)
+            for s_idx in range(n_splits):
+                suffix = f"_{s_idx + 1}" if s_idx > 0 else ""
+                pid = f"c_{e['node']}{suffix}" if e["node"] is not None else f"c_x{i + 1}{suffix}"
+                final_points.append({"id": pid, "lat": round(e["lat"], 7), "lon": round(e["lon"], 7),
+                                     "demand_kg": split_load, "access": e["access"], "territory_id": territory[i],
+                                     "type": "center", "data_tag": "estimated"})
+                final_node_ids.append(e["node"])
+        else:
+            final_points.append({"id": f"c_{e['node']}" if e["node"] is not None else f"c_x{i + 1}",
+                                 "lat": round(e["lat"], 7), "lon": round(e["lon"], 7),
+                                 "demand_kg": round(load_i, 1), "access": e["access"], "territory_id": territory[i],
+                                 "type": "center", "data_tag": "estimated"})
+            final_node_ids.append(e["node"])
+    result["node_ids"] = final_node_ids
+    result["points"] = final_points
     assumptions.append(f"Demande de chaque point = demande des bâtiments et dépotoirs dont il est le plus proche ; "
                        f"{result['walk_share']:.1%} de la demande est à moins de {radius:g} m d'un point.")
     return result

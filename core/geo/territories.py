@@ -154,7 +154,7 @@ def active_territories(cfg: dict[str, Any], params: dict[str, Any], lat: np.ndar
     extra = extra if isinstance(extra, list) else []
     known = _file_territories(cfg, warnings)
     commune, _how = commune_polygon(cfg)
-    wanted: list[Any] = [t for t in pilot_ids if isinstance(t, str)] + extra
+    wanted: list[Any] = extra + [t for t in pilot_ids if isinstance(t, str)]
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item in wanted:
@@ -167,7 +167,19 @@ def active_territories(cfg: dict[str, Any], params: dict[str, Any], lat: np.ndar
         elif isinstance(item, str) and item in known:
             tid, (geom, props) = item, known[item]
         elif item == PILOT_ID:
-            tid, geom, props = PILOT_ID, _pilot_square(cfg, lat, lon, assumptions), {"name": "Zone pilote"}
+            pilot_pop = None
+            if isinstance(params, dict) and params.get("pilot_population") is not None:
+                pilot_pop = params.get("pilot_population")
+            elif isinstance(model, dict) and model.get("pilot_population") is not None:
+                cfg_pop = cfg.get("params", {}).get("population")
+                param_pop = params.get("population") if isinstance(params, dict) else None
+                if param_pop is None or param_pop == cfg_pop:
+                    pilot_pop = model.get("pilot_population")
+            props = {"name": "Zone pilote"}
+            if isinstance(pilot_pop, (int, float)) and pilot_pop > 0:
+                props["population"] = int(pilot_pop)
+                props["source"] = "estimated"
+            tid, geom, props = PILOT_ID, _pilot_square(cfg, lat, lon, assumptions), props
             if geom is None:
                 warnings.append("Zone pilote impossible à construire : ni limite communale, ni emprise, ni bâtiments.")
                 continue

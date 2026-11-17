@@ -39,6 +39,8 @@
     "cell_size_m": 100,
     "_cell_note": "Reglage de calcul : les batiments sont agreges par cellule de cell_size_m (centre pondere) avant KMeans.",
     "pilot_territory_ids": ["pilot"],
+    "pilot_population": 100000,
+    "_pilot_population_note": "HYPOTHESE : population résidente estimée dans le carré pilote de 5 km (centre-ville dense), évitant d'attribuer les 3 millions d'habitants de toute la commune aux seuls bâtiments du centre cartographiés sur OSM.",
     "pilot_square_m": 5000,
     "resnap_max_m": 300,
     "_resnap_note": "HYPOTHESE : un arret dont le noeud est coupe (pluie) ou un depotoir est recale sur le noeud camion praticable le plus proche s il est a moins de resnap_max_m ; sinon non servi (access) ou signalement ignore.",

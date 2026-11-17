@@ -82,7 +82,35 @@ def building_demand(cfg: dict[str, Any], params: dict[str, Any]) -> dict[str, An
     for i, t in enumerate(territories):
         inside = owner == i
         n_t = int(inside.sum())
-        if t["population"] is not None and n_t and not zero:
+        pop_decl = t.get("population")
+        geom = t.get("geometry")
+        if n_t == 0 and t["id"] != "pilot" and isinstance(pop_decl, (int, float)) and pop_decl > 0 and geom is not None and not geom.is_empty and not zero:
+            from shapely.geometry import Point
+            minx, miny, maxx, maxy = geom.bounds
+            xs = np.linspace(minx, maxx, 6)[1:-1]
+            ys = np.linspace(miny, maxy, 6)[1:-1]
+            synth_pts = []
+            for gx in xs:
+                for gy in ys:
+                    if geom.contains(Point(gx, gy)):
+                        synth_pts.append((gy, gx))
+            if not synth_pts:
+                rep = geom.representative_point()
+                synth_pts = [(rep.y, rep.x)]
+            n_synth = len(synth_pts)
+            s_lat = np.array([p[0] for p in synth_pts], dtype=float)
+            s_lon = np.array([p[1] for p in synth_pts], dtype=float)
+            s_persons = np.full(n_synth, float(pop_decl) / n_synth)
+            s_owner = np.full(n_synth, i, dtype=int)
+            lat = np.concatenate([lat, s_lat])
+            lon = np.concatenate([lon, s_lon])
+            persons = np.concatenate([persons, s_persons])
+            owner = np.concatenate([owner, s_owner])
+            inside = owner == i
+            n_t = n_synth
+            pop, tag = pop_decl, t.get("source") or "provided"
+            assumptions.append(f"Territoire « {t['id']} » ({t['name']}) sans bâtiment OSM : demande synthétisée sur {n_synth} point(s) d'après sa population déclarée de {pop_decl:g} hab.")
+        elif t["population"] is not None and n_t and not zero:
             persons[inside] = t["population"] / n_t
             pop, tag = t["population"], t["source"] or "provided"
         else:

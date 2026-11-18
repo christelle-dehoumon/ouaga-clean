@@ -111,7 +111,7 @@ body.mode-sim .scene { box-shadow: inset 0 0 0 3px var(--jaune); }
 
 /* --- Indicateurs ---------------------------------------------------------------- */
 .indicateurs { flex: none; display: flex; gap: 0; height: 74px; background: var(--encre); border-top: 1px solid var(--trait); overflow-x: auto; }
-.kpi { padding: .45rem .9rem; border-right: 1px solid var(--trait); min-width: 120px; }
+.kpi { flex: none; padding: .45rem .9rem; border-right: 1px solid var(--trait); }
 .kpi span { display: block; color: var(--doux); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .kpi b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .kpi small { color: var(--pale); font-size: 10.5px; white-space: nowrap; }
@@ -135,7 +135,7 @@ body.mode-sim .scene { box-shadow: inset 0 0 0 3px var(--jaune); }
 .commandes-camera { position: absolute; right: .8rem; bottom: .8rem; z-index: 5; display: flex; gap: 2px; background: var(--encre); border-radius: 8px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 .commandes-camera button { border: 0; background: none; color: var(--texte); padding: .4rem .65rem; border-radius: 6px; font-size: 12.5px; font-weight: 600; }
 .commandes-camera button:hover, .commandes-camera button.actif { background: var(--encre-3); }
-.legende { position: absolute; left: .8rem; bottom: .8rem; z-index: 5; background: rgba(27,29,28,.88); border-radius: 8px; padding: .5rem .7rem; font-size: 11.5px;
+.legende { position: absolute; left: .8rem; top: .8rem; z-index: 5; background: rgba(27,29,28,.88); border-radius: 8px; padding: .5rem .7rem; font-size: 11.5px;
   max-width: 290px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 .legende.repliee ul, .legende.repliee h4 { display: none; }
 .legende-titre { all: unset; cursor: pointer; display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--texte); margin-bottom: .3rem; }
@@ -143,7 +143,7 @@ body.mode-sim .scene { box-shadow: inset 0 0 0 3px var(--jaune); }
 .legende ul { list-style: none; margin: 0 0 .35rem; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .15rem .6rem; }
 .legende li { display: flex; align-items: center; gap: .35rem; }
 .legende .trait { width: 16px; height: 4px; border-radius: 2px; flex: none; }
-.credit { position: absolute; right: .8rem; top: .5rem; z-index: 5; margin: 0; font-size: 10.5px; color: #3a2c1c; background: rgba(255,255,255,.65); padding: .1rem .4rem; border-radius: 4px; }
+.credit { position: absolute; left: .8rem; bottom: .8rem; z-index: 5; margin: 0; font-size: 10.5px; color: #3a2c1c; background: rgba(255,255,255,.65); padding: .1rem .4rem; border-radius: 4px; }
 .pluie-2d { filter: saturate(.6) brightness(.85); }
 
 /* --- Aide -------------------------------------------------------------------- */
@@ -154,3 +154,11 @@ body.mode-sim .scene { box-shadow: inset 0 0 0 3px var(--jaune); }
 .aide-boite li { margin-bottom: .3rem; }
 .aide-boite .note { color: var(--doux); font-size: 12.5px; }
 .toast { font-size: 13px; }
+
+@media (max-width: 1400px) {
+  .kpi { padding: .45rem .65rem; }
+  .kpi b { font-size: 16px; }
+  .panneau-gauche { width: 290px; }
+  .panneau-droit { width: 320px; }
+  .legende { max-width: 250px; }
+}

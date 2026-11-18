@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ouaga Clean — Mairie, ville 3D</title>
+<link rel="stylesheet" href="/dashboard/shared/shared.css">
+<link rel="stylesheet" href="/dashboard/ville/ville.css">
+<script type="importmap">
+{ "imports": { "three": "/dashboard/vendor/three/three.module.js", "three/addons/": "/dashboard/vendor/three/addons/" } }
+</script>
+</head>
+<body class="mode-reel">
+<header class="barre-haut">
+  <a class="marque" href="/dashboard/ville/" aria-label="Ouaga Clean, accueil mairie">
+    <span class="drapeau" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span><b>Ouaga Clean</b><small>Mairie · aide à la décision</small></span>
+  </a>
+  <div class="bascule" role="group" aria-label="Type de données">
+    <button type="button" id="mode-reel" class="actif" aria-pressed="true">Données réelles</button>
+    <button type="button" id="mode-sim" aria-pressed="false">Simulation</button>
+  </div>
+  <div id="statut-plan" class="statut statut-vide" role="status" aria-live="polite">Aucun plan calculé</div>
+  <div class="barre-droite">
+    <span id="chrono" class="chrono" aria-live="polite"></span>
+    <a class="lien" href="/brigade/">Brigade</a>
+    <a class="lien" href="/citizen/">Page citoyen</a>
+    <button type="button" id="aide-btn" class="bouton-icone" aria-label="Aide à la navigation">?</button>
+  </div>
+</header>
+<div id="bandeau-mode" class="bandeau-mode bandeau-reel" role="status">DONNÉES RÉELLES — signalements des citoyens vérifiés par la brigade Laabal</div>
+<div id="bandeau-perime" class="bandeau-perime" hidden role="alert"></div>
+
+<div class="espace">
+  <aside id="panneau-gauche" class="panneau panneau-gauche" aria-label="Commandes"></aside>
+  <main id="scene" class="scene" aria-label="Ville en 3D">
+    <div id="chargement" class="chargement" role="status">
+      <div class="chargement-boite">
+        <span class="drapeau grand" aria-hidden="true"><i></i><i></i><i></i></span>
+        <b>Construction de la ville…</b>
+        <span id="chargement-etape">Préparation</span>
+        <div class="barre-progression"><i id="progression"></i></div>
+      </div>
+    </div>
+    <div id="infobulle" class="infobulle" hidden></div>
+    <div id="mode-interaction" class="mode-interaction" hidden></div>
+    <div class="commandes-camera" role="toolbar" aria-label="Caméra">
+      <button type="button" data-cam="dessus" title="Vue opérationnelle du dessus">Dessus</button>
+      <button type="button" data-cam="immersive" title="Vue immersive inclinée">Immersive</button>
+      <button type="button" data-cam="rue" title="Marcher dans la rue (flèches ou ZQSD, glisser pour regarder)">Rue</button>
+      <button type="button" data-cam="recentrer" title="Revenir à la vue de départ">Recentrer</button>
+      <button type="button" data-cam="animation" aria-pressed="true" title="Mettre en pause ou relancer les camions">Pause</button>
+    </div>
+    <div id="legende" class="legende" aria-label="Légende"></div>
+    <p id="credit" class="credit"></p>
+  </main>
+  <aside id="panneau-droit" class="panneau panneau-droit" aria-label="Détails">
+    <nav class="onglets" role="tablist">
+      <button type="button" role="tab" data-onglet="selection" class="actif" aria-selected="true">Sélection</button>
+      <button type="button" role="tab" data-onglet="comparer" aria-selected="false">Comparer A/B</button>
+      <button type="button" role="tab" data-onglet="historique" aria-selected="false">Historique</button>
+    </nav>
+    <section id="onglet-selection" class="onglet"></section>
+    <section id="onglet-comparer" class="onglet" hidden></section>
+    <section id="onglet-historique" class="onglet" hidden></section>
+  </aside>
+</div>
+<footer id="indicateurs" class="indicateurs" aria-label="Indicateurs"></footer>
+
+<div id="aide" class="aide-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="aide-titre">
+  <div class="aide-boite">
+    <h2 id="aide-titre">Explorer la ville</h2>
+    <ul>
+      <li><b>Tourner</b> : glisser avec le bouton gauche.</li>
+      <li><b>Se déplacer</b> : glisser avec le bouton droit (ou deux doigts).</li>
+      <li><b>Zoomer</b> : molette.</li>
+      <li><b>Sélectionner</b> : cliquer sur un signalement, un camion, un point de collecte ou un quartier.</li>
+      <li><b>Vue rue</b> : flèches ou Z Q S D pour marcher, glisser pour regarder, Maj pour aller plus vite.</li>
+    </ul>
+    <p class="note">Bâtiments et routes : OpenStreetMap. Hauteurs des bâtiments estimées, arbres illustratifs.
+      Seuls le secteur pilote et les quartiers téléchargés sont modélisés.</p>
+    <button type="button" id="aide-fermer" class="btn btn-primaire">Compris</button>
+  </div>
+</div>
+<script type="module" src="/dashboard/ville/app.js"></script>
+</body>
+</html>

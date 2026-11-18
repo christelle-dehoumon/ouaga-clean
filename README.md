@@ -13,7 +13,10 @@ brigade Laabal et mairie. Licence Apache-2.0 (voir [LICENSE](LICENSE)).
 Le script crée `.venv` (Python 3.12), installe `requirements.txt`, génère un certificat HTTPS auto-signé dans
 `data/certs/`, crée `data/reel.db` et `data/sim.db`, puis lance l'API en HTTPS sur `0.0.0.0:8443`.
 HTTPS est indispensable : sans lui, le téléphone refuse le GPS et la caméra. Le certificat étant auto-signé, le
-navigateur affiche un avertissement à accepter une fois.
+navigateur affiche un avertissement à accepter une fois. Avec ce certificat, GPS, caméra, envoi et file hors connexion
+fonctionnent (vérifié), mais les navigateurs refusent le service worker : la page citoyen ne se ROUVRE pas sans réseau.
+Pour cela, fournir un certificat reconnu : `SSL_CERTFILE=… SSL_KEYFILE=… ./scripts/run.sh` (Let's Encrypt), ou
+installer `mkcert` (le script l'utilise) et son autorité racine sur les téléphones de démonstration.
 
 - Page citoyen (téléphone, sans compte) : `https://<ip-du-poste>:8443/citizen/`
 - Brigade Laabal (téléphone, code brigade) : `https://<ip-du-poste>:8443/brigade/`

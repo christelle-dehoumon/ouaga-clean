@@ -7,9 +7,9 @@ HTML, CSS et JavaScript natifs (modules ES), sans framework ni étape de constru
 | Signalement citoyen | `/citizen/` | téléphone, sans compte |
 | Brigade Laabal | `/brigade/` | téléphone, code brigade |
 | Mairie, ville 3D | `/dashboard/ville/` | ordinateur (1280 px et plus), code mairie |
-| Ancien tableau de bord | `/dashboard/` | conservé tel quel (voir « Dépendances côté serveur ») |
+| Raccourci | `/dashboard/` | redirige vers `/dashboard/ville/` |
 
-Démarrage : `./scripts/run.sh`, puis `https://<ip>:8443/dashboard/ville/`. Codes de démonstration : `mairie-demo`,
+Démarrage : `./scripts/run.sh`, puis `https://<ip>:8443/dashboard/` (redirige vers la ville 3D). Codes de démonstration : `mairie-demo`,
 `brigade-demo` (définir `MAIRIE_CODE` et `BRIGADE_CODE` en vrai déploiement). Le code est gardé pour la session de
 l'onglet ; ce n'est pas une sécurité : le serveur vérifie chaque appel.
 
@@ -66,21 +66,19 @@ Avant la démonstration : `./scripts/reset_db.sh` (vide sim.db, recharge le jeu 
 
 ## Tests
 
-- `pytest` (racine) : 134 tests du serveur, dont `tests/test_c_dashboard.py` qui fige l'ancien tableau de bord.
+- `pytest` (racine) : 128 tests, dont `tests/test_c_dashboard.py` (contrat du front : ressources locales, routes appelées
+  présentes dans l'API, données fictives étiquetées, pas d'innerHTML).
 - `web/tools/e2e/*.py` : parcours dans Chromium (Playwright, à installer à part), sur un serveur lancé avec des bases
   temporaires (`REEL_DB`, `SIM_DB`, `PHOTO_DIR`) : citoyen (en ligne, hors ligne, synchronisation, GPS refusé),
-  brigade (code, décision, hors ligne, conflit 409), mairie (24 vérifications), vue 2D, mode démonstration, couche API.
+  brigade (code, décision, hors ligne, conflit 409), mairie (24 vérifications), vue 2D, mode démonstration, couche API,
+  gestes (`gestes.py` : redirection, clic sur une épingle dans la ville, « Rouvrir » de l'historique).
 
-## Dépendances côté serveur (non modifié : seul web/ était ouvert)
+## Dépendances côté serveur
 
-1. `tests/test_c_dashboard.py` fige l'ancien `/dashboard/` (routes `/validate` et `/bulk` supprimées de l'API, motif de
-   rejet obligatoire, aucune URL externe) : la nouvelle interface est donc servie sous `/dashboard/ville/`. Pour en
-   faire la page par défaut, il faut mettre à jour ce test (ou monter `/mairie`).
-2. Pas de `GET` des dépotoirs simulés ni des routes coupées : la liste est reconstruite à partir des réponses
+1. Pas de `GET` des dépotoirs simulés ni des routes coupées : la liste est reconstruite à partir des réponses
    (`active_cuts`, `plan.cut_roads`, points `dumpsite` du plan).
-3. `POST /api/reports` n'a pas de clé d'idempotence : si une réponse se perd (délai dépassé), un nouvel envoi
+2. `POST /api/reports` n'a pas de clé d'idempotence : si une réponse se perd (délai dépassé), un nouvel envoi
    automatique peut renforcer le même dépotoir (signalé N + 1 fois) au lieu de créer un doublon.
-4. Les bâtiments, routes et limites de quartiers ne sont pas exposés par l'API : `city.json` est généré depuis
+3. Les bâtiments, routes et limites de quartiers ne sont pas exposés par l'API : `city.json` est généré depuis
    `data/` et doit être régénéré si ces données changent.
-5. Pas de position des camions côté serveur : un camion en panne s'arrête là où l'animation le montrait.
-6. `README.md` et `docs/` (hors web/) citent encore `/dashboard/` comme tableau de bord.
+4. Pas de position des camions côté serveur : un camion en panne s'arrête là où l'animation le montrait.

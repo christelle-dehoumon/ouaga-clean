@@ -1,4 +1,4 @@
-# Matrice de contribution
+# Matrice de Contribution de Yilgré
 
 Générée par `python -m scripts.contribution_matrix` à partir de git (toutes branches, sans fusions). Lignes ajoutées par couche, hors données, bibliothèques copiées et images (comptées en fichiers).
 
@@ -6,7 +6,7 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 
 | Membre (auteur git) | Rôle | Commits | dont assistés par IA | Instantanés automatiques (non attribués) | Fichiers de données touchés |
 |---|---|---|---|---|---|
-| jonathan-onjd | API, tri, interfaces (à confirmer) | 25 | 18 | 29 | 36 |
+| jonathan-onjd | API, tri, interfaces (à confirmer) | 26 | 19 | 29 | 36 |
 | TaniaW777 | géo, optimisation (à confirmer) | 7 | 0 | 0 | 6 |
 | Christelle Dehoumon | simulation, tableau de bord (à confirmer) | 10 | 0 | 0 | 17 |
 
@@ -24,8 +24,8 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 | Mairie 3D | 3424 |  |  |
 | Ancien tableau de bord | 325 |  | 1588 |
 | Tests | 1895 | 912 | 208 |
-| Scripts, déploiement | 1153 | 576 | 254 |
-| Documentation | 1165 | 244 | 163 |
+| Scripts, déploiement | 1340 | 576 | 254 |
+| Documentation | 1620 | 244 | 163 |
 | Configuration | 713 | 80 |  |
 | Autres | 126 | 31 |  |
 

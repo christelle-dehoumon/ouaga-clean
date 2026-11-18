@@ -83,7 +83,7 @@ def main() -> None:
     names = [n for _, n in LAYERS] + ["Autres"]
     authors = sorted(commits, key=lambda a: -sum(lines[a].values()))
     out = [
-        "# Matrice de contribution",
+        "# Matrice de Contribution de Yilgré",
         "",
         "Générée par `python -m scripts.contribution_matrix` à partir de git (toutes branches, sans fusions). "
         "Lignes ajoutées par couche, hors données, bibliothèques copiées et images (comptées en fichiers).",

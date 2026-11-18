@@ -54,7 +54,7 @@ flowchart LR
 ```
 
 - **Données géographiques :** réseau routier, bâtiments et eau d'OpenStreetMap, préparés une fois et versionnés
-  (`data/processed/`, 3,6 Mo pour le graphe routier) ; un clone neuf a donc un plan sans téléchargement.
+  (`data/processed/`, 3,7 Mo pour le graphe routier) ; un clone neuf a donc un plan sans téléchargement.
 - **Deux bases :** `reel.db` et `sim.db`, même schéma, ouvertes par `core/db.get_db(mode)` sans jointure possible.
 - **Configuration :** un seul fichier par commune, lu par le seul module `core/config.py` (variable `COMMUNE_CONFIG`).
 - **Front :** HTML, CSS et JavaScript natifs, Three.js et Leaflet copiés localement, sans étape de construction.

@@ -75,6 +75,8 @@ Ces codes sont publics : en déploiement réel, définir `MAIRIE_CODE` et `BRIGA
 ./scripts/reset_db.sh            # vide sim.db et recharge le jeu fictif (reel.db intact ; --reel pour la vider aussi)
 docker compose up --build        # même application en conteneur (image yilgre:latest), https://localhost:8443/
 ```
+Sous Docker, l'adresse « réseau local » affichée au démarrage est celle du conteneur : depuis un téléphone, utiliser
+l'adresse de l'ordinateur (`hostname -I`), port 8443.
 
 ---
 

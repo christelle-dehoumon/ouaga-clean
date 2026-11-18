@@ -85,7 +85,7 @@ l'adresse de l'ordinateur (`hostname -I`), port 8443.
 1. **Signalement (citoyen) :** sur le téléphone, `/citizen/` : la position se remplit seule, prendre une photo, « Envoyer ». Couper le réseau, envoyer un second signalement : il reste sur le téléphone et part au retour du réseau.
 2. **Vérification (brigade) :** sur `/brigade/`, ouvrir le cas (photo floutée par le serveur, alertes du tri), « Confirmer ».
 3. **Ville et plan (mairie) :** sur `/dashboard/`, mode **Données réelles** : le dépotoir confirmé apparaît en rouge dans la ville 3D ; « Calculer le plan réel ».
-4. **Simulation :** basculer en **Simulation** (bandeau jaune) ; points de collecte, tournées colorées, camions qui roulent sur leurs tournées ; onglet « Comparer A/B » > « Fixer le plan affiché comme A ».
+4. **Simulation :** basculer en **Simulation** (bandeau violet hachuré) ; points de collecte, tournées colorées, camions qui roulent sur leurs tournées ; onglet « Comparer A/B » > « Fixer le plan affiché comme A ».
 5. **Panne :** cliquer un camion > « Déclarer en panne » : il s'arrête feux allumés ; recalcul partiel, arrêts reportés listés, temps de calcul serveur affiché.
 6. **Pluie puis nouveau quartier :** « Déclencher la saison des pluies », puis ajouter Kalgodin : nouveaux points, quartiers touchés.
 7. **Décider :** « Fixer le plan affiché comme B » > « Comparer A et B » : écarts de couverture, de coût et de points non desservis, compromis expliqués.

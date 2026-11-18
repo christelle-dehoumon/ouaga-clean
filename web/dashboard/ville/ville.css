@@ -268,11 +268,20 @@ body.gauche-replie .credit { left: var(--marge); }
 .aide-boite .btn { width: 100%; min-height: var(--cible); font-size: var(--t-corps); }
 .toast { font-size: var(--t-legende); }
 
+@media (max-width: 1600px) {
+  .kpi { padding: 0 var(--e-3); }
+  .kpi.fictif { padding: 0 var(--e-4); }
+  .kpi.fictif b { font-size: 22px; }
+}
 @media (max-width: 1400px) {
   :root { --pg: 300px; --pd: 320px; }
-  .kpi { padding: 0 var(--e-3); }
-  .kpi b { font-size: 16px; }
-  .kpi.fictif b { font-size: 21px; }
+  .indicateurs { padding: 0; }
+  .kpi { padding: 0 10px; }
+  .kpi span { font-size: 11px; letter-spacing: 0; }
+  .kpi b { font-size: 15px; }
+  .kpi small { font-size: 10.5px; }
+  .kpi.fictif { padding: 0 var(--e-3); }
+  .kpi.fictif b { font-size: 19px; }
   .legende { max-width: 230px; }
   .legende ul { grid-template-columns: 1fr; }
   .marque small { display: none; }

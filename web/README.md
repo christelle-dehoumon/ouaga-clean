@@ -23,7 +23,9 @@ web/
   citizen/          index.html, citizen.css, citizen.js, sw.js (service worker : la page s'ouvre sans réseau)
   brigade/          index.html, brigade.css, brigade.js
   dashboard/
-    shared/         api.js (appels, délais, erreurs, code de rôle), mock.js (?mock=1), store.js (IndexedDB), ui.js, shared.css
+    shared/         api.js (appels, délais, erreurs, code de rôle), mock.js (?mock=1), store.js (IndexedDB), ui.js,
+                    design.css (jetons : couleurs, espacements, typographie, mode sombre), shared.css (composants communs),
+                    icones/ (SVG locaux), logo.jpg (copie telle quelle de assets/logo.jpg)
     ville/          index.html, ville.css, app.js (état, modes, panneaux), status.js, compare.js (A/B, historique),
                     view3d.js (vue 3D), view2d.js (vue 2D de secours), data/city.json
       map3d/        scene.js, camera.js, city.js, layers.js, vehicles.js, interactions.js, effects.js, geo.js
@@ -33,6 +35,11 @@ web/
 
 `web/shared/` n'est pas servi par l'API (seuls `/citizen`, `/brigade` et `/dashboard` sont montés) : le code commun vit
 donc dans `/dashboard/shared/` et les trois pages l'importent par chemin absolu.
+
+Mise en page de la mairie : la ville occupe tout l'écran ; commandes à gauche et détails à droite (Sélection, Comparer
+A/B, Historique) dans deux panneaux flottants que les boutons aux deux bouts de la barre du haut masquent ; statut du
+plan et chronomètre en haut de la scène ; légende en bas à gauche, caméra en bas à droite, indicateurs en pied de page.
+Couleurs : vert = identité et actions positives, jaune = accent rare, rouge = erreurs et danger, violet = simulation.
 
 ## La ville 3D
 
@@ -54,10 +61,10 @@ donc dans `/dashboard/shared/` et les trois pages l'importent par chemin absolu.
 
 1. **Découvrir la ville (0:00–0:35)** : ouvrir `/dashboard/ville/`, Immersive, faire tourner la ville, cliquer un
    quartier puis un signalement (fiche, photo floutée, historique).
-2. **Plan initial (0:35–1:05)** : passer en Simulation (bandeau jaune) ; le plan se calcule ; points verts, tournées
+2. **Plan initial (0:35–1:05)** : passer en Simulation (bandeau violet hachuré) ; le plan se calcule ; points verts, tournées
    colorées, camions qui roulent ; « Comparer A/B » → « Fixer le plan affiché comme A ».
 3. **Panne (1:05–1:40)** : cliquer un camion → « Déclarer en panne » ; le camion s'arrête, feux allumés ; statut
-   « Plan partiellement réalisable — N arrêt(s) reporté(s) », recalcul partiel, temps serveur affiché en haut.
+   « Plan partiellement réalisable — N arrêt(s) reporté(s) », recalcul partiel, temps serveur affiché en haut de la scène.
 4. **Pluie (1:40–2:10)** : « Déclencher la saison des pluies » ; pluie dans la ville ; points non desservis en rouge.
 5. **Nouveau quartier (2:10–2:40)** : choisir Kalgodin → « Ajouter au scénario » ; la caméra y vole, nouveaux points.
 6. **Décider (2:40–3:00)** : « Fixer le plan affiché comme B » → « Comparer A et B » : écarts et compromis.

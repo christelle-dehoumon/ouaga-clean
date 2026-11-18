@@ -13,7 +13,7 @@
   --trait-fort: #c9c3b8;
   --texte: #1e2320;
   --texte-2: #545a56;
-  --texte-3: #6b706c;
+  --texte-3: #61665f;
   --encre: #1e2320;          /* fonds sombres ponctuels (toast, infobulle) */
   --sur-encre: #f6f4ef;
 
@@ -31,7 +31,7 @@
   --rouge-texte: #9f1d1d;
 
   /* Statuts (toujours couleur + libellé + icône) */
-  --st-verifier: #b25d00;   --st-verifier-pale: #fdedd6;
+  --st-verifier: #9a5200;   --st-verifier-pale: #fdedd6;
   --st-confirme: #0a7a42;   --st-confirme-pale: #e2f2e8;
   --st-rejete: #c62828;     --st-rejete-pale: #fde8e7;
   --st-nettoyage: #3d6373;  --st-nettoyage-pale: #e2ebef;
@@ -83,7 +83,7 @@
     --texte-3: #9c9b93;
     --encre: #0f110f;
     --sur-encre: #ecebe5;
-    --vert: #1f9a5a;
+    --vert: #157a46;
     --vert-pale: rgba(43, 191, 110, .14);
     --vert-texte: #6fdaa0;
     --jaune-pale: rgba(252, 209, 22, .14);

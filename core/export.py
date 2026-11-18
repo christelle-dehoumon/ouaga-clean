@@ -36,7 +36,7 @@ def reports_geojson() -> dict[str, Any]:
                              "nb_signalements": r["nb_signalements"]}} for r in confirmed_reports()]
     return {"type": "FeatureCollection", "name": f"Dépotoirs signalés et vérifiés, {get_config().get('commune')}",
             "license": LICENSE, "license_url": LICENSE_URL,
-            "attribution": "Signalements citoyens vérifiés par la brigade Laabal, projet Ouaga Clean",
+            "attribution": "Signalements citoyens vérifiés par la brigade Laabal, projet Yilgré",
             "data_tag": "observed", "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "features": feats}
 
@@ -44,7 +44,7 @@ def reports_geojson() -> dict[str, Any]:
 def reports_osm_xml() -> str:
     """Fichier OSM (JOSM) des dépotoirs encore présents (confirme, type depotoir), identifiants négatifs."""
     lines = ["<?xml version='1.0' encoding='UTF-8'?>",
-             "<osm version='0.6' generator='ouaga-clean (export fichier, jamais envoyé)' upload='never'>"]
+             "<osm version='0.6' generator='yilgre (export fichier, jamais envoyé)' upload='never'>"]
     for i, r in enumerate((r for r in confirmed_reports() if r["statut"] == "confirme" and r["type"] == "depotoir"), 1):
         lines.append(f"  <node id='-{i}' lat='{r['lat']:.7f}' lon='{r['lon']:.7f}'>")
         for k, v in (("landuse", "landfill"), ("informal", "yes"), ("source", "survey"),

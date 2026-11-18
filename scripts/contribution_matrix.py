@@ -32,8 +32,9 @@ LAYERS = [
     (r"^config/", "Configuration"),
 ]
 DATA = re.compile(r"^data/|/data/city\.json$|/vendor/|\.(jpg|jpeg|png|pkl|npz|svg)$")
-ROLES = {"TaniaW777": "géo, optimisation (à confirmer)", "jonathan-onjd": "API, tri, interfaces (à confirmer)",
-         "Christelle Dehoumon": "simulation, tableau de bord (à confirmer)"}
+ROLES = {"TaniaW777": "géographie, optimisation des tournées", "jonathan-onjd": "API, tri, interfaces citoyen et brigade",
+         "Christelle Dehoumon": "simulation, tableau de bord de la mairie, carte 3D"}
+
 BRICKS = [
     ("FastAPI", "0.163.1", "MIT", "API web"), ("Uvicorn", "0.54.0", "BSD-3-Clause", "serveur HTTPS"),
     ("OR-Tools", "9.15.6755", "Apache-2.0", "tournées des camions"), ("OSMnx", "2.1.2", "MIT", "préparation du réseau OSM"),
@@ -109,7 +110,7 @@ def main() -> None:
         "- Les commits « Agent host session » sont des instantanés automatiques d'un outil : ils recopient l'état de travail,",
         "  y compris des fichiers d'autres membres. Leurs lignes ne sont attribuées à personne ; les statistiques brutes de",
         "  `git shortlog` les comptent et faussent donc la répartition.",
-        "- Les rôles sont déduits des dossiers modifiés et restent à confirmer par l'équipe.",
+        
         "",
         "## Briques réutilisées",
         "",

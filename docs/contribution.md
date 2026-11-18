@@ -6,9 +6,9 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 
 | Membre (auteur git) | Rôle | Commits | Instantanés automatiques (non attribués) | Fichiers de données touchés |
 |---|---|---|---|---|
-| jonathan-onjd | API, tri, interfaces (à confirmer) | 29 | 0 | 36 |
-| Christelle Dehoumon | simulation, tableau de bord (à confirmer) | 18 | 0 | 61 |
-| TaniaW777 | géo, optimisation (à confirmer) | 7 | 0 | 6 |
+| jonathan-onjd | API, tri, interfaces citoyen et brigade | 29 | 0 | 36 |
+| Christelle Dehoumon | simulation, tableau de bord de la mairie, carte 3D | 19 | 0 | 61 |
+| TaniaW777 | géographie, optimisation des tournées | 7 | 0 | 6 |
 
 ## Lignes ajoutées par couche
 
@@ -24,17 +24,16 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 | Mairie 3D | 3424 | 2280 |  |
 | Ancien tableau de bord | 325 | 1589 |  |
 | Tests | 1779 | 449 | 912 |
-| Scripts, déploiement | 1279 | 908 | 576 |
-| Documentation | 1605 | 621 | 244 |
+| Scripts, déploiement | 1279 | 915 | 576 |
+| Documentation | 1605 | 647 | 244 |
 | Configuration | 699 |  | 80 |
-| Autres | 84 | 124 | 31 |
+| Autres | 84 | 125 | 31 |
 
 Lecture et limites :
 
 - Les commits « Agent host session » sont des instantanés automatiques d'un outil : ils recopient l'état de travail,
   y compris des fichiers d'autres membres. Leurs lignes ne sont attribuées à personne ; les statistiques brutes de
   `git shortlog` les comptent et faussent donc la répartition.
-- Les rôles sont déduits des dossiers modifiés et restent à confirmer par l'équipe.
 
 ## Briques réutilisées
 

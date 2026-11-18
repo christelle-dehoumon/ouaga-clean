@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Prototype 3D</title>
+<style>html,body{margin:0;height:100%;background:#e9d9bf}#v{position:fixed;inset:0}#s{position:fixed;left:8px;top:8px;font:13px system-ui;background:#fff;padding:4px 8px}</style>
+<script type="importmap">{"imports":{"three":"/dashboard/vendor/three/three.module.js","three/addons/":"/dashboard/vendor/three/addons/"}}</script>
+</head><body><div id="v"></div><div id="s">chargement</div>
+<script type="module">
+import { Scene3D } from "./map3d/scene.js";
+import { CameraRig } from "./map3d/camera.js";
+import { loadCity, buildCity } from "./map3d/city.js";
+import { Projection } from "./map3d/geo.js";
+import { Layers } from "./map3d/layers.js";
+import { Fleet } from "./map3d/vehicles.js";
+import { Picker } from "./map3d/interactions.js";
+const s = new Scene3D(document.getElementById("v"));
+const t0 = performance.now();
+const data = await loadCity("./data/city.json");
+const city = buildCity(s, data);
+const rig = new CameraRig(s, city.bounds);
+const view = new URLSearchParams(location.search).get("vue") || "immersive";
+if (view === "dessus") { s.camera.position.set(0, 3000, 1); rig.controls.target.set(0,0,0); rig.controls.maxPolarAngle = Math.PI*0.47; }
+else if (view === "rue") { rig.enterStreet(40, 30); }
+else { s.camera.position.set(-260, 230, 300); rig.controls.target.set(0,0,0); }
+const proj = new Projection(...data.meta.origin);
+const layers = new Layers(s, proj), fleet = new Fleet(s, proj);
+const code = new URLSearchParams(location.search).get("code");
+if (code) {
+  const plan = await (await fetch("/api/plans", {method: "POST", headers: {"Content-Type": "application/json", "X-Role-Code": code}, body: "{}"})).json();
+  layers.setPlan(plan); fleet.setPlan(plan, layers.vehicleColor);
+  const p0 = plan.consolidation_points[0];
+  layers.setReports([{type: "depotoir", statut: "confirme", lat: p0.lat + 0.0006, lon: p0.lon + 0.0004}, {type: "depotoir", statut: "a_verifier", lat: p0.lat - 0.0008, lon: p0.lon}]);
+  const r0 = plan.routes[0].path[Math.floor(plan.routes[0].path.length / 2)];
+  const c = proj.toLocal(r0[0], r0[1]);
+  if (view === "camion") { rig.controls.target.set(c.x, 0, c.z); s.camera.position.set(c.x + 120, 110, c.z + 140); }
+  window.__plan = plan;
+}
+const picker = new Picker(s, { layers, fleet, city });
+picker.on("select", (info) => { window.__selection = info; });
+window.__dbg = { s, rig, layers, fleet, picker, proj };
+s.start();
+document.getElementById("s").textContent = `ok ${Math.round(performance.now()-t0)} ms, tuiles ${city.stats.buildingTiles}, routes ${city.roads.length}`;
+window.__ready = true;
+</script></body></html>

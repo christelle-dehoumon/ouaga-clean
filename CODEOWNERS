@@ -1,0 +1,31 @@
+# CODEOWNERS — OUAGA CLEAN
+# Définition des propriétaires de code par périmètre d'équipe.
+#
+# TODO: Remplacer @pseudo-membre-* par les identifiants GitHub réels une fois confirmés.
+# Pour le moment, les règles sont en commentaires afin de ne pas bloquer les PRs avec des pseudos fictifs.
+
+# -------------------------------------------------------------------
+# Membre A : Géo, Optimisation, Données brutes
+# -------------------------------------------------------------------
+# TODO: Assigner au Membre A (@github-handle-A)
+# /core/geo/               @github-handle-A
+# /core/optim/             @github-handle-A
+# /data/                   @github-handle-A
+
+# -------------------------------------------------------------------
+# Membre B : API, Validation des signalements, Interface citoyenne, Tests & Scripts
+# -------------------------------------------------------------------
+# TODO: Assigner au Membre B (@github-handle-B)
+# /api/                    @github-handle-B
+# /core/validation/        @github-handle-B
+# /web/citizen/            @github-handle-B
+# /tests/test_validation.py @github-handle-B
+# /tests/test_api_smoke.py  @github-handle-B
+# /scripts/                @github-handle-B
+
+# -------------------------------------------------------------------
+# Membre C : Simulation multi-agents, Tableau de bord Mairie
+# -------------------------------------------------------------------
+# TODO: Assigner au Membre C (@github-handle-C)
+# /core/sim/               @github-handle-C
+# /web/dashboard/          @github-handle-C

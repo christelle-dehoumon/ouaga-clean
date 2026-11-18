@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environnements virtuels
+.venv/
+venv/
+ENV/
+env/
+
+# Environnement / Secrets
+.env
+.env.local
+*.local
+
+# Tests et couverture
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Caches applicatifs et outils
+.cache/
+.cache/osmnx/
+data/raw/osm_cache/
+
+# Données locales générées à l'exécution (jamais dans git)
+data/reports.db
+data/reel.db*
+data/sim.db*
+data/photos/
+data/certs/
+data/osm/
+data/openbuildings/*
+!data/openbuildings/README.md
+# Brut OSM : seul le contour de la commune est versionné (cache Overpass ignoré)
+data/raw/*
+!data/raw/boundary.geojson
+# Données préparées versionnées pour qu'un clone neuf ait un plan (voir README, taille vérifiée < 10 Mo par fichier)
+*.pkl
+*.npz
+!data/processed/roads_graph.pkl
+!data/processed/buildings_centroids.npz
+.claude/settings.local.json
+data/communes/*/reel.db*
+data/communes/*/sim.db*
+data/communes/*/photos/

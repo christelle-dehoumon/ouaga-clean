@@ -1,0 +1,141 @@
+{
+  "plan_id": "p_20261117T101500Z",
+  "computed_at": "2026-11-17T10:15:00Z",
+  "mode": "optimized",
+  "compute_ms": 0,
+  "params_used": {
+    "population": 3000000,
+    "subscription_rate": 0.4,
+    "trucks": 10,
+    "truck_capacity_kg": 5000,
+    "tricycles": 20,
+    "tricycle_capacity_kg": 400,
+    "frequency_per_week": 3,
+    "budget": 10000000,
+    "rainy_season": false,
+    "broken_trucks": [],
+    "extra_territories": []
+  },
+  "collection_points": [
+    {
+      "id": "p1",
+      "lat": 12.3712,
+      "lon": -1.5198,
+      "demand_kg": 1800,
+      "access": "truck",
+      "territory_id": null,
+      "data_tag": "synthetic",
+      "type": "center"
+    },
+    {
+      "id": "p2",
+      "lat": 12.4021,
+      "lon": -1.553,
+      "demand_kg": 1200,
+      "access": "truck",
+      "territory_id": null,
+      "data_tag": "synthetic",
+      "type": "center"
+    },
+    {
+      "id": "p3",
+      "lat": 12.3405,
+      "lon": -1.487,
+      "demand_kg": 2500,
+      "access": "truck",
+      "territory_id": null,
+      "data_tag": "synthetic",
+      "type": "center"
+    },
+    {
+      "id": "p4",
+      "lat": 12.3891,
+      "lon": -1.4955,
+      "demand_kg": 600,
+      "access": "tricycle",
+      "territory_id": null,
+      "data_tag": "synthetic",
+      "type": "center"
+    }
+  ],
+  "routes": [
+    {
+      "vehicle": "truck1_trip1",
+      "type": "truck",
+      "stops": [
+        "p1",
+        "p2"
+      ],
+      "distance_km": 18.4,
+      "duration_min": 64.2,
+      "load_kg": 3000,
+      "capacity_kg": 5000,
+      "cost": 27600,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.525,
+            12.365
+          ],
+          [
+            -1.5198,
+            12.3712
+          ],
+          [
+            -1.553,
+            12.4021
+          ],
+          [
+            -1.525,
+            12.365
+          ]
+        ]
+      }
+    },
+    {
+      "vehicle": "truck2_trip1",
+      "type": "truck",
+      "stops": [
+        "p3"
+      ],
+      "distance_km": 12.6,
+      "duration_min": 40.2,
+      "load_kg": 2500,
+      "capacity_kg": 5000,
+      "cost": 18900,
+      "geometry": null
+    }
+  ],
+  "unserved": [
+    {
+      "point_id": "p4",
+      "reason": "access",
+      "detail": "Point accessible seulement en tricycle : tournées tricycle pas encore disponibles (exemple fictif)."
+    }
+  ],
+  "checks": {
+    "capacity_ok": true,
+    "budget_ok": true,
+    "vehicles_ok": true,
+    "every_point_served_or_reported": true,
+    "messages": [],
+    "network_ok": true
+  },
+  "totals": {
+    "distance_km": 31.0,
+    "cost": 46500,
+    "collected_kg": 5500,
+    "budget_remaining": 9953500,
+    "points_served": 3,
+    "points_unserved": 1,
+    "uncollected_kg": 0
+  },
+  "assumptions": [
+    "Plan d'exemple entièrement fictif (synthetic), pour développer l'API et le tableau de bord. Aucune donnée réelle."
+  ],
+  "warnings": [
+    "Données synthétiques : ne pas présenter comme un plan réel."
+  ],
+  "ignored_reports": []
+}

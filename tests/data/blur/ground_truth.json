@@ -1,0 +1,12 @@
+{
+  "_note": "Vérité terrain relevée à l'œil sur chaque image (centres approximatifs en pixels, image de 800 px de large au plus). Seuls les visages et plaques identifiables sont comptés.",
+  "images": {
+    "group.jpg": {"faces": [[147, 135], [287, 155], [203, 240], [395, 205], [510, 175], [590, 240], [647, 145]], "plates": [], "scene": "photo de groupe, 7 visages de face"},
+    "face1.jpg": {"faces": [[275, 185]], "plates": [], "scene": "portrait, 1 visage"},
+    "car_504.jpg": {"faces": [], "plates": [[232, 345]], "scene": "voiture vue de l'arrière dans la rue, 1 plaque lisible, passants lointains non identifiables"},
+    "car_lada.jpg": {"faces": [], "plates": [[500, 392], [58, 138]], "scene": "voiture vue de l'arrière, 2 plaques lisibles (une troisième, lointaine, illisible)"},
+    "street1.jpg": {"faces": [], "plates": [], "scene": "rue de Ouagadougou, mur, aucune personne ni véhicule"},
+    "street3.jpg": {"faces": [], "plates": [], "scene": "rue de Ouagadougou vue d'en haut, personnes et véhicules trop lointains pour être identifiés"},
+    "plate_swiss.jpg": {"faces": [], "plates": [[125, 67]], "scene": "gros plan d'une plaque seule (cas limite : la plaque remplit l'image)"}
+  }
+}

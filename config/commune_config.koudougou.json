@@ -1,0 +1,371 @@
+{
+  "_meta": {
+    "note": "Deuxième commune de démonstration : seule la configuration change (COMMUNE_CONFIG=config/commune_config.koudougou.json). Toutes les valeurs sont des HYPOTHESES non validées. Les données routières de Koudougou ne sont PAS téléchargées : le plan passe en mode secours et le dit ; lancer une fois « COMMUNE_CONFIG=config/commune_config.koudougou.json python -m core.geo.download --pilot » pour les obtenir.",
+    "data_tag": "estimated"
+  },
+  "commune": "Koudougou",
+  "place_query": "Koudougou, Burkina Faso",
+  "bbox": {
+    "west": -2.42,
+    "south": 12.2,
+    "east": -2.3,
+    "north": 12.3,
+    "_note": "emprise approximative autour de Koudougou (centre vers 12.25 N, 2.36 O), à vérifier"
+  },
+  "depot": {
+    "lat": null,
+    "lon": null,
+    "_note": "nœud routier le plus central quand les routes seront téléchargées"
+  },
+  "paths": {
+    "raw_dir": "data/communes/koudougou/raw",
+    "processed_dir": "data/communes/koudougou/processed",
+    "mock_dir": "data/mock",
+    "territories": "data/communes/koudougou/territories.geojson",
+    "flood_zones": "data/communes/koudougou/processed/flood_zones.geojson",
+    "waterways": "data/communes/koudougou/processed/waterways.geojson",
+    "secteur": "data/communes/koudougou/secteur.geojson",
+    "reel_db": "data/communes/koudougou/reel.db",
+    "sim_db": "data/communes/koudougou/sim.db",
+    "water_bodies": "data/communes/koudougou/water_bodies.geojson",
+    "photos_dir": "data/communes/koudougou/photos"
+  },
+  "params": {
+    "population": 160000,
+    "subscription_rate": 0.4,
+    "trucks": 3,
+    "truck_capacity_kg": 5000,
+    "tricycles": 8,
+    "tricycle_capacity_kg": 400,
+    "frequency_per_week": 2,
+    "budget": 2000000,
+    "rainy_season": false,
+    "broken_trucks": [],
+    "extra_territories": []
+  },
+  "model": {
+    "waste_kg_per_person_day": 0.6,
+    "persons_per_building": 6,
+    "precollect_radius_m": 1500,
+    "walk_coverage_target": 0.9,
+    "_precollect_note": "HYPOTHESE : un point de regroupement est un centre ou les pre-collecteurs (charrettes, tricycles prives) deposent les dechets des menages abonnes a moins de precollect_radius_m ; les camions le vident.",
+    "truck_trips_per_day": 3,
+    "_trips_note": "HYPOTHESE : chaque camion fait truck_trips_per_day tournees par jour, chacune part du depot et y revient, duree <= shift_minutes / truck_trips_per_day.",
+    "cell_size_m": 100,
+    "_cell_note": "Reglage de calcul : les batiments sont agreges par cellule de cell_size_m (centre pondere) avant KMeans.",
+    "pilot_territory_ids": [
+      "pilot"
+    ],
+    "pilot_square_m": 4000,
+    "resnap_max_m": 300,
+    "_resnap_note": "HYPOTHESE : un arret dont le noeud est coupe (pluie) ou un depotoir est recale sur le noeud camion praticable le plus proche s il est a moins de resnap_max_m ; sinon non servi (access) ou signalement ignore.",
+    "_pilot_note": "HYPOTHESE : le fichier OSM ne contient ni arrondissement ni secteur ; le territoire pilote est un carre de pilot_square_m de cote centre sur la commune. Territoires actifs = pilot_territory_ids + params.extra_territories.",
+    "cost_per_km_truck": 1500,
+    "cost_per_km_tricycle": 300,
+    "truck_speed_kmh": 25,
+    "tricycle_speed_kmh": 12,
+    "service_min_per_stop": 10,
+    "shift_minutes": 480,
+    "dumpsite_kg_by_size": {
+      "small": 200,
+      "medium": 800,
+      "large": 3000
+    },
+    "territory_population_method": "area_share",
+    "_population_note": "HYPOTHESE : les batiments OSM ne couvrent que le secteur et les quartiers telecharges ; la population d'un territoire = population de la commune x part de sa surface dans la limite communale (densite supposee uniforme, non mesuree). building_share = part des batiments, valable seulement si toute la commune est telechargee.",
+    "dumpsite_default_size": "medium",
+    "_dumpsite_size_note": "HYPOTHESE : le citoyen ne saisit plus de taille ; un depotoir confirme compte dumpsite_kg_by_size[dumpsite_default_size]"
+  },
+  "network": {
+    "truck_highways": [
+      "motorway",
+      "trunk",
+      "primary",
+      "secondary",
+      "tertiary",
+      "unclassified",
+      "residential"
+    ],
+    "tricycle_extra_highways": [
+      "service",
+      "track",
+      "living_street",
+      "path"
+    ],
+    "unpaved_surfaces": [
+      "unpaved",
+      "dirt",
+      "earth",
+      "ground",
+      "sand",
+      "mud",
+      "gravel",
+      "compacted"
+    ],
+    "unknown_surface_is_paved_for": [
+      "motorway",
+      "trunk",
+      "primary",
+      "secondary"
+    ],
+    "straight_line_factor": 1.4,
+    "rain_unpaved_factor": 2.5,
+    "flood_buffer_m": 30,
+    "flood_waterway_types": [
+      "river",
+      "stream",
+      "canal"
+    ],
+    "_rain_note": "HYPOTHESES de travail, non mesurees : en pluie, le poids d'une voie non revetue (ou de revetement inconnu hors grands axes) est multiplie par rain_unpaved_factor ; une voie est coupee si ford ou flood_prone, si son milieu est a moins de flood_buffer_m d'un cours d'eau de type flood_waterway_types (drain et ditch exclus : souvent des caniveaux le long des rues) (sauf pont ou tunnel), ou si elle coupe un polygone de flood_zones.",
+    "cut_snap_m": 150,
+    "_cut_note": "REGLAGE : une coupure donnee par lat/lon retient l'arete dont le milieu est le plus proche, a moins de cut_snap_m"
+  },
+  "solver": {
+    "time_limit_s": 5,
+    "max_collection_points": 120,
+    "max_dumpsite_stops": 60,
+    "_dumpsite_note": "HYPOTHESE : au-dela de max_dumpsite_stops depotoirs valides, ils sont regroupes par cellule (taille doublee depuis model.cell_size_m jusqu a passer sous le seuil).",
+    "min_collection_points": 5,
+    "preselect_capacity_factor": 1.2,
+    "_preselect_note": "HYPOTHESE : si la demande depasse la capacite de la flotte sur le passage, seuls les arrets prioritaires (centres, puis depotoirs par confiance puis taille decroissantes) jusqu a ce facteur fois la capacite vont au solveur ; les autres sont non servis (capacity).",
+    "max_unserved_ratio": 0.1,
+    "_unserved_note": "REGLAGE : checks.ok est faux si plus de max_unserved_ratio des points de regroupement ne sont pas desservis (le tableau de bord ne doit jamais afficher vert sur un plan largement non servi)."
+  },
+  "validation": {
+    "duplicate_radius_m": 30,
+    "duplicate_window_h": 48,
+    "max_report_age_days": 30,
+    "future_tolerance_min": 5,
+    "max_accuracy_m": 100,
+    "max_photo_bytes": 5000000,
+    "grid_center_lat": 12.25,
+    "_grid_note": "latitude de reference de la grille anti-doublon (taille des cellules en longitude) : celle de la commune",
+    "water_buffer_m": 30,
+    "max_body_bytes": 8000000,
+    "payload_resume_chars": 600,
+    "_note": "tri automatique (core/validation/rules.py) : aide à la brigade, jamais décideur. Écarté d'office = forme, position, hors ville, date, photo ; sinon transmis avec alertes. Ville = limite communale OSM (paths.raw_dir/boundary.geojson) ; secteur = paths.secteur ; plans d'eau = paths.water_bodies."
+  },
+  "download": {
+    "overpass_url": "https://overpass-api.de/api",
+    "_note": "serveur Overpass utilise seulement par la preparation unique des donnees (core.geo.download, scripts.extend_districts) ; jamais a l'execution"
+  },
+  "districts": {
+    "candidates": [],
+    "radius_m": 1500,
+    "download_margin_m": 1000,
+    "_note": "aucun quartier proposé tant que les données ne sont pas préparées"
+  },
+  "bounds": {
+    "_note": "bornes des parametres modifiables ; une valeur hors bornes est ramenee a la borne avec un avertissement (jamais acceptee telle quelle). default = valeur de params.",
+    "population": {
+      "min": 0,
+      "max": 500000,
+      "unit": "habitants",
+      "label": "Population de la commune"
+    },
+    "subscription_rate": {
+      "min": 0,
+      "max": 1,
+      "unit": "part (0 a 1)",
+      "label": "Taux d'abonnement a la pre-collecte"
+    },
+    "trucks": {
+      "min": 0,
+      "max": 15,
+      "unit": "camions",
+      "label": "Camions de la mairie"
+    },
+    "truck_capacity_kg": {
+      "min": 500,
+      "max": 20000,
+      "unit": "kg",
+      "label": "Capacite d'un camion"
+    },
+    "tricycles": {
+      "min": 0,
+      "max": 80,
+      "unit": "tricycles",
+      "label": "Tricycles des pre-collecteurs"
+    },
+    "tricycle_capacity_kg": {
+      "min": 50,
+      "max": 1500,
+      "unit": "kg",
+      "label": "Capacite d'un tricycle"
+    },
+    "frequency_per_week": {
+      "min": 1,
+      "max": 7,
+      "unit": "passages par semaine",
+      "label": "Frequence de collecte"
+    },
+    "budget": {
+      "min": 0,
+      "max": 50000000,
+      "unit": "FCFA par jour de collecte",
+      "label": "Budget de collecte"
+    }
+  },
+  "map": {
+    "center": [
+      12.2526,
+      -2.3627
+    ],
+    "zoom": 14,
+    "_note": "centre-ville de Koudougou (approximatif)"
+  },
+  "hypotheses": {
+    "_note": "Coefficients de la simulation multi-agents (core/sim/model.py). AUCUN n'est mesuré : ce sont des hypothèses de travail à valider avec la mairie. Ils sont recopiés dans chaque sortie de simulation.",
+    "menages": {
+      "personnes_par_menage": {
+        "valeur": 6,
+        "unite": "personnes",
+        "note": "hypothèse non mesurée"
+      },
+      "proba_depot_sauvage_non_abonne": {
+        "valeur": 0.5,
+        "unite": "probabilité par jour où le ménage vide ses déchets",
+        "note": "hypothèse non mesurée : ménage sans abonnement à la pré-collecte"
+      },
+      "proba_depot_sauvage_non_desservi": {
+        "valeur": 0.78,
+        "unite": "probabilité par jour",
+        "note": "hypothèse non mesurée : abonné dont le point de regroupement n'est desservi par aucun camion"
+      },
+      "proba_depot_sauvage_sature": {
+        "valeur": 0.35,
+        "unite": "probabilité par jour",
+        "note": "hypothèse non mesurée : abonné desservi dont la poubelle déborde (pas de passage du pré-collecteur)"
+      },
+      "jours_avant_debordement": {
+        "valeur": 3,
+        "unite": "jours de déchets stockés avant débordement",
+        "note": "hypothèse non mesurée"
+      },
+      "effet_sensibilisation": {
+        "valeur": 0.5,
+        "unite": "multiplicateur des probabilités de dépôt sauvage",
+        "note": "hypothèse non mesurée : ménage sensibilisé par la brigade"
+      },
+      "duree_sensibilisation_jours": {
+        "valeur": 14,
+        "unite": "jours",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "pre_collecteurs": {
+      "proba_passage": {
+        "valeur": 0.88,
+        "unite": "probabilité qu'un tricycle fasse sa tournée un jour donné",
+        "note": "hypothèse non mesurée"
+      },
+      "proba_panne_jour": {
+        "valeur": 0.04,
+        "unite": "probabilité de panne d'un tricycle par jour",
+        "note": "hypothèse non mesurée"
+      },
+      "tournees_par_jour": {
+        "valeur": 2,
+        "unite": "rotations par tricycle et par jour",
+        "note": "hypothèse non mesurée"
+      },
+      "facteur_pluie": {
+        "valeur": 0.8,
+        "unite": "multiplicateur de la probabilité de passage en saison des pluies",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "brigade": {
+      "patrouilles_par_jour": {
+        "valeur": 2,
+        "unite": "patrouilles",
+        "note": "hypothèse non mesurée"
+      },
+      "rayon_m": {
+        "valeur": 500,
+        "unite": "mètres autour d'un dépotoir visité",
+        "note": "hypothèse non mesurée"
+      },
+      "proba_sensibilisation": {
+        "valeur": 0.22,
+        "unite": "probabilité qu'un ménage du rayon soit sensibilisé",
+        "note": "hypothèse non mesurée"
+      },
+      "depotoirs_par_patrouille": {
+        "valeur": 3,
+        "unite": "dépotoirs signalés à la mairie par patrouille",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "mairie": {
+      "facteur_pluie_camions": {
+        "valeur": 0.9,
+        "unite": "multiplicateur de capacité des camions en saison des pluies",
+        "note": "hypothèse non mesurée"
+      },
+      "part_capacite_nettoyage": {
+        "valeur": 0.3,
+        "unite": "part de la capacité camion restante consacrée aux dépotoirs signalés",
+        "note": "hypothèse non mesurée"
+      },
+      "seuil_depotoir_kg": {
+        "valeur": 50,
+        "unite": "kg en dessous desquels un dépôt simulé n'est plus compté comme dépotoir",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "simulation": {
+      "max_agents_menages": {
+        "valeur": 1500,
+        "unite": "agents",
+        "note": "réglage de calcul : un agent représente plusieurs ménages réels si besoin"
+      },
+      "dispersion_menages_m": {
+        "valeur": 150,
+        "unite": "mètres",
+        "note": "réglage d'affichage : position des ménages autour de leur point"
+      }
+    }
+  },
+  "roles": {
+    "brigade_code_default": "brigade-demo",
+    "mairie_code_default": "mairie-demo",
+    "header": "X-Role-Code",
+    "_note": "codes de DEMONSTRATION, publics. En vrai déploiement, définir les variables d'environnement BRIGADE_CODE et MAIRIE_CODE."
+  },
+  "privacy": {
+    "_note": "floutage côté serveur avant tout stockage (core/privacy.py) ; l'original n'est jamais écrit sur disque. Cascades Haar fournies par opencv-python-headless (aucun téléchargement). Fiabilité limitée, mesurée dans docs/mesures.md.",
+    "max_side_px": 1600,
+    "jpeg_quality": 80,
+    "margin_ratio": 0.25,
+    "blur_kernel_ratio": 0.5,
+    "pixel_block": 12,
+    "face_cascades": [
+      "haarcascade_frontalface_default.xml",
+      "haarcascade_profileface.xml"
+    ],
+    "plate_cascades": [
+      "haarcascade_russian_plate_number.xml",
+      "haarcascade_license_plate_rus_16stages.xml"
+    ],
+    "scale_factor": 1.1,
+    "min_neighbors": 5,
+    "min_size_px": 24,
+    "on_failure": "blur_all",
+    "plate_min_neighbors": 3,
+    "plate_morph": {
+      "enabled": true,
+      "kernel": [
+        13,
+        5
+      ],
+      "aspect_min": 2.0,
+      "aspect_max": 6.5,
+      "min_width_ratio": 0.04,
+      "max_width_ratio": 0.6,
+      "min_height_px": 8,
+      "min_light_fill": 0.45,
+      "_note": "détecteur complémentaire de zones de texte sombre sur fond clair, de forme allongée (plaques) ; floute aussi des panneaux : préféré pour la vie privée"
+    }
+  }
+}

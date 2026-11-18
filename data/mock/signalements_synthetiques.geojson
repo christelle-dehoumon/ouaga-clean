@@ -1,0 +1,1710 @@
+{
+ "type": "FeatureCollection",
+ "name": "signalements_synthetiques (données SIMULÉES)",
+ "data_tag": "synthetic",
+ "license": "ODbL-1.0",
+ "license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+ "attribution": "Jeu fictif généré par scripts/make_synthetic.py (positions tirées des bâtiments OSM)",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.560717,
+     12.305584
+    ]
+   },
+   "properties": {
+    "id": "s00001",
+    "date": "2026-11-15T03:31:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.529945,
+     12.406511
+    ]
+   },
+   "properties": {
+    "id": "s00002",
+    "date": "2026-11-15T13:04:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.551045,
+     12.373267
+    ]
+   },
+   "properties": {
+    "id": "s00003",
+    "date": "2026-11-15T13:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.559033,
+     12.440232
+    ]
+   },
+   "properties": {
+    "id": "s00004",
+    "date": "2026-11-15T07:21:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.540309,
+     12.314689
+    ]
+   },
+   "properties": {
+    "id": "s00005",
+    "date": "2026-11-14T19:49:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.521379,
+     12.421396
+    ]
+   },
+   "properties": {
+    "id": "s00006",
+    "date": "2026-11-14T23:09:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.607798,
+     12.40769
+    ]
+   },
+   "properties": {
+    "id": "s00007",
+    "date": "2026-11-15T12:46:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.505177,
+     12.43224
+    ]
+   },
+   "properties": {
+    "id": "s00008",
+    "date": "2026-11-15T02:52:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.480673,
+     12.32694
+    ]
+   },
+   "properties": {
+    "id": "s00009",
+    "date": "2026-11-14T04:47:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.610234,
+     12.404971
+    ]
+   },
+   "properties": {
+    "id": "s00010",
+    "date": "2026-11-14T06:12:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.589721,
+     12.421921
+    ]
+   },
+   "properties": {
+    "id": "s00011",
+    "date": "2026-11-15T06:23:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.574076,
+     12.310139
+    ]
+   },
+   "properties": {
+    "id": "s00012",
+    "date": "2026-11-16T00:45:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.597662,
+     12.445965
+    ]
+   },
+   "properties": {
+    "id": "s00013",
+    "date": "2026-11-13T09:35:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.569329,
+     12.446342
+    ]
+   },
+   "properties": {
+    "id": "s00014",
+    "date": "2026-11-16T02:19:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.478056,
+     12.355511
+    ]
+   },
+   "properties": {
+    "id": "s00015",
+    "date": "2026-11-14T12:15:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.542951,
+     12.307861
+    ]
+   },
+   "properties": {
+    "id": "s00016",
+    "date": "2026-11-13T19:17:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.501023,
+     12.41156
+    ]
+   },
+   "properties": {
+    "id": "s00017",
+    "date": "2026-11-16T03:41:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.438804,
+     12.319823
+    ]
+   },
+   "properties": {
+    "id": "s00018",
+    "date": "2026-11-15T17:34:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.62582,
+     12.452297
+    ]
+   },
+   "properties": {
+    "id": "s00019",
+    "date": "2026-11-15T22:04:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.580109,
+     12.428414
+    ]
+   },
+   "properties": {
+    "id": "s00020",
+    "date": "2026-11-15T22:16:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.442485,
+     12.4295
+    ]
+   },
+   "properties": {
+    "id": "s00021",
+    "date": "2026-11-14T20:48:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.460685,
+     12.414099
+    ]
+   },
+   "properties": {
+    "id": "s00022",
+    "date": "2026-11-15T16:37:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.556079,
+     12.450267
+    ]
+   },
+   "properties": {
+    "id": "s00023",
+    "date": "2026-11-15T09:47:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.525453,
+     12.416705
+    ]
+   },
+   "properties": {
+    "id": "s00024",
+    "date": "2026-11-15T22:42:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.427743,
+     12.31526
+    ]
+   },
+   "properties": {
+    "id": "s00025",
+    "date": "2026-11-15T20:52:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.46442,
+     12.26716
+    ]
+   },
+   "properties": {
+    "id": "s00026",
+    "date": "2026-11-13T23:24:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.57493,
+     12.307416
+    ]
+   },
+   "properties": {
+    "id": "s00027",
+    "date": "2026-11-15T14:02:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.491175,
+     12.414181
+    ]
+   },
+   "properties": {
+    "id": "s00028",
+    "date": "2026-11-15T16:17:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.584583,
+     12.313828
+    ]
+   },
+   "properties": {
+    "id": "s00029",
+    "date": "2026-11-13T16:28:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.587433,
+     12.429199
+    ]
+   },
+   "properties": {
+    "id": "s00030",
+    "date": "2026-11-15T00:43:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.588861,
+     12.362563
+    ]
+   },
+   "properties": {
+    "id": "s00031",
+    "date": "2026-11-13T06:43:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.460107,
+     12.393701
+    ]
+   },
+   "properties": {
+    "id": "s00032",
+    "date": "2026-11-14T19:44:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.524417,
+     12.363799
+    ]
+   },
+   "properties": {
+    "id": "s00033",
+    "date": "2026-11-13T15:07:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.578785,
+     12.384902
+    ]
+   },
+   "properties": {
+    "id": "s00034",
+    "date": "2026-11-14T13:02:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.441666,
+     12.43172
+    ]
+   },
+   "properties": {
+    "id": "s00035",
+    "date": "2026-11-15T13:50:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.519959,
+     12.406005
+    ]
+   },
+   "properties": {
+    "id": "s00036",
+    "date": "2026-11-14T06:47:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.433184,
+     12.431346
+    ]
+   },
+   "properties": {
+    "id": "s00037",
+    "date": "2026-11-15T06:05:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.543129,
+     12.276902
+    ]
+   },
+   "properties": {
+    "id": "s00038",
+    "date": "2026-11-15T03:14:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.573968,
+     12.274135
+    ]
+   },
+   "properties": {
+    "id": "s00039",
+    "date": "2026-11-15T06:14:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.480886,
+     12.334144
+    ]
+   },
+   "properties": {
+    "id": "s00040",
+    "date": "2026-11-15T22:19:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.551486,
+     12.268672
+    ]
+   },
+   "properties": {
+    "id": "s00041",
+    "date": "2026-11-14T23:08:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.647642,
+     12.372137
+    ]
+   },
+   "properties": {
+    "id": "s00042",
+    "date": "2026-11-14T20:05:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.427246,
+     12.368929
+    ]
+   },
+   "properties": {
+    "id": "s00043",
+    "date": "2026-11-15T06:25:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.612131,
+     12.290977
+    ]
+   },
+   "properties": {
+    "id": "s00044",
+    "date": "2026-11-15T10:15:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.581302,
+     12.380422
+    ]
+   },
+   "properties": {
+    "id": "s00045",
+    "date": "2026-11-13T22:38:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.442871,
+     12.335432
+    ]
+   },
+   "properties": {
+    "id": "s00046",
+    "date": "2026-11-15T23:54:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.569451,
+     12.317742
+    ]
+   },
+   "properties": {
+    "id": "s00047",
+    "date": "2026-11-13T21:11:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.574223,
+     12.400981
+    ]
+   },
+   "properties": {
+    "id": "s00048",
+    "date": "2026-11-13T14:04:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.472905,
+     12.408071
+    ]
+   },
+   "properties": {
+    "id": "s00049",
+    "date": "2026-11-15T14:51:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.462276,
+     12.339344
+    ]
+   },
+   "properties": {
+    "id": "s00050",
+    "date": "2026-11-15T10:54:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.513723,
+     12.438028
+    ]
+   },
+   "properties": {
+    "id": "s00051",
+    "date": "2026-11-13T19:10:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.61428,
+     12.417884
+    ]
+   },
+   "properties": {
+    "id": "s00052",
+    "date": "2026-11-15T18:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.566975,
+     12.280821
+    ]
+   },
+   "properties": {
+    "id": "s00053",
+    "date": "2026-11-13T12:04:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.446122,
+     12.379982
+    ]
+   },
+   "properties": {
+    "id": "s00054",
+    "date": "2026-11-13T07:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.420456,
+     12.359751
+    ]
+   },
+   "properties": {
+    "id": "s00055",
+    "date": "2026-11-15T14:49:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.526517,
+     12.307653
+    ]
+   },
+   "properties": {
+    "id": "s00056",
+    "date": "2026-11-15T09:27:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.472109,
+     12.341172
+    ]
+   },
+   "properties": {
+    "id": "s00057",
+    "date": "2026-11-14T20:58:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.50338,
+     12.414338
+    ]
+   },
+   "properties": {
+    "id": "s00058",
+    "date": "2026-11-13T16:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.504488,
+     12.428695
+    ]
+   },
+   "properties": {
+    "id": "s00059",
+    "date": "2026-11-13T09:23:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.544688,
+     12.422973
+    ]
+   },
+   "properties": {
+    "id": "s00060",
+    "date": "2026-11-14T18:39:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.574545,
+     12.298385
+    ]
+   },
+   "properties": {
+    "id": "s00061",
+    "date": "2026-11-15T08:30:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.456577,
+     12.410656
+    ]
+   },
+   "properties": {
+    "id": "s00062",
+    "date": "2026-11-13T11:18:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.521539,
+     12.255213
+    ]
+   },
+   "properties": {
+    "id": "s00063",
+    "date": "2026-11-16T01:13:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.51138,
+     12.329903
+    ]
+   },
+   "properties": {
+    "id": "s00064",
+    "date": "2026-11-15T15:19:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.520885,
+     12.318099
+    ]
+   },
+   "properties": {
+    "id": "s00065",
+    "date": "2026-11-15T10:17:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.415147,
+     12.359979
+    ]
+   },
+   "properties": {
+    "id": "s00066",
+    "date": "2026-11-13T15:10:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.504019,
+     12.330919
+    ]
+   },
+   "properties": {
+    "id": "s00067",
+    "date": "2026-11-16T05:51:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.435433,
+     12.340502
+    ]
+   },
+   "properties": {
+    "id": "s00068",
+    "date": "2026-11-13T20:50:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.450109,
+     12.430917
+    ]
+   },
+   "properties": {
+    "id": "s00069",
+    "date": "2026-11-14T08:07:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.472414,
+     12.314619
+    ]
+   },
+   "properties": {
+    "id": "s00070",
+    "date": "2026-11-15T02:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.456009,
+     12.396136
+    ]
+   },
+   "properties": {
+    "id": "s00071",
+    "date": "2026-11-15T01:55:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.497809,
+     12.440084
+    ]
+   },
+   "properties": {
+    "id": "s00072",
+    "date": "2026-11-13T16:56:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.462692,
+     12.426111
+    ]
+   },
+   "properties": {
+    "id": "s00073",
+    "date": "2026-11-13T18:20:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.487892,
+     12.337472
+    ]
+   },
+   "properties": {
+    "id": "s00074",
+    "date": "2026-11-14T03:17:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.471663,
+     12.34367
+    ]
+   },
+   "properties": {
+    "id": "s00075",
+    "date": "2026-11-14T13:43:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.554359,
+     12.298847
+    ]
+   },
+   "properties": {
+    "id": "s00076",
+    "date": "2026-11-14T14:33:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.500037,
+     12.270712
+    ]
+   },
+   "properties": {
+    "id": "s00077",
+    "date": "2026-11-15T17:58:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.609691,
+     12.316997
+    ]
+   },
+   "properties": {
+    "id": "s00078",
+    "date": "2026-11-16T02:02:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.573599,
+     12.32289
+    ]
+   },
+   "properties": {
+    "id": "s00079",
+    "date": "2026-11-15T14:07:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.509578,
+     12.430167
+    ]
+   },
+   "properties": {
+    "id": "s00080",
+    "date": "2026-11-15T07:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.438251,
+     12.440036
+    ]
+   },
+   "properties": {
+    "id": "s00081",
+    "date": "2026-11-14T10:23:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.572755,
+     12.287944
+    ]
+   },
+   "properties": {
+    "id": "s00082",
+    "date": "2026-11-15T11:52:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.502856,
+     12.305815
+    ]
+   },
+   "properties": {
+    "id": "s00083",
+    "date": "2026-11-16T00:11:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.577028,
+     12.323968
+    ]
+   },
+   "properties": {
+    "id": "s00084",
+    "date": "2026-11-13T06:21:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.502637,
+     12.401726
+    ]
+   },
+   "properties": {
+    "id": "s00085",
+    "date": "2026-11-14T08:53:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.45272,
+     12.422101
+    ]
+   },
+   "properties": {
+    "id": "s00086",
+    "date": "2026-11-14T20:38:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.552931,
+     12.310501
+    ]
+   },
+   "properties": {
+    "id": "s00087",
+    "date": "2026-11-13T16:10:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.540143,
+     12.285901
+    ]
+   },
+   "properties": {
+    "id": "s00088",
+    "date": "2026-11-15T13:58:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.532318,
+     12.294075
+    ]
+   },
+   "properties": {
+    "id": "s00089",
+    "date": "2026-11-13T07:58:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.445026,
+     12.408666
+    ]
+   },
+   "properties": {
+    "id": "s00090",
+    "date": "2026-11-15T11:32:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.620574,
+     12.332404
+    ]
+   },
+   "properties": {
+    "id": "s00091",
+    "date": "2026-11-14T19:26:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.413316,
+     12.343786
+    ]
+   },
+   "properties": {
+    "id": "s00092",
+    "date": "2026-11-14T18:18:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.454145,
+     12.330493
+    ]
+   },
+   "properties": {
+    "id": "s00093",
+    "date": "2026-11-16T03:58:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.49361,
+     12.37647
+    ]
+   },
+   "properties": {
+    "id": "s00094",
+    "date": "2026-11-15T20:50:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.522614,
+     12.328173
+    ]
+   },
+   "properties": {
+    "id": "s00095",
+    "date": "2026-11-13T19:44:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.426038,
+     12.379812
+    ]
+   },
+   "properties": {
+    "id": "s00096",
+    "date": "2026-11-15T22:25:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.567858,
+     12.391575
+    ]
+   },
+   "properties": {
+    "id": "s00097",
+    "date": "2026-11-13T10:17:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.634476,
+     12.386722
+    ]
+   },
+   "properties": {
+    "id": "s00098",
+    "date": "2026-11-15T11:15:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.589599,
+     12.35778
+    ]
+   },
+   "properties": {
+    "id": "s00099",
+    "date": "2026-11-13T19:48:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.545941,
+     12.330565
+    ]
+   },
+   "properties": {
+    "id": "s00100",
+    "date": "2026-11-14T01:57:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  }
+ ]
+}

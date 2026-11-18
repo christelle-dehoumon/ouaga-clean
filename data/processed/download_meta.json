@@ -1,0 +1,42 @@
+{
+  "source": "documented",
+  "attribution": "© contributeurs OpenStreetMap, licence ODbL",
+  "buildings": {
+    "ok": true,
+    "origin": "Overpass (zone pilote)",
+    "buildings": 26380,
+    "ways_without_location": 0,
+    "build_s": 185.1,
+    "size": "335.2 Ko",
+    "prepared_at": "2026-11-16T21:30:57Z",
+    "file": "buildings_centroids.npz",
+    "note": "centre = moyenne des nœuds de chaque way « building » ; relations multipolygones non comptées"
+  },
+  "roads": {
+    "ok": true,
+    "origin": "Overpass (zone pilote)",
+    "nodes": 4737,
+    "edges": 13873,
+    "build_s": 480.6,
+    "pickle_load_s": 0.04,
+    "size": "1.9 Mo",
+    "prepared_at": "2026-11-16T21:39:07Z",
+    "file": "roads_graph.pkl"
+  },
+  "districts": {
+    "kalgodin": {
+      "origin": "Overpass",
+      "nodes_added": 1473,
+      "buildings_in_download": 20037,
+      "download_s": 206.1,
+      "prepared_at": "2026-11-18T00:46:00Z"
+    },
+    "paglayiri": {
+      "origin": "Overpass",
+      "nodes_added": 2386,
+      "buildings_in_download": 15450,
+      "download_s": 82.5,
+      "prepared_at": "2026-11-18T01:03:06Z"
+    }
+  }
+}

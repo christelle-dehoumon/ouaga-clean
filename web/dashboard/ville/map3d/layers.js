@@ -164,7 +164,7 @@ export class Layers {
       if (path.length < 2) continue;
       const truck = String(r.vehicle_id || r.vehicle).split("_trip")[0];
       const color = this.vehicleColor.get(truck) ?? 0xef2b2d;
-      const mesh = new THREE.Mesh(ribbon(path, 3.2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+      const mesh = new THREE.Mesh(ribbon(path, this.routeWidth || 4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
       mesh.renderOrder = 4;
       mesh.userData = { kind: "tournee", data: r, truck, path };
       this.groups.tournees.add(mesh);
@@ -219,7 +219,19 @@ export class Layers {
     return m;
   }
 
+  /** Largeur des tournées proportionnelle à l'altitude de la caméra : lisibles de près comme de loin. */
+  _routeWidth() {
+    const w = Math.max(3, Math.min(22, Math.round(this.s.camera.position.y / 70)));
+    if (w === this.routeWidth) return;
+    this.routeWidth = w;
+    for (const m of this.groups.tournees.children) {
+      m.geometry.dispose();
+      m.geometry = ribbon(m.userData.path, w);
+    }
+  }
+
   update(dt) {
+    this._routeWidth();
     const cam = this.s.camera.position;
     for (const o of this.scaled) {
       const d = cam.distanceTo(o.position);

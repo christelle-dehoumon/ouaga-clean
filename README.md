@@ -253,7 +253,7 @@ Les coefficients de la simulation (section `hypotheses`) sont tous étiquetés *
 ## 9. Tests et Vérification
 
 ```bash
-.venv/bin/python -m pytest -q        # serveur et contrat du front
+.venv/bin/python -m pytest -q tests  # serveur et contrat du front
 ./scripts/verifier_tout.sh           # tout, back et front ensemble (installe Playwright dans .venv-e2e la première fois)
 ```
 

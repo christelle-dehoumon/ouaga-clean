@@ -21,7 +21,7 @@ téléphone, utiliser `./scripts/run.sh` (HTTPS).
 ## 2. Tests
 
 ```bash
-.venv/bin/python -m pytest -q          # serveur et contrat du front (rapide)
+.venv/bin/python -m pytest -q tests    # serveur et contrat du front (rapide)
 ./scripts/verifier_tout.sh             # tout : pytest + parcours dans Chromium sur des bases temporaires
 ```
 Une contribution ne doit faire échouer aucun test, ni en affaiblir un. Tout nouveau comportement vient avec son test.

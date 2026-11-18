@@ -43,7 +43,7 @@
 git clone https://github.com/christelle-dehoumon/yilgre.git
 cd yilgre
 ```
-> Le dépôt s'appelait auparavant `ouaga-clean` : GitHub redirige l'ancienne adresse après renommage.
+> GitHub redirige l'ancienne adresse du dépôt après son renommage : les anciens liens et clones continuent de fonctionner.
 
 ### 2. Lancer
 ```bash

@@ -722,7 +722,7 @@ function renderLegend() {
     el("h4", {}, ["Plan"]),
     el("ul", {}, [
       el("li", {}, [sw(0x009e49), "Point desservi"]), el("li", {}, [sw(0xef2b2d), "Non desservi"]),
-      el("li", {}, [sw(0xe67e22), "Reporté"]), el("li", {}, [el("span", { class: "trait", style: "background:#ef2b2d" }), "Tournée (couleur du camion)"]),
+      el("li", {}, [sw(0xe67e22), "Reporté"]), el("li", {}, [el("span", { class: "trait", style: "background:linear-gradient(90deg,#1f6fb2 0 33%,#0f8b8d 33% 66%,#7a5195 66%)" }), "Tournée (couleur du camion)"]),
       el("li", {}, [sw(0x9a9a92), "Camion au dépôt"]), el("li", {}, [el("span", { class: "trait", style: "background:#ef2b2d;height:8px" }), "Route coupée"]),
     ]),
   );
@@ -796,6 +796,13 @@ function bindChrome() {
   $("#mode-sim").addEventListener("click", () => S.mode !== "sim" && setMode("sim"));
   $("#aide-btn").addEventListener("click", () => { $("#aide").hidden = false; });
   $("#aide-fermer").addEventListener("click", () => { $("#aide").hidden = true; });
+  // Panneaux repliables : la ville reste en plein cadre, seule la surcouche se masque.
+  for (const [id, cls] of [["#replier-gauche", "gauche-replie"], ["#replier-droit", "droit-replie"]]) {
+    $(id).addEventListener("click", (e) => {
+      const replie = document.body.classList.toggle(cls);
+      e.currentTarget.setAttribute("aria-expanded", String(!replie));
+    });
+  }
   for (const b of document.querySelectorAll(".onglets button")) b.addEventListener("click", () => showTab(b.dataset.onglet));
   let playing = true;
   for (const b of document.querySelectorAll("[data-cam]")) {

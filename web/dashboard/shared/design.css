@@ -36,6 +36,7 @@
   --st-rejete: #c62828;     --st-rejete-pale: #fde8e7;
   --st-nettoyage: #3d6373;  --st-nettoyage-pale: #e2ebef;
   --st-simule: #6a4c9c;     --st-simule-pale: #eee8f7;
+  --sim-plein: #5b3f8f;      /* fond plein de la simulation, texte blanc dessus dans les deux modes */
 
   /* Espacements : grille de 8 px */
   --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-5: 24px; --e-6: 32px; --e-7: 48px;

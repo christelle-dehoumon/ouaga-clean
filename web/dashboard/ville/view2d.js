@@ -95,7 +95,7 @@ export async function createView2D(container, cityData) {
       trucks.forEach((t, i) => colors.set(t, VEHICLE_COLORS[i % VEHICLE_COLORS.length]));
       for (const r of plan.routes || []) {
         const truck = String(r.vehicle_id).split("_trip")[0];
-        L.polyline(r.path || [], { color: hex(colors.get(truck) ?? 0xef2b2d), weight: 4, opacity: 0.85 }).addTo(groups.plan);
+        L.polyline(r.path || [], { color: hex(colors.get(truck) ?? VEHICLE_COLORS[0]), weight: 4, opacity: 0.85 }).addTo(groups.plan);
       }
       const unserved = new Map((plan.unserved || []).map((u) => [u.point_id, u]));
       const postponed = new Map((plan.postponed || []).map((p) => [p.id, p]));

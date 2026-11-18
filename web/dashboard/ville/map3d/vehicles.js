@@ -54,7 +54,7 @@ export class Fleet {
     const depot = depotPath ? this.proj.toLocal(depotPath[0][0], depotPath[0][1]) : { x: 0, z: 0 };
     (plan.vehicles || []).forEach((v, i) => {
       // Couleur de sa tournée ; gris si le camion n'a aucun trajet dans ce plan (au dépôt).
-      const color = (v.trips || []).length ? (colors?.get(v.id) ?? 0xef2b2d) : 0x9a9a92;
+      const color = (v.trips || []).length ? (colors?.get(v.id) ?? 0x1f6fb2) : 0x9a9a92;
       const object = truckModel(color);
       const pts = [];
       const legs = [];

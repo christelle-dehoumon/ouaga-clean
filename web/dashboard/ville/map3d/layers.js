@@ -12,8 +12,9 @@ export const STATUTS = {
   "nettoyage:nettoye": { couleur: 0x009e49, libelle: "Nettoyé" },
   simule: { couleur: 0x8e44ad, libelle: "Dépotoir simulé (fictif)" },
 };
-export const VEHICLE_COLORS = [0xef2b2d, 0x1f6fb2, 0x009e49, 0xe67e22, 0x8e44ad, 0x16a085, 0xc0392b, 0x2c3e50,
-  0xd35400, 0x27ae60, 0x7f8c8d, 0xb7950b];
+// Tournées : palette harmonieuse, distincte des couleurs de statut (vert desservi, rouge non desservi, orange reporté).
+export const VEHICLE_COLORS = [0x1f6fb2, 0x0f8b8d, 0x7a5195, 0xb5446e, 0x3d5a80, 0x2a9d8f, 0x9c6644, 0x5e60ce,
+  0x00798c, 0xa05195, 0x4d908e, 0x6d597a];
 
 const ROUTE_Y = 0.6;
 
@@ -163,7 +164,7 @@ export class Layers {
       const path = (r.path || []).map(([lat, lon]) => { const p = this.local(lat, lon); return [p.x, p.z]; });
       if (path.length < 2) continue;
       const truck = String(r.vehicle_id || r.vehicle).split("_trip")[0];
-      const color = this.vehicleColor.get(truck) ?? 0xef2b2d;
+      const color = this.vehicleColor.get(truck) ?? VEHICLE_COLORS[0];
       const mesh = new THREE.Mesh(ribbon(path, this.routeWidth || 4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
       mesh.renderOrder = 4;
       mesh.userData = { kind: "tournee", data: r, truck, path };

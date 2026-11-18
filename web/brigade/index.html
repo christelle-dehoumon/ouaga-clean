@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1d1f1e">
+<meta name="theme-color" content="#ffffff">
 <title>Brigade Laabal — Yilgré</title>
 <link rel="stylesheet" href="/dashboard/shared/design.css">
 <link rel="stylesheet" href="/dashboard/shared/shared.css">
@@ -11,7 +11,7 @@
 </head>
 <body>
 <header class="entete">
-  <span class="drapeau" aria-hidden="true"><i></i><i></i><i></i></span>
+  <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
   <div class="titre">
     <b>Brigade Laabal</b>
     <span id="sous-titre">Cas à vérifier sur place</span>
@@ -25,7 +25,7 @@
     <button type="button" class="seg" data-mode="sim" aria-pressed="false">Simulation</button>
   </div>
   <span id="nouveaux" class="nouveaux" hidden></span>
-  <button id="actualiser" class="btn-petit" type="button">Actualiser</button>
+  <button id="actualiser" class="btn-petit" type="button"><span class="ico i-actualiser" aria-hidden="true"></span>Actualiser</button>
 </nav>
 <div id="bandeau-sim" class="bandeau-sim" hidden>SIMULATION — DONNÉES FICTIVES ET SCÉNARIOS DE TEST</div>
 
@@ -36,20 +36,22 @@
 </main>
 
 <section id="detail" class="detail" hidden aria-modal="true" role="dialog" aria-labelledby="detail-titre">
-  <header class="detail-entete">
-    <button id="retour" class="btn-petit" type="button">Retour</button>
-    <h2 id="detail-titre">Cas</h2>
-  </header>
-  <div class="detail-corps">
-    <figure class="photo"><img id="detail-photo" alt="Photo floutée du dépotoir"><figcaption id="photo-etat"></figcaption></figure>
-    <dl id="detail-infos" class="infos"></dl>
-    <div id="detail-alertes" class="alertes"></div>
-    <details class="historique"><summary>Historique</summary><ol id="detail-histo"></ol></details>
+  <div class="feuille">
+    <header class="detail-entete">
+      <button id="retour" class="btn-petit" type="button"><span class="ico i-retour" aria-hidden="true"></span>Retour</button>
+      <h2 id="detail-titre">Cas</h2>
+    </header>
+    <div class="detail-corps">
+      <figure class="photo"><img id="detail-photo" alt="Photo floutée du dépotoir"><figcaption id="photo-etat"></figcaption></figure>
+      <div id="detail-alertes" class="alertes"></div>
+      <dl id="detail-infos" class="infos"></dl>
+      <details class="historique"><summary>Historique</summary><ol id="detail-histo"></ol></details>
+    </div>
+    <footer class="detail-actions">
+      <button id="rejeter" class="btn btn-rejeter" type="button"><span class="ico i-croix" aria-hidden="true"></span>Rejeter</button>
+      <button id="confirmer" class="btn btn-confirmer" type="button"><span class="ico i-ok" aria-hidden="true"></span>Confirmer</button>
+    </footer>
   </div>
-  <footer class="detail-actions">
-    <button id="rejeter" class="btn btn-rejeter" type="button">Rejeter</button>
-    <button id="confirmer" class="btn btn-confirmer" type="button">Confirmer</button>
-  </footer>
 </section>
 <script type="module" src="/brigade/brigade.js"></script>
 </body>

@@ -2,8 +2,9 @@
 <html lang="fr" class="theme-auto">
 <head>
 <meta charset="utf-8">
+<link rel="icon" type="image/png" href="/dashboard/shared/logo-final-viela.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Yilgré — Mairie, ville 3D</title>
+<title>VIELA — Mairie, ville 3D</title>
 <link rel="stylesheet" href="/dashboard/shared/design.css">
 <link rel="stylesheet" href="/dashboard/shared/shared.css">
 <link rel="stylesheet" href="/dashboard/ville/ville.css">
@@ -17,9 +18,8 @@
     <button type="button" id="replier-gauche" class="bouton-icone" aria-controls="panneau-gauche" aria-expanded="true" title="Afficher ou masquer les commandes">
       <span class="ico i-panneau-g" aria-hidden="true"></span><span class="visuellement-cache">Commandes</span>
     </button>
-    <a class="marque" href="/dashboard/ville/" aria-label="Yilgré, accueil mairie">
-      <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
-      <span><b>Yilgré</b><small>Mairie · aide à la décision</small></span>
+    <a class="marque" href="/dashboard/ville/" aria-label="VIELA, accueil mairie">
+      <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo-final-viela.png" alt=""></span>
     </a>
     <div class="recherche" role="search">
       <input id="recherche" type="search" placeholder="Quartier, rue, lieu, camion…" aria-label="Rechercher dans la ville"
@@ -32,7 +32,6 @@
     <button type="button" id="mode-sim" aria-pressed="false">Simulation</button>
   </div>
   <div class="barre-droite">
-    <a class="lien" href="/brigade/">Brigade</a>
     <a class="lien" href="/citizen/">Page citoyen</a>
     <span class="separateur" aria-hidden="true"></span>
     <button type="button" id="aide-btn" class="bouton-icone" aria-label="Aide à la navigation"><span class="ico i-aide" aria-hidden="true"></span></button>
@@ -49,10 +48,11 @@
   <main id="scene" class="scene" aria-label="Ville en 3D">
     <div id="chargement" class="chargement" role="status">
       <div class="chargement-boite">
-        <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
+        <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo-final-viela.png" alt=""></span>
         <b>Construction de la ville…</b>
         <span id="chargement-etape">Préparation</span>
         <div class="barre-progression"><i id="progression"></i></div>
+        <p id="chargement-astuce" class="chargement-astuce" aria-live="off"></p>
       </div>
     </div>
     <div id="infobulle" class="infobulle" hidden></div>
@@ -67,7 +67,11 @@
       <button type="button" id="vue-2d3d" class="seulement-carte" aria-pressed="true" title="Bâtiments en relief ou carte à plat">3D</button>
       <label class="seulement-carte ambiance-choix" title="Ambiance de la carte (couleurs seulement)">
         <span class="visuellement-cache">Ambiance</span>
-        <select id="ambiance"><option value="jour">Jour</option><option value="soir">Soir</option><option value="nuit">Nuit</option></select>
+        <select id="ambiance"><option value="jour">Jour</option><option value="dore">Doré</option><option value="soir">Soir</option><option value="nuit">Nuit</option></select>
+      </label>
+      <label class="seulement-carte ambiance-choix" title="Qualité d'affichage : haute (façades, toits, ombres simulées) ou légère (plus fluide)">
+        <span class="visuellement-cache">Qualité</span>
+        <select id="qualite"><option value="haute">HQ</option><option value="leger">Léger</option></select>
       </label>
     </div>
     <div id="legende" class="legende" aria-label="Légende"></div>
@@ -75,7 +79,7 @@
   </main>
   <div class="coherence">
     <div id="statut-plan" class="statut statut-vide" role="status" aria-live="polite">Aucun plan calculé</div>
-    <span id="chrono" class="chrono" aria-live="polite"></span>
+    <span id="chrono" class="chrono" hidden></span>
   </div>
   <aside id="panneau-gauche" class="panneau panneau-gauche" aria-label="Commandes"></aside>
   <aside id="panneau-droit" class="panneau panneau-droit" aria-label="Détails">

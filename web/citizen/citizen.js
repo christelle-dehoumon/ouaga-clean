@@ -3,6 +3,9 @@
 import { ApiError, createApi, isMockMode } from "/dashboard/shared/api.js";
 import { opId, queue } from "/dashboard/shared/store.js";
 import { $, el, fmt, mockBanner } from "/dashboard/shared/ui.js";
+import { installerCamera } from "/citizen/camera.js";
+
+let camera = null;   // caméra directe (repli sur le champ natif si elle est inaccessible)
 
 const STORE = "signalements";
 const MAX_SIDE = 1024;
@@ -12,7 +15,7 @@ const STATUTS = {
   local: ["Enregistré sur le téléphone", "p-local"],
   attente: ["En attente de réseau", "p-attente"],
   envoi: ["Envoi en cours…", "p-attente"],
-  recu: ["Reçu par le serveur", "p-recu"],
+  recu: ["Bien reçu, Barka, Anitche, Fofo", "p-recu"],
   echec: ["Échec de l'envoi : nouvel essai automatique", "p-echec"],
 };
 
@@ -74,7 +77,11 @@ async function compress(file) {
 }
 
 async function onPhoto(e) {
-  const file = e.target.files?.[0];
+  await accepterPhoto(e.target.files?.[0]);
+}
+
+/** Photo venant de la caméra directe (Blob) ou du repli natif (File) : même réduction, même file d'envoi. */
+async function accepterPhoto(file) {
   const etat = $("#photo-etat");
   if (!file) return;
   etat.textContent = "Préparation de la photo…";
@@ -173,11 +180,11 @@ async function submit() {
   $("#apercu").hidden = true;
   $("#photo-etat").textContent = "";
   refreshButton();
+  camera?.apresEnvoi();
   const ok = navigator.onLine ? await sendOne(item) : false;
   if (ok) {
     box.className = "confirmation";
-    box.replaceChildren(el("b", {}, ["Merci, votre signalement a été reçu."]),
-      "Il sera vérifié sur place par la brigade Laabal.");
+    box.replaceChildren(el("b", {}, ["Bien reçu, Barka, Anitche, Fofo"]));
   } else {
     box.className = "confirmation local";
     box.replaceChildren(el("b", {}, ["Enregistré sur votre téléphone."]),
@@ -233,6 +240,10 @@ async function init() {
   state.api = await createApi();
   if (isMockMode()) mockBanner();
   $("#photo").addEventListener("change", onPhoto);
+  camera = installerCamera({
+    surPhoto: accepterPhoto,
+    surReprendre: () => { state.photo = null; $("#apercu").hidden = true; $("#photo-etat").textContent = ""; refreshButton(); },
+  });
   $("#pos-btn").addEventListener("click", askPosition);
   $("#envoyer").addEventListener("click", submit);
   $("#sync").addEventListener("click", sync);

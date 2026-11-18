@@ -20,6 +20,7 @@ export function coucheCamions(maplibregl, proj) {
   let renderer = null;
   let map = null;
   let precedent = performance.now();
+  let clignote = 0;
   const rotX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
   const base = new THREE.Matrix4().makeTranslation(origine.x, origine.y, origine.z)
     .scale(new THREE.Vector3(echelle, -echelle, echelle)).multiply(rotX);
@@ -45,13 +46,21 @@ export function coucheCamions(maplibregl, proj) {
       camera.projectionMatrix = new THREE.Matrix4().fromArray(mat).multiply(base);
       renderer.resetState();
       renderer.render(scene, camera);
-      if (flotte.trucks.size && flotte.playing) map.triggerRepaint();
+      // Repeindre seulement si quelque chose bouge : camions en route à chaque image ; feux de détresse d'un camion
+      // en panne à faible cadence (4 Hz) ; rien quand l'animation est en pause ou que tous les camions sont arrêtés.
+      if (!flotte.playing || !flotte.trucks.size) return;
+      let roule = false;
+      let panne = false;
+      for (const t of flotte.trucks.values()) { if (t.broken) panne = true; else if (!t.idle) { roule = true; break; } }
+      if (roule) map.triggerRepaint();
+      else if (panne && !clignote) clignote = setTimeout(() => { clignote = 0; map?.triggerRepaint(); }, 250);
     },
-    onRemove() { renderer?.dispose(); },
+    onRemove() { clearTimeout(clignote); renderer?.dispose(); },
   };
 
-  /** Camion sous un point écran (lancer de rayon dans la scène des camions). */
-  function camionEn(point) {
+  /** Camion sous un point écran (lancer de rayon dans la scène des camions) ; avec proche, repli sur le camion le
+   *  plus proche à moins de 18 px. */
+  function camionEn(point, proche = true) {
     if (!map || !flotte.trucks.size) return null;
     const w = map.getCanvas().clientWidth;
     const h = map.getCanvas().clientHeight;
@@ -63,7 +72,7 @@ export function coucheCamions(maplibregl, proj) {
     const hits = ray.intersectObjects([flotte.group], true);
     let o = hits[0]?.object;
     while (o && !o.userData?.kind) o = o.parent;
-    if (o) return o;
+    if (o || !proche) return o || null;
     // Repli : camion le plus proche à moins de 18 px (petits objets au loin).
     let best = null;
     let bd = 18;

@@ -111,3 +111,35 @@ main { max-width: 40rem; margin: 0 auto; padding: var(--e-2) var(--e-4) var(--e-
   .detail-entete::before { display: none; }
   .detail-entete { padding-top: var(--e-4); }
 }
+
+/* Lien vers la page citoyen (même style que les liens de l'en-tête de la mairie) */
+.lien-citoyen { margin-left: auto; display: inline-flex; align-items: center; min-height: var(--cible); padding: 0 var(--e-2); color: var(--texte-2);
+  text-decoration: none; font-size: var(--t-legende); font-weight: var(--g-fort); white-space: nowrap; border-radius: var(--rayon-s); }
+.lien-citoyen:hover { color: var(--texte); background: var(--surface-2); }
+.lien-citoyen + .reseau { margin-left: var(--e-2); }
+
+/* Carte des cas à vérifier : panneau plein écran ouvert sur clic (la fiche s'ouvre par-dessus) */
+.btn-carte { margin-left: auto; }
+.btn-carte + .btn-petit { margin-left: 0; }
+.lien-carte { display: block; width: 100%; min-height: var(--cible); margin-top: 4px; border: 0; background: none; color: var(--vert-texte);
+  font: var(--g-fort) .875rem/1 var(--police); text-align: right; padding: 0 var(--e-2); cursor: pointer; }
+.panneau-carte { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: var(--fond); }
+.panneau-carte-entete { display: flex; align-items: center; gap: var(--e-3); padding: var(--e-2) var(--e-4); padding-top: max(var(--e-2), env(safe-area-inset-top));
+  background: var(--surface); border-bottom: 1px solid var(--trait); flex-wrap: wrap; }
+.panneau-carte-entete .btn-petit { margin-left: 0; }
+.legende-cas { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-legende); color: var(--texte-2); }
+.legende-cas .marqueur-cas { width: 16px; height: 16px; }
+.brigade-map { flex: 1; min-height: 0; background: var(--surface-3); }
+.carte-message { margin: 0; padding: var(--e-2) var(--e-4); background: var(--st-verifier-pale); color: var(--texte); font-size: .875rem; }
+.marqueur-cas { display: inline-block; width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+  background: currentColor; position: relative; }
+.marqueur-cas::after { content: ""; position: absolute; inset: 5px; background: #fff; -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat; }
+.marqueur-depotoir { color: #b25d00; --ico: url("/dashboard/shared/icones/alerte.svg"); }
+.marqueur-nettoyage { color: #3d6373; --ico: url("/dashboard/shared/icones/balai.svg"); }
+.marqueur-sel { outline: 4px solid #fcd116; outline-offset: 1px; }
+/* En-tête étroit (logo, titre, lien citoyen, réseau) : une ligne par texte */
+.entete .titre { flex: 1; min-width: 0; }
+.titre b, .titre span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entete .lien-citoyen { margin-left: 0; padding: 0 6px; }
+@media (max-width: 400px) { .titre span { display: none; } .entete .logo { width: 44px; height: 33px; } }
+.titre b { white-space: normal; line-height: 1.15; overflow: visible; }

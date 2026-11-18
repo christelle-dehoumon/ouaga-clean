@@ -1,4 +1,4 @@
-# Front Yilgré (web/)
+# Front VIELA (web/)
 
 HTML, CSS et JavaScript natifs (modules ES), sans framework ni étape de construction. Contrat d'API : `docs/api.md`.
 
@@ -6,10 +6,11 @@ HTML, CSS et JavaScript natifs (modules ES), sans framework ni étape de constru
 |---|---|---|
 | Signalement citoyen | `/citizen/` | téléphone, sans compte |
 | Brigade Laabal | `/brigade/` | téléphone, code brigade |
-| Mairie, ville 3D | `/dashboard/ville/` | ordinateur (1280 px et plus), code mairie |
+| Mairie, carte de la ville | `/dashboard/ville/` (`?vue=ville3d`, `?vue=2d`) | ordinateur (1280 px et plus), code mairie |
 | Raccourci | `/dashboard/` | redirige vers `/dashboard/ville/` |
 
-Démarrage : `./scripts/run.sh`, puis `https://<ip>:8443/dashboard/` (redirige vers la ville 3D). Codes de démonstration : `mairie-demo`,
+Démarrage : `./scripts/fabriquer_tuiles.sh` une fois après le clonage (obligatoire, Java 21+ ; voir `docs/carte.md`), puis
+`./scripts/run.sh` et `https://<ip>:8443/dashboard/` (redirige vers `/dashboard/ville/`). Codes de démonstration : `mairie-demo`,
 `brigade-demo` (définir `MAIRIE_CODE` et `BRIGADE_CODE` en vrai déploiement). Le code est gardé pour la session de
 l'onglet ; ce n'est pas une sécurité : le serveur vérifie chaque appel.
 
@@ -25,11 +26,15 @@ web/
   dashboard/
     shared/         api.js (appels, délais, erreurs, code de rôle), mock.js (?mock=1), store.js (IndexedDB), ui.js,
                     design.css (jetons : couleurs, espacements, typographie, mode sombre), shared.css (composants communs),
-                    icones/ (SVG locaux), logo.jpg (copie telle quelle de assets/logo.jpg)
+                    icones/ (SVG locaux), logo-final-viela.png (copie telle quelle de assets/logo-final-viela.png)
     ville/          index.html, ville.css, app.js (état, modes, panneaux), status.js, compare.js (A/B, historique),
                     view3d.js (vue 3D), view2d.js (vue 2D de secours), data/city.json
+      carte/        config.js (sources locales, emprise, hauteurs), style.js (style MapLibre, ambiances), vue.js (vue « carte »),
+                    operationnel.js (couches de l'API), camions.js (camions Three.js dans MapLibre), recherche.js,
+                    polices/ (glyphes Noto Sans, OFL-1.1), data/ (ouagadougou.pmtiles, recherche.json : fabriqués, non versionnés)
       map3d/        scene.js, camera.js, city.js, layers.js, vehicles.js, interactions.js, effects.js, geo.js
-    vendor/         leaflet/ (BSD-2), three/ (Three.js r170 + OrbitControls, MIT)
+    vendor/         leaflet/ (BSD-2), three/ (Three.js r170 + OrbitControls, MIT), maplibre/ (MapLibre GL JS 6.16.0, BSD-3),
+                    pmtiles/ (pmtiles 4.5.0, BSD-3)
   tools/            build_city_data.py (données de la ville 3D), e2e/ (tests de bout en bout Playwright)
 ```
 
@@ -41,7 +46,22 @@ A/B, Historique) dans deux panneaux flottants que les boutons aux deux bouts de 
 plan et chronomètre en haut de la scène ; légende en bas à gauche, caméra en bas à droite, indicateurs en pied de page.
 Couleurs : vert = identité et actions positives, jaune = accent rare, rouge = erreurs et danger, violet = simulation.
 
-## La ville 3D
+## La carte de la ville (vue par défaut)
+
+- Toute l'agglomération de Ouagadougou depuis OpenStreetMap (© contributeurs OpenStreetMap, ODbL) : tuiles vectorielles
+  fabriquées par `./scripts/fabriquer_tuiles.sh` (Planetiler) et servies en local, rendues par MapLibre GL JS. Aucune
+  ressource en ligne à l'affichage. Architecture, schéma des tuiles, limites : `docs/carte.md`.
+- Bâtiments OSM extrudés en s'approchant ; hauteur OSM, sinon niveaux OSM × 3,2 m, sinon ESTIMÉE selon le type OSM. La
+  fiche du bâtiment dit laquelle s'applique.
+- Recherche locale (lieux, rues, points d'intérêt, quartiers du plan, camions), bouton 2D / 3D, ambiances jour, soir, nuit.
+- Mêmes couches opérationnelles que la ville 3D, venant de l'API. Camions : animation ACCÉLÉRÉE et SIMULÉE le long des
+  tournées calculées, jamais une position GPS. Le calcul des tournées ne couvre pour l'instant que le secteur pilote et
+  les quartiers téléchargés.
+- Tuiles absentes (clone neuf : le fichier reste hors de Git) ou carte en échec : ville 3D du secteur pilote sous un
+  bandeau permanent (`#bandeau-couverture`) : carte de toute la ville indisponible, couverture limitée au secteur pilote
+  et aux quartiers téléchargés. `?vue=ville3d` demande directement la ville 3D.
+
+## La ville 3D (`?vue=ville3d`)
 
 - Emprises des 49 738 bâtiments, tracés et revêtement des 12 408 tronçons de route, plans d'eau : OpenStreetMap
   (© contributeurs OpenStreetMap, ODbL), lus dans les données déjà préparées du dépôt par
@@ -60,7 +80,7 @@ Couleurs : vert = identité et actions positives, jaune = accent rare, rouge = e
 ## Démonstration (3 minutes)
 
 1. **Découvrir la ville (0:00–0:35)** : ouvrir `/dashboard/ville/`, Immersive, faire tourner la ville, cliquer un
-   quartier puis un signalement (fiche, photo floutée, historique).
+   bâtiment, un quartier puis un signalement (fiche, photo floutée, historique).
 2. **Plan initial (0:35–1:05)** : passer en Simulation (bandeau violet hachuré) ; le plan se calcule ; points verts, tournées
    colorées, camions qui roulent ; « Comparer A/B » → « Fixer le plan affiché comme A ».
 3. **Panne (1:05–1:40)** : cliquer un camion → « Déclarer en panne » ; le camion s'arrête, feux allumés ; statut
@@ -69,7 +89,8 @@ Couleurs : vert = identité et actions positives, jaune = accent rare, rouge = e
 5. **Nouveau quartier (2:10–2:40)** : choisir Kalgodin → « Ajouter au scénario » ; la caméra y vole, nouveaux points.
 6. **Décider (2:40–3:00)** : « Fixer le plan affiché comme B » → « Comparer A et B » : écarts et compromis.
 
-Avant la démonstration : `./scripts/reset_db.sh` (vide sim.db, recharge le jeu factice) puis ouvrir la page une fois.
+Avant la démonstration : vérifier que les tuiles existent (`web/dashboard/ville/carte/data/ouagadougou.pmtiles`, sinon
+`./scripts/fabriquer_tuiles.sh`), puis `./scripts/reset_db.sh` (vide sim.db, recharge le jeu factice) et ouvrir la page une fois.
 
 ## Tests
 
@@ -87,5 +108,6 @@ Avant la démonstration : `./scripts/reset_db.sh` (vide sim.db, recharge le jeu 
 2. `POST /api/reports` n'a pas de clé d'idempotence : si une réponse se perd (délai dépassé), un nouvel envoi
    automatique peut renforcer le même dépotoir (signalé N + 1 fois) au lieu de créer un doublon.
 3. Les bâtiments, routes et limites de quartiers ne sont pas exposés par l'API : `city.json` est généré depuis
-   `data/` et doit être régénéré si ces données changent.
+   `data/` et doit être régénéré si ces données changent. Les tuiles de la carte sont fabriquées à part depuis l'extrait
+   OSM (`./scripts/fabriquer_tuiles.sh`).
 4. Pas de position des camions côté serveur : un camion en panne s'arrête là où l'animation le montrait.

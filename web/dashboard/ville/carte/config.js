@@ -11,7 +11,7 @@ export const CARTE = {
   vueDepart: { zoom: 14.6, pitch: 55, bearing: -17 },
   zoomMin: 9.5,
   zoomMax: 19.5,
-  attribution: "© contributeurs OpenStreetMap (ODbL) · tuiles Yilgré (Planetiler) · MapLibre",
+  attribution: "© contributeurs OpenStreetMap (ODbL) · tuiles VIELA (Planetiler) · MapLibre",
 };
 
 // Hauteur affichée d'un bâtiment, en mètres (expression MapLibre).

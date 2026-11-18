@@ -26,7 +26,8 @@ with sync_playwright() as p:
     pg.click(".onglets >> text=Historique"); pg.wait_for_selector("#onglet-historique .erreur", timeout=10000)
     print("route manquante :", pg.text_content("#onglet-historique .erreur"))
     pg.click(".onglets >> text=Sélection"); pg.click("#mode-sim"); pg.wait_for_function("window.__ouaga.sim.sim && !window.__ouaga.busy", timeout=60000)
-    pg.wait_for_timeout(1500); pg.screenshot(path=SH + "qa_1280.png")
+    # Camions en pause pendant la capture : le rendu logiciel (SwiftShader) est lent sous charge.
+    pg.wait_for_timeout(1500); pg.evaluate("window.__ouaga.view.setPlaying(false)"); pg.screenshot(path=SH + "qa_1280.png", timeout=120000)
     over = pg.evaluate("document.querySelector('.barre-haut').scrollHeight > 60 || document.body.scrollWidth > innerWidth")
     print("1280×720 : débordement =", over, "| erreurs :", errs)
     assert not over and not errs

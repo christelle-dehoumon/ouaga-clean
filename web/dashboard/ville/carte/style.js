@@ -1,33 +1,109 @@
-// Style cartographique de Yilgré pour les tuiles du schéma scripts/tuiles/schema_yilgre.yml.
-// Trois ambiances (jour, soir, nuit) : seules les couleurs et la lumière changent, jamais la géographie.
+// Style cartographique de VIELA pour les tuiles du schéma scripts/tuiles/schema_yilgre.yml.
 import { CARTE, exprBase, exprHauteur } from "./config.js";
+import { exprMateriau, exprMotif } from "./materiaux.js";
 
+// Quatre ambiances (jour, doré, soir, nuit) : couleurs, lumière, ciel et ombres stylisées changent, jamais la géographie.
+// murs : teintes des façades (motifs de materiaux.js en haute qualité, couleurs pleines en mode léger) ; toits : dalle
+// de toiture posée sur chaque bâtiment ; ombre : ombres portées simulées (MapLibre n'en calcule pas pour les extrusions),
+// orientées comme la lumière (azimut en degrés depuis le nord, longueur = facteur de la hauteur affichée).
 export const AMBIANCES = {
   jour: {
-    fond: "#eee8dd", residentiel: "#e8e0d2", vert: "#d3e3bd", eau: "#a7cfe2", eauTexte: "#3f7590", sable: "#e9dcc2",
-    equipement: "#ece2d6", commerce: "#efdcd2", industrie: "#e2dcd6", route: "#ffffff", routeBord: "#d6cbb9",
-    principale: "#fde6b2", principaleBord: "#d9b46a", chemin: "#cbbfa9", rail: "#a39c92",
-    bat: ["#ebe3d6", "#dccfbc", "#cbb99f"], batHaut: "#bda88a", texte: "#3c3a35", halo: "rgba(255,255,255,.92)",
-    lieu: "#2e2b26", limite: "#a7998a", lumiere: { anchor: "viewport", color: "#fff6e8", intensity: 0.32, position: [1.2, 200, 35] },
-    ciel: { "sky-color": "#cfe3f0", "horizon-color": "#efe3cd", "fog-color": "#efe6d6", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.75, "fog-ground-blend": 0.92 },
+    fond: "#efe7da", residentiel: "#ebe2d3", vert: "#d2e0b6", eau: "#9fcbe0", eauTexte: "#2f6a86", sable: "#eadbbd",
+    equipement: "#ece2d4", commerce: "#f0ddd0", industrie: "#e3ddd5", route: "#ffffff", routeBord: "#d8ccb8",
+    principale: "#fde3a7", principaleBord: "#d6ae60", chemin: "#c9bba2", rail: "#a39c92", plats: "#dccfbc",
+    murs: { enduit: "#f4e4ca", enduit2: "#efd2ae", banco: "#dcb28a", beton: "#ebe7df", tole: "#c8ced1", public: "#e6b190" },
+    toits: { enduit: ["#d8ccbb", "#cbb8a2", "#bfae9c"], banco: "#bd9874", beton: "#efebe4", tole: "#b5bcc0", public: "#cf9a80" },
+    texte: "#3c3a35", halo: "rgba(255,255,255,.92)", lieu: "#2e2b26", limite: "#a7998a", fenetres: 0,
+    lumiere: { anchor: "map", color: "#fff4e2", intensity: 0.4, position: [1.15, 235, 42] },
+    ombre: { couleur: "#4a3b2a", azimut: 235, longueur: 0.9, opacite: 0.2 },
+    ciel: { "sky-color": "#b9d7ee", "horizon-color": "#efe4cf", "fog-color": "#ede4d3", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.75, "fog-ground-blend": 0.92 },
+  },
+  dore: {
+    fond: "#efd8b2", residentiel: "#ecd2a8", vert: "#cbcf8f", eau: "#86b5bb", eauTexte: "#24565e", sable: "#ebcd99",
+    equipement: "#ecd4b0", commerce: "#f0cdac", industrie: "#e0ccae", route: "#fff3d8", routeBord: "#d9b480",
+    principale: "#ffcf73", principaleBord: "#c4862f", chemin: "#c7a573", rail: "#9c8466", plats: "#e3c393",
+    murs: { enduit: "#fbdcaa", enduit2: "#f6c68a", banco: "#e3a56e", beton: "#f6e0bc", tole: "#d3c0a2", public: "#eea776" },
+    toits: { enduit: ["#d4b088", "#c69c72", "#b68a66"], banco: "#bd8455", beton: "#f2ddb8", tole: "#baa587", public: "#cd7f5a" },
+    texte: "#3b2a18", halo: "rgba(255,246,226,.93)", lieu: "#2f1f10", limite: "#a8875e", fenetres: 0,
+    lumiere: { anchor: "map", color: "#ffc27a", intensity: 0.55, position: [1.15, 262, 66] },
+    ombre: { couleur: "#5b3214", azimut: 262, longueur: 1.9, opacite: 0.2 },
+    ciel: { "sky-color": "#9fbcd4", "horizon-color": "#f8c886", "fog-color": "#f3d3a0", "sky-horizon-blend": 0.75, "horizon-fog-blend": 0.7, "fog-ground-blend": 0.85 },
   },
   soir: {
-    fond: "#e6d3bd", residentiel: "#dfc9b0", vert: "#c4cf9f", eau: "#8fb3c9", eauTexte: "#335c73", sable: "#e0c9a4",
-    equipement: "#e2cbb3", commerce: "#e6c8b4", industrie: "#d6c6b6", route: "#fff3e0", routeBord: "#cfb293",
-    principale: "#ffd28a", principaleBord: "#c98f45", chemin: "#bfa587", rail: "#94867a",
-    bat: ["#ead2b8", "#ddbd9b", "#c9a47f"], batHaut: "#b98f68", texte: "#3a2e24", halo: "rgba(255,244,228,.92)",
-    lieu: "#2e231a", limite: "#a08670", lumiere: { anchor: "viewport", color: "#ffd7a8", intensity: 0.42, position: [1.2, 250, 18] },
-    ciel: { "sky-color": "#f2b98a", "horizon-color": "#f6d2a6", "fog-color": "#efd2b2", "sky-horizon-blend": 0.7, "horizon-fog-blend": 0.8, "fog-ground-blend": 0.9 },
+    fond: "#d6cbc6", residentiel: "#d0c3bc", vert: "#b2bc9f", eau: "#7896b4", eauTexte: "#2b4762", sable: "#d6c3b0",
+    equipement: "#d4c6bf", commerce: "#dac1ba", industrie: "#c9c0bc", route: "#efe4df", routeBord: "#b6a39f",
+    principale: "#f0c08c", principaleBord: "#b07c52", chemin: "#ab9a92", rail: "#887d7f", plats: "#c4b4ad",
+    murs: { enduit: "#cbb4ab", enduit2: "#c2a294", banco: "#a78273", beton: "#c6beba", tole: "#a0a2ab", public: "#bb8a7d" },
+    toits: { enduit: ["#a79a98", "#9a8a86", "#8d7d7a"], banco: "#8d6c60", beton: "#cdc5c2", tole: "#8d939e", public: "#9e746a" },
+    texte: "#33272a", halo: "rgba(250,241,240,.92)", lieu: "#2a1f22", limite: "#9a8288", fenetres: 0.05,
+    lumiere: { anchor: "map", color: "#f4c2ae", intensity: 0.3, position: [1.15, 285, 76] },
+    ombre: { couleur: "#3a2c40", azimut: 285, longueur: 2.2, opacite: 0.11 },
+    ciel: { "sky-color": "#6c7ca6", "horizon-color": "#efa57e", "fog-color": "#d8b4a8", "sky-horizon-blend": 0.8, "horizon-fog-blend": 0.75, "fog-ground-blend": 0.88 },
   },
   nuit: {
-    fond: "#1b1f24", residentiel: "#20252b", vert: "#1f2a22", eau: "#14283a", eauTexte: "#7fa8c4", sable: "#25272a",
-    equipement: "#232830", commerce: "#2a2527", industrie: "#24262a", route: "#3a4048", routeBord: "#1a1d21",
-    principale: "#8a6a35", principaleBord: "#3d2f18", chemin: "#33383f", rail: "#4a4f55",
-    bat: ["#2c323a", "#343b44", "#3e4650"], batHaut: "#4a535e", texte: "#d9d6cf", halo: "rgba(15,17,20,.9)",
-    lieu: "#f1ede4", limite: "#5b636d", lumiere: { anchor: "viewport", color: "#b8c8ff", intensity: 0.2, position: [1.2, 210, 40] },
-    ciel: { "sky-color": "#0d1420", "horizon-color": "#1d2838", "fog-color": "#151b24", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.8, "fog-ground-blend": 0.9 },
+    fond: "#171b21", residentiel: "#1d2228", vert: "#1c2620", eau: "#0f2133", eauTexte: "#7fa8c4", sable: "#232427",
+    equipement: "#20252c", commerce: "#272225", industrie: "#212328", route: "#353b43", routeBord: "#14171b",
+    principale: "#9a7436", principaleBord: "#3d2f18", chemin: "#2e333a", rail: "#4a4f55", plats: "#2c323a",
+    murs: { enduit: "#535a66", enduit2: "#5a5e68", banco: "#5c5249", beton: "#5e6570", tole: "#4a525d", public: "#64554f" },
+    toits: { enduit: ["#3b414b", "#41464f", "#373c45"], banco: "#433d37", beton: "#4a5059", tole: "#363c44", public: "#4a3f3c" },
+    texte: "#d9d6cf", halo: "rgba(15,17,20,.9)", lieu: "#f1ede4", limite: "#5b636d", fenetres: 0.16,
+    lumiere: { anchor: "map", color: "#e2e8f5", intensity: 0.34, position: [1.15, 200, 35] },
+    ombre: null,
+    ciel: { "sky-color": "#0b111c", "horizon-color": "#1d2838", "fog-color": "#141a23", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.8, "fog-ground-blend": 0.9 },
   },
 };
+
+// Épaisseur de la dalle de toiture (mètres, prise dans la hauteur affichée : la hauteur totale ne change pas).
+const EPAISSEUR_TOIT = ["min", 0.45, ["*", 0.15, exprHauteur]];
+const HAUT_MUR = ["max", exprBase, ["-", exprHauteur, EPAISSEUR_TOIT]];
+// Pixels par mètre à la latitude de Ouagadougou (12,37° N), au zoom 14 et 20 (tuiles de 512 px).
+const PX_M = (z) => (2 ** z * 512) / (40075016.686 * Math.cos((12.37 * Math.PI) / 180));
+const CLASSES_OMBRE = [
+  ["bas", ["<", exprHauteur, 6], 3.6, [0.5, 1]],
+  ["haut", ["all", [">=", exprHauteur, 6], ["<", exprHauteur, 14]], 9, [0.35, 0.7, 1]],
+  ["tres-haut", [">=", exprHauteur, 14], 20, [0.35, 0.7, 1]],
+];
+
+/** Ombres portées simulées : empreintes décalées à l'opposé de la lumière, plusieurs pas superposés (adoucies). */
+export function couchesOmbres(a) {
+  const o = a.ombre || { couleur: "#000000", azimut: 0, longueur: 0, opacite: 0 };
+  const rad = (o.azimut * Math.PI) / 180;
+  const out = [];
+  for (const [nom, filtre, hRef, pas] of CLASSES_OMBRE) {
+    pas.forEach((f, i) => {
+      const m = hRef * o.longueur * f;
+      const v = (z) => [-Math.sin(rad) * m * PX_M(z), Math.cos(rad) * m * PX_M(z)];
+      out.push({ id: `ombre-${nom}-${i + 1}`, type: "fill", source: "osm", "source-layer": "batiments", minzoom: 14.6, filter: filtre,
+        paint: { "fill-color": o.couleur, "fill-antialias": true, "fill-translate-anchor": "map",
+          "fill-translate": { base: 2, stops: [[14, v(14)], [20, v(20)]] },
+          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 14.6, 0, 15.4, o.opacite] } });
+    });
+  }
+  return out;
+}
+
+/** Peinture des bâtiments extrudés et de leurs toits selon l'ambiance et la qualité (motifs ou couleurs pleines). */
+export function peintureBatiments(a, motifs) {
+  return {
+    murs: {
+      "fill-extrusion-color": exprMateriau(a.murs),
+      "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, motifs ? HAUT_MUR : exprHauteur],
+      "fill-extrusion-base": exprBase,
+      "fill-extrusion-opacity": 1,
+      "fill-extrusion-vertical-gradient": true,
+      ...(motifs ? { "fill-extrusion-pattern": exprMotif() } : {}),
+    },
+    toits: {
+      "fill-extrusion-color": exprMateriau({ ...a.toits,
+        enduit: ["match", ["%", ["to-number", ["get", "osm_id"], 0], 3], 0, a.toits.enduit[0], 1, a.toits.enduit[1], a.toits.enduit[2]],
+        enduit2: ["match", ["%", ["to-number", ["get", "osm_id"], 0], 3], 0, a.toits.enduit[1], 1, a.toits.enduit[2], a.toits.enduit[0]] }),
+      "fill-extrusion-height": exprHauteur,
+      "fill-extrusion-base": HAUT_MUR,
+      "fill-extrusion-opacity": 1,
+      "fill-extrusion-vertical-gradient": false,
+    },
+  };
+}
 
 const NOM = ["coalesce", ["get", "nom"], ""];
 const POLICE = ["noto-regular"];
@@ -77,12 +153,13 @@ function couchesRoutes(a) {
   return out;
 }
 
-export function construireStyle(nomAmbiance = "jour") {
+export function construireStyle(nomAmbiance = "jour", { motifs = false } = {}) {
   const a = AMBIANCES[nomAmbiance] || AMBIANCES.jour;
+  const bat = peintureBatiments(a, motifs);
   const url = `pmtiles://${location.origin}${CARTE.tuiles}`;
   return {
     version: 8,
-    name: `Yilgré — ${nomAmbiance}`,
+    name: `VIELA — ${nomAmbiance}`,
     glyphs: `${location.origin}${CARTE.polices}`,
     sources: { osm: { type: "vector", url, attribution: CARTE.attribution } },
     sky: a.ciel,
@@ -110,16 +187,12 @@ export function construireStyle(nomAmbiance = "jour") {
       { id: "rail", type: "line", source: "osm", "source-layer": "rail", minzoom: 10,
         paint: { "line-color": a.rail, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 16, 2.4], "line-dasharray": [3, 2] } },
       // Bâtiments : emprises OSM en 2D au loin, extrudées en 3D en s'approchant.
+      ...couchesOmbres(a),
       { id: "batiments-plats", type: "fill", source: "osm", "source-layer": "batiments", minzoom: 13, maxzoom: 14.6,
-        paint: { "fill-color": a.bat[1], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 13.6, 0.85] } },
-      { id: "batiments-3d", type: "fill-extrusion", source: "osm", "source-layer": "batiments", minzoom: 14,
-        paint: {
-          "fill-extrusion-color": ["interpolate", ["linear"], exprHauteur, 2, a.bat[0], 5, a.bat[1], 10, a.bat[2], 24, a.batHaut],
-          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, exprHauteur],
-          "fill-extrusion-base": exprBase,
-          "fill-extrusion-opacity": 0.96,
-          "fill-extrusion-vertical-gradient": true,
-        } },
+        paint: { "fill-color": a.plats, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 13.6, 0.85] } },
+      { id: "batiments-3d", type: "fill-extrusion", source: "osm", "source-layer": "batiments", minzoom: 14, paint: bat.murs },
+      // Dalle de toiture : distingue toits et murs (un motif MapLibre habille sinon les deux faces de la même façon).
+      { id: "batiments-toits", type: "fill-extrusion", source: "osm", "source-layer": "batiments", minzoom: 15, paint: bat.toits },
       // Étiquettes : noms de rues, eau, points d'intérêt, quartiers, ville.
       { id: "noms-rues", type: "symbol", source: "osm", "source-layer": "routes", minzoom: 14.5,
         filter: ["all", ["has", "nom"], ["!", ["in", ["get", "classe"], ["literal", CLASSES_CHEMINS]]]],

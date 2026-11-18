@@ -2,17 +2,17 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<link rel="icon" type="image/png" href="/dashboard/shared/logo-final-viela.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<title>Signaler un dépotoir — Yilgré</title>
+<title>Signaler un dépotoir — VIELA</title>
 <link rel="stylesheet" href="/dashboard/shared/design.css">
 <link rel="stylesheet" href="/dashboard/shared/shared.css">
 <link rel="stylesheet" href="/citizen/citizen.css">
 </head>
 <body>
 <header class="entete">
-  <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
-  <b>Yilgré</b>
+  <span class="logo"><img src="/dashboard/shared/logo-final-viela.png" alt="VIELA"></span>
   <span id="reseau" class="reseau" role="status">…</span>
 </header>
 
@@ -22,10 +22,17 @@
 
   <section class="etape-photo" id="etape-photo" aria-labelledby="t-photo">
     <h2 id="t-photo" class="visuellement-cache">Photo du dépotoir</h2>
-    <label class="btn btn-grand" for="photo"><span class="ico i-photo" aria-hidden="true"></span>Prendre une photo</label>
+    <div id="camera" class="camera" hidden>
+      <video id="camera-video" playsinline muted autoplay aria-label="Caméra"></video>
+      <button id="capturer" class="btn-capture" type="button" aria-label="Prendre la photo"></button>
+    </div>
+    <p id="camera-etat" class="etat erreur" hidden role="status"></p>
+    <button id="camera-reessayer" class="btn btn-secondaire" type="button" hidden>Réessayer</button>
+    <label id="photo-repli" class="btn btn-grand" for="photo"><span class="ico i-photo" aria-hidden="true"></span>Prendre une photo</label>
     <input id="photo" type="file" accept="image/*" capture="environment" class="visuellement-cache">
     <img id="apercu" alt="Aperçu de la photo" hidden>
     <p id="photo-etat" class="etat"></p>
+    <button id="reprendre" class="btn btn-secondaire btn-reprendre" type="button" hidden>Reprendre</button>
   </section>
 
   <section class="etape-position" id="etape-position" aria-labelledby="t-pos">

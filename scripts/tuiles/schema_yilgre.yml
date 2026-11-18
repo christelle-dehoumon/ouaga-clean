@@ -268,7 +268,7 @@ layers:
         exclude_when: &poi_exclusions
           amenity: [parking_space, bench, waste_basket, vending_machine, bicycle_parking]
         min_zoom: &poi_min_zoom
-          default_value: 15
+          default_value: 14
           overrides:
             12:
               amenity: [hospital, marketplace, university, townhall, bus_station]

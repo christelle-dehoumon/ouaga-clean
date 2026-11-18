@@ -1,0 +1,19 @@
+Textures de façade de la carte Yilgré (web/dashboard/ville/carte/textures/)
+==========================================================================
+
+Chaque fichier est une carte de détail en niveaux de gris de 128 x 128 px, obtenue en réduisant la texture
+« diffuse » 1K d'origine (image entière, donc raccordable), puis en normalisant son contraste. La teinte est
+appliquée dans le navigateur (carte/materiaux.js) selon l'ambiance. Usage purement stylistique : le matériau réel
+des bâtiments n'est pas connu.
+
+Toutes les sources sont publiées par Poly Haven sous licence CC0 1.0 (domaine public) :
+https://polyhaven.com/license
+
+fichier      source Poly Haven         auteur(s)                                      page
+enduit.png   Clay Plaster              Amal Kumar                                     https://polyhaven.com/a/clay_plaster
+banco.png    Clay Block Wall           Amal Kumar                                     https://polyhaven.com/a/clay_block_wall
+beton.png    Concrete Wall 008         Charlotte Baglioni, Dario Barresi              https://polyhaven.com/a/concrete_wall_008
+tole.png     Corrugated Iron 02        Sergej Majboroda, Jenelle van Heerden          https://polyhaven.com/a/corrugated_iron_02
+public.png   Red Plaster Weathered     Amal Kumar                                     https://polyhaven.com/a/red_plaster_weathered
+
+Fichiers téléchargés le 2026-11-18 depuis dl.polyhaven.org (variante jpg 1k, carte « diff »).

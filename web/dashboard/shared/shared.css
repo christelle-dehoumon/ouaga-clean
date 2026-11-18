@@ -30,8 +30,7 @@
 .i-cle { --ico: url("/dashboard/shared/icones/cle.svg"); }
 
 /* --- Logo officiel : posé tel quel sur une pastille claire ------------------------------------------------------ */
-.logo { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: var(--rayon-s);
-  background: #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06); overflow: hidden; }
+.logo { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; background: transparent; }
 .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 /* --- Boutons ------------------------------------------------------------------------------------------------------ */
@@ -107,3 +106,5 @@
 /* --- Onglets, interrupteur, curseurs, état vide ------------------------------------------------------------------- */
 .etat-vide { color: var(--texte-3); font-size: var(--t-legende); text-align: center; padding: var(--e-5) var(--e-3); }
 input[type=range] { accent-color: var(--vert); }
+/* Logo officiel (PNG 578 × 432) : proportions gardées, sur pastille claire */
+.logo img { object-fit: contain; }

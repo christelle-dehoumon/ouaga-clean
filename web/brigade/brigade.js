@@ -84,8 +84,9 @@ function render() {
           pending ? el("span", { class: "pill" }, ["Décision en attente de synchronisation"]) : null,
         ]),
       ]),
-    ])]);
+    ]), el("button", { class: "lien-carte", type: "button", onclick: () => ouvrirCarte(c) }, ["Voir sur la carte"])]);
   }));
+  if (carte.ouverte) majCarte();
   for (const c of state.cases.slice(0, 12)) loadThumb(c);
   const waiting = [...state.pending.values()];
   $("#attente").hidden = !waiting.length;
@@ -124,7 +125,7 @@ async function openCase(c) {
   ];
   if (state.me) infos.push(["Distance", `${Math.round(distance(state.me, c))} m`]);
   $("#detail-infos").replaceChildren(...infos.flatMap(([k, v]) => [el("dt", {}, [k]), el("dd", {}, [v])]),
-    el("dt", {}, ["Y aller"]), el("dd", {}, [el("a", { href: `geo:${c.lat},${c.lon}` }, ["Ouvrir dans l'application de cartes"])]));
+    el("dt", {}, ["Y aller"]), el("dd", {}, [el("button", { type: "button", class: "lien-carte lien-carte-fiche", onclick: () => { closeCase(); ouvrirCarte(c); } }, ["Voir sur la carte de la brigade"])]));
   $("#detail-alertes").replaceChildren(...(c.alertes || []).map((a, i) => el("div", { class: "alerte" }, [
     el("b", {}, [alerteCourte(a)]), " — ", c.alertes_libelles?.[i] || ""])));
   $("#detail-histo").replaceChildren(el("li", {}, ["Chargement…"]));
@@ -243,6 +244,85 @@ function setMode(mode) {
   load();
 }
 
+// --- Carte des cas à vérifier : ouverte seulement sur clic, Leaflet local chargé à la première ouverture ----------------
+const carte = { map: null, L: null, couche: null, moi: null, ouverte: false, defil: 0 };
+const COULEURS_CAS = { depotoir: "#b25d00", nettoyage: "#3d6373" };
+
+function chargerLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = "/dashboard/vendor/leaflet/leaflet.css";
+  document.head.append(css);
+  return new Promise((ok, ko) => {
+    const sc = document.createElement("script");
+    sc.src = "/dashboard/vendor/leaflet/leaflet.js";
+    sc.onload = () => ok(window.L);
+    sc.onerror = () => ko(new Error("Leaflet introuvable"));
+    document.head.append(sc);
+  });
+}
+
+/** Cas encore à vérifier seulement (les cas décidés ne s'affichent jamais sur la carte). */
+const casAVerifier = () => state.cases.filter((c) => !c.statut || c.statut === "a_verifier");
+
+function majCarte({ ajuster = false, focus = null } = {}) {
+  const L = carte.L;
+  if (!L || !carte.map) return;
+  carte.couche.clearLayers();
+  const pts = [];
+  for (const c of casAVerifier()) {
+    if (!Number.isFinite(Number(c.lat))) continue;
+    const ll = [Number(c.lat), Number(c.lon)];
+    pts.push(ll);
+    const sel = focus && focus.id === c.id;
+    const icone = L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17],
+      html: `<span class="marqueur-cas marqueur-${c.type === "nettoyage" ? "nettoyage" : "depotoir"}${sel ? " marqueur-sel" : ""}" data-cas="${encodeURIComponent(String(c.id))}" role="button" aria-label="${TYPE[c.type] || "Cas"}"></span>` });
+    L.marker(ll, { icon: icone, title: `${TYPE[c.type] || c.type} — toucher pour ouvrir la fiche`, keyboard: true }).addTo(carte.couche);
+  }
+  if (state.me) L.circleMarker([state.me.lat, state.me.lon], { radius: 8, color: "#ffffff", weight: 3, fillColor: "#1f6fb2", fillOpacity: 1 })
+    .bindTooltip("Ma position").addTo(carte.couche);
+  if (focus && Number.isFinite(Number(focus.lat))) carte.map.setView([Number(focus.lat), Number(focus.lon)], 17);
+  else if (ajuster && pts.length) carte.map.fitBounds(pts, { padding: [40, 40], maxZoom: 17 });
+  $("#carte-compte").textContent = `${pts.length} cas à vérifier`;
+}
+
+async function ouvrirCarte(focus = null) {
+  carte.defil = window.scrollY;
+  $("#panneau-carte").hidden = false;
+  carte.ouverte = true;
+  if (!carte.map) {
+    try {
+      carte.L = await chargerLeaflet();
+    } catch (err) {
+      $("#carte-message").hidden = false;
+      $("#carte-message").textContent = `Carte indisponible : ${err.message}`;
+      return;
+    }
+    const L = carte.L;
+    carte.map = L.map("brigade-map", { zoomControl: true }).setView([12.3672, -1.5337], 13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors" }).on("tileerror", () => { $("#carte-message").hidden = false; })
+      .on("tileload", () => { $("#carte-message").hidden = true; }).addTo(carte.map);
+    carte.couche = L.layerGroup().addTo(carte.map);
+    // Toucher un point ouvre la même fiche que dans la liste (délégation : fiable au doigt comme à la souris).
+    carte.map.getContainer().addEventListener("click", (e) => {
+      const m = e.target.closest?.("[data-cas]");
+      if (!m) return;
+      const id = decodeURIComponent(m.dataset.cas);
+      const c = state.cases.find((x) => String(x.id) === id);
+      if (c) openCase(c);
+    });
+  }
+  setTimeout(() => { carte.map.invalidateSize(); majCarte({ ajuster: !focus, focus }); }, 30);
+}
+
+function fermerCarte() {
+  $("#panneau-carte").hidden = true;
+  carte.ouverte = false;
+  window.scrollTo(0, carte.defil);
+}
+
 async function init() {
   state.api = await createApi({ role: "brigade" });
   if (isMockMode()) { mockBanner(); roleCode.set("brigade", roleCode.get("brigade") || "demo"); }
@@ -252,6 +332,8 @@ async function init() {
   $("#confirmer").addEventListener("click", () => decide("confirmer"));
   $("#rejeter").addEventListener("click", () => decide("rejeter"));
   $("#actualiser").addEventListener("click", () => { $("#nouveaux").hidden = true; load(); });
+  $("#ouvrir-carte").addEventListener("click", () => ouvrirCarte());
+  $("#fermer-carte").addEventListener("click", fermerCarte);
   for (const b of document.querySelectorAll(".seg")) b.addEventListener("click", () => setMode(b.dataset.mode));
   window.addEventListener("online", network);
   window.addEventListener("offline", network);

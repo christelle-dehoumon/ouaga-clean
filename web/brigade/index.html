@@ -2,29 +2,28 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<link rel="icon" type="image/png" href="/dashboard/shared/logo-final-viela.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<title>Brigade Laabal — Yilgré</title>
+<title>Brigade Laabal — VIELA</title>
 <link rel="stylesheet" href="/dashboard/shared/design.css">
 <link rel="stylesheet" href="/dashboard/shared/shared.css">
 <link rel="stylesheet" href="/brigade/brigade.css">
 </head>
 <body>
 <header class="entete">
-  <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
+  <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo-final-viela.png" alt=""></span>
   <div class="titre">
     <b>Brigade Laabal</b>
     <span id="sous-titre">Cas à vérifier sur place</span>
   </div>
+  <a class="lien-citoyen" href="/citizen/">Page citoyen</a>
   <span id="reseau" class="reseau" role="status">…</span>
 </header>
 
 <nav class="barre" aria-label="Filtres">
-  <div class="segments" role="group" aria-label="Données">
-    <button type="button" class="seg actif" data-mode="reel" aria-pressed="true">Réel</button>
-    <button type="button" class="seg" data-mode="sim" aria-pressed="false">Simulation</button>
-  </div>
   <span id="nouveaux" class="nouveaux" hidden></span>
+  <button id="ouvrir-carte" class="btn-petit btn-carte" type="button">Carte</button>
   <button id="actualiser" class="btn-petit" type="button"><span class="ico i-actualiser" aria-hidden="true"></span>Actualiser</button>
 </nav>
 <div id="bandeau-sim" class="bandeau-sim" hidden>SIMULATION — DONNÉES FICTIVES ET SCÉNARIOS DE TEST</div>
@@ -34,6 +33,17 @@
   <section id="attente" class="attente" hidden aria-live="polite"></section>
   <ul id="liste" class="cartes"></ul>
 </main>
+
+<section id="panneau-carte" class="panneau-carte" hidden aria-label="Carte des cas à vérifier">
+  <header class="panneau-carte-entete">
+    <button id="fermer-carte" class="btn-petit" type="button"><span class="ico i-retour" aria-hidden="true"></span>Liste</button>
+    <b id="carte-compte">Cas à vérifier</b>
+    <span class="legende-cas"><span class="marqueur-cas marqueur-depotoir" aria-hidden="true"></span>Dépotoir
+      <span class="marqueur-cas marqueur-nettoyage" aria-hidden="true"></span>Nettoyage</span>
+  </header>
+  <p id="carte-message" class="carte-message" hidden>Fond de carte indisponible (réseau)</p>
+  <div id="brigade-map" class="brigade-map"></div>
+</section>
 
 <section id="detail" class="detail" hidden aria-modal="true" role="dialog" aria-labelledby="detail-titre">
   <div class="feuille">

@@ -37,6 +37,13 @@ cases = api("GET", "/api/reports", code="brigade-demo")
 api("POST", f"/api/reports/{cases[0]['id']}/decision", {"action": "confirmer"}, code="brigade-demo")
 api("POST", f"/api/reports/{cases[1]['id']}/decision", {"action": "rejeter"}, code="brigade-demo")
 
+def capture(pg, nom):
+    """Capture camions en pause (rendu logiciel lent sous charge), état de lecture rétabli ensuite."""
+    lecture = pg.evaluate("(() => { const v = window.__ouaga.view; const l = v.fleet.playing; v.setPlaying(false); return l; })()")
+    pg.screenshot(path=SH + nom, timeout=120000)
+    pg.evaluate(f"window.__ouaga.view.setPlaying({'true' if lecture else 'false'})")
+
+
 PROJ = """(lat, lon) => { const v = window.__ouaga.view; const p = v.proj.toLocal(lat, lon);
   const THREE_V = v.scene.camera.position.clone(); const w = THREE_V.set(p.x, 2, p.z).project(v.scene.camera);
   const r = document.querySelector('#scene').getBoundingClientRect();
@@ -51,7 +58,7 @@ with sync_playwright() as p:
     pg.on("pageerror", lambda e: errs.append(f"PAGE {e}"))
     pg.on("console", lambda m: m.type == "error" and "Failed to load resource" not in m.text and errs.append(f"CONSOLE {m.text}"))
     t0 = time.time()
-    pg.goto(B + "/dashboard/ville/")
+    pg.goto(B + "/dashboard/ville/?vue=ville3d")   # ville Three.js du secteur pilote (la carte MapLibre : carte.py)
     pg.wait_for_function("document.getElementById('chargement').hidden === true", timeout=120000)
     ok("chargement 3D", pg.evaluate("window.__ouaga.view.kind") == "3d", f"{time.time() - t0:.1f} s (rendu logiciel SwiftShader)")
 
@@ -77,7 +84,7 @@ with sync_playwright() as p:
     pg.click("text=Calculer le plan réel")
     pg.wait_for_function("window.__ouaga.plan.reel", timeout=60000)
     ok("réel : plan réel calculé", "Plan" in pg.text_content("#statut-plan"), pg.text_content("#statut-plan"))
-    pg.screenshot(path=SH + "full_reel.png")
+    capture(pg, "full_reel.png")
 
     # --- Simulation --------------------------------------------------------------------------------
     pg.click("#mode-sim")
@@ -113,7 +120,7 @@ with sync_playwright() as p:
     pg.click(".onglets >> text=Comparer A/B"); pg.click("text=Fixer le plan affiché comme B")
     pg.click("text=Comparer A et B"); pg.wait_for_selector("#onglet-comparer table", timeout=20000)
     ok("A/B : tableau et explication", pg.locator("#onglet-comparer tbody tr").count() >= 4, pg.text_content("#onglet-comparer .texte-comparaison")[:220])
-    pg.screenshot(path=SH + "full_ab.png")
+    capture(pg, "full_ab.png")
     # Nouveau quartier
     pts_before = pg.evaluate("window.__ouaga.plan.sim.consolidation_points.length")
     pg.select_option("#panneau-gauche select >> nth=1", "kalgodin")
@@ -123,7 +130,7 @@ with sync_playwright() as p:
     pts_after = pg.evaluate("window.__ouaga.plan.sim.consolidation_points.length")
     ok("sim : nouveau quartier (Kalgodin)", pts_after > pts_before, f"{pts_before} -> {pts_after} points")
     pg.wait_for_timeout(1800)
-    pg.screenshot(path=SH + "full_quartier.png")
+    capture(pg, "full_quartier.png")
     # Ajout d'un dépotoir par clic au sol
     pg.click("text=Ajouter un dépotoir")
     pg.mouse.click(860, 470)
@@ -167,7 +174,7 @@ with sync_playwright() as p:
             picked = window_truck = pg.evaluate("window.__truck")
             break
     ok("3D : clic sur un camion -> fiche", picked is not None, pg.text_content("#onglet-selection .sous"))
-    pg.screenshot(path=SH + "full_camion.png")
+    capture(pg, "full_camion.png")
     # Clic sur un quartier
     pg.evaluate("window.__ouaga.view.focusTerritory('paglayiri')")
     pg.wait_for_timeout(1800)

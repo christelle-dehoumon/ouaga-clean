@@ -344,7 +344,11 @@ function refreshSelection() {
   if (!S.selection) return renderSelection();
   if (S.selection.kind === "vehicule") {
     const v = (S.plan[S.mode]?.vehicles || []).find((x) => x.id === S.selection.id);
-    if (v) S.selection = { ...S.selection, status: v.status, legs: S.view.fleet?.get(v.id)?.userData.legs || S.selection.legs };
+    if (v) {
+      S.selection = { ...S.selection, status: v.status, legs: S.view.fleet?.get(v.id)?.userData.legs || S.selection.legs };
+      // Nouveau plan (panne, pluie…) : la surbrillance suit les trajets actuels du camion, pas ceux de l'ancien plan.
+      S.view?.select(S.selection, S.view.fleet?.get(v.id) || null);
+    }
   }
   renderSelection();
 }
@@ -396,12 +400,35 @@ function ficheBatiment({ props: p, lat, lon }) {
   ]);
 }
 
-function fichePoi({ props: p }) {
+function fichePoi({ props: p, lat, lon }) {
   return el("div", { class: "fiche" }, [
     el("h2", {}, [p.nom || "Lieu sans nom"]),
     el("p", { class: "sous" }, [`OpenStreetMap · ${p.classe || "lieu"}`]),
     dl([["Catégorie", p.famille || p.classe || "—"], p.osm_id ? ["Identifiant OSM", `${p.osm_id}`] : null]),
-    el("p", { class: "vide" }, ["Information cartographique : pas une donnée de la mairie."]),
+    Number.isFinite(lat) && Number.isFinite(lon) ? blocProprete(lat, lon) : null,
+    el("p", { class: "vide" }, ["Le lieu vient d'OpenStreetMap ; la propreté vient des signalements et du plan de VIELA."]),
+  ]);
+}
+
+/** Propreté autour d'un lieu : signalements à moins de 600 m (réels ou simulés selon le mode) et point du plan le plus proche. */
+function blocProprete(lat, lon) {
+  const reports = S.mode === "reel" ? S.reports : S.simReports;
+  const plan = S.plan[S.mode];
+  const rayon = 600;
+  const k = Math.cos((lat * Math.PI) / 180) * 111320;
+  const dist = (o) => Math.hypot((Number(o.lon) - lon) * k, (Number(o.lat) - lat) * 111320);
+  const proches = reports.filter((r) => Number.isFinite(Number(r.lat)) && dist(r) <= rayon);
+  const parStatut = {};
+  for (const r of proches) { const l = LIBELLES[`${r.type}:${r.statut}`] || r.statut; parStatut[l] = (parStatut[l] || 0) + 1; }
+  let point = null;
+  for (const p of plan?.consolidation_points || []) { const m = dist(p); if (!point || m < point.m) point = { p, m }; }
+  const unserved = new Set((plan?.unserved || []).map((u) => u.point_id));
+  const etat = point ? (unserved.has(point.p.id) ? "non desservi" : "desservi") : null;
+  return el("div", {}, [
+    el("h3", {}, [`Propreté à moins de ${rayon} m${S.mode === "sim" ? " (simulation)" : ""}`]),
+    dl([[S.mode === "reel" ? "Signalements" : "Cas simulés", `${proches.length}`],
+      ...Object.entries(parStatut).map(([l, n]) => [`· ${l}`, `${n}`]),
+      ["Point du plan le plus proche", point ? `${fmt.int(point.m)} m · ${etat}` : "aucun plan calculé"]]),
   ]);
 }
 
@@ -899,6 +926,9 @@ function bindChrome() {
 // --- Carte : recherche, relief, ambiance ------------------------------------------------------------------------------
 function bindCarte() {
   const v = S.view;
+  // « Aller à » : lieux emblématiques (OSM) et visite guidée ; la fiche du lieu donne la propreté alentour.
+  import("./carte/reperes.js").then(({ installerReperes }) => installerReperes(v, (r) =>
+    select({ kind: "lieu", props: { nom: r.n, classe: r.t.toLowerCase(), famille: r.t }, lat: r.c[1], lon: r.c[0] }, { lonlat: r.c })));
   const champ = $("#recherche");
   const liste = $("#recherche-resultats");
   let resultats = [];
@@ -935,7 +965,7 @@ function bindCarte() {
         select({ kind: "lieu", props: { nom: r.n, classe: r.t.toLowerCase(), famille: r.t } });
       } else if (r.c) {
         v.focusLatLon(r.c[1], r.c[0], r.z >= 17 ? 140 : 900);
-        select({ kind: "lieu", props: { nom: r.n, classe: r.t.toLowerCase(), famille: r.t } }, { lonlat: r.c });
+        select({ kind: "lieu", props: { nom: r.n, classe: r.t.toLowerCase(), famille: r.t }, lat: r.c[1], lon: r.c[0] }, { lonlat: r.c });
       }
     };
     champ.addEventListener("input", () => { resultats = chercher(champ.value, extras()); actif = resultats.length ? 0 : -1; afficher(); });
@@ -967,7 +997,64 @@ function bindCarte() {
   const amb = $("#ambiance");
   amb.value = v.ambiance;
   amb.addEventListener("change", () => v.setAmbiance(amb.value));
+  const qual = $("#qualite");
+  if (qual && v.setQualite) {
+    qual.value = v.qualite;
+    qual.addEventListener("change", () => v.setQualite(qual.value));
+  }
+  // Survol : complète l'infobulle commune pour les camions et les tournées (avancement issu de l'animation simulée).
+  const tip = $("#infobulle");
+  const survolCommun = v.on("hover", (info, e) => {
+    survolCommun(info, e);
+    if (!info || !e) return;
+    let texte = null;
+    if (info.kind === "vehicule") {
+      texte = `${tip.textContent} · ${(info.legs || []).length ? "position simulée (animation)" : "au dépôt, sans tournée"}`;
+    } else if (info.kind === "tournee") {
+      const r = info.data;
+      const [camion, trajet] = String(r.vehicle_id || r.vehicle).split("_trip");
+      texte = `Tournée du camion ${camion.replace("truck", "n° ")}${trajet ? `, trajet ${trajet}` : ""} — ${fmt.n(r.distance_km)} km, ${(r.stops || []).length} arrêts`
+        + " · en gris : déjà parcouru par l'animation simulée";
+    }
+    if (!texte) return;
+    const b = $("#scene").getBoundingClientRect();
+    tip.textContent = texte;
+    tip.hidden = false;
+    tip.style.left = `${e.clientX - b.left + 14}px`;
+    tip.style.top = `${e.clientY - b.top + 14}px`;
+  });
+  // Légende : éléments propres à la carte (avancement et repères des camions), ajoutés après chaque rendu.
+  const legende = $("#legende");
+  const completerLegende = () => {
+    if (legende.querySelector(".legende-carte")) return;
+    const puce = (fond, bord) => el("span", { class: "puce puce-camion", style: `background:${fond};border-color:${bord}` });
+    legende.append(el("h4", { class: "legende-carte" }, ["Camions (animation simulée)"]), el("ul", { class: "legende-carte" }, [
+      el("li", {}, [el("span", { class: "trait trait-parcouru" }), "Déjà parcouru (simulé)"]),
+      el("li", {}, [puce("#1f6fb2", "#1e2320"), "Camion, couleur de sa tournée"]),
+      el("li", {}, [puce("#8a8a84", "#d32f2f"), "Camion en panne (immobilisé)"]),
+      el("li", {}, [el("span", { class: "trait", style: "background:linear-gradient(90deg,#fcd116,#f08c1e,#d63c28);height:8px" }), "Zone prioritaire (densité des signalements à traiter)"]),
+    ]));
+  };
+  new MutationObserver(completerLegende).observe(legende, { childList: true });
+  completerLegende();
 }
+
+// Astuces pendant le chargement (fonctions réelles de l'application uniquement).
+const ASTUCES = [
+  "« Aller à » mène aux lieux emblématiques de Ouagadougou, avec la propreté alentour.",
+  "Cliquez un bâtiment : sa fiche dit si sa hauteur vient d'OpenStreetMap ou si elle est estimée.",
+  "En Simulation, déclarez la panne d'un camion : ses arrêts sont redistribués et le plan est recalculé.",
+  "La recherche trouve un quartier, une rue, un lieu ou un camion, même sans les accents.",
+  "Comparer A/B met deux plans côte à côte : coût, part ramassée, points non desservis.",
+];
+(() => {
+  const zone = $("#chargement-astuce");
+  if (!zone) return;
+  let i = Math.floor(Math.random() * ASTUCES.length);
+  const montrer = () => { zone.textContent = `Astuce : ${ASTUCES[i % ASTUCES.length]}`; i += 1; };
+  montrer();
+  const t = setInterval(() => { if ($("#chargement").hidden) clearInterval(t); else montrer(); }, 4000);
+})();
 
 init().catch((err) => {
   console.error(err);

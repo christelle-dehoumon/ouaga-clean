@@ -3,7 +3,8 @@
 # 1. pytest (serveur et contrat du front) ;
 # 2. deux serveurs de test sur des bases TEMPORAIRES (Ouagadougou, et Koudougou via COMMUNE_CONFIG) ;
 # 3. les parcours dans Chromium (web/tools/e2e) : citoyen, brigade, chaîne complète citoyen -> brigade -> mairie,
-#    tableau de bord 3D (réel, simulation, panne, pluie, quartier, coupure, A/B, historique, échecs), gestes,
+#    carte MapLibre de l'agglomération (vue par défaut, ignorée sans tuiles), ville 3D (?vue=ville3d : réel, simulation,
+#    panne, pluie, quartier, coupure, A/B, historique, échecs), gestes,
 #    2D sans WebGL, mode démonstration, couche API, réglages par commune.
 # Playwright est un outil de test, installé à part dans .venv-e2e (réseau requis la première fois, ~150 Mo).
 # Les bases du dépôt (data/reel.db, data/sim.db) ne sont jamais touchées.
@@ -41,13 +42,13 @@ run() {  # run NOM commande...
   echo; echo "=== $nom"
   if "$@" >"$TMP/$nom.log" 2>&1; then ETATS+=("OK"); else ETATS+=("ÉCHEC"); fi
   NOMS+=("$nom")
-  grep -E "^\[(OK |KO )\]|passed|failed|vérifications|Error|assert" "$TMP/$nom.log" | tail -30
+  grep -E "^\[(OK |KO |SKIP)\]|passed|failed|vérifications|Error|assert" "$TMP/$nom.log" | tail -30
 }
 
 run pytest "$PY" -m pytest -q -p no:cacheprovider tests
 if [ -n "$E2E" ]; then
   serve "$PORT" "" && serve "$PORT2" "k_" config/commune_config.koudougou.json
-  for s in apitest citizen_test brigade_test chaine dash_full gestes qa mockpages; do
+  for s in apitest citizen_test brigade_test chaine dash_full carte gestes qa mockpages; do
     run "e2e-$s" env BASE="http://localhost:$PORT" SHOTS="$TMP/captures/" "$E2E/bin/python" "web/tools/e2e/$s.py"
   done
   run e2e-commune env BASE="http://localhost:$PORT2" "$E2E/bin/python" web/tools/e2e/commune.py

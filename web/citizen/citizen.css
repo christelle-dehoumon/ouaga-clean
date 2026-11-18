@@ -6,7 +6,7 @@ body { margin: 0; background: var(--fond); color: var(--texte); font: var(--g-no
 
 .entete { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: var(--e-3); padding: var(--e-2) var(--e-4);
   padding-top: max(var(--e-2), env(safe-area-inset-top)); background: var(--surface); border-bottom: 1px solid var(--trait); min-height: 60px; }
-.entete .logo { width: 50px; height: 36px; }
+.entete .logo { width: 62px; height: 46px; }
 .entete b { font-size: 1.0625rem; font-weight: var(--g-fort); }
 .reseau { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: .8125rem; font-weight: var(--g-fort);
   padding: 4px 10px 4px 8px; border-radius: var(--rayon-plein); background: var(--vert-pale); color: var(--vert-texte); white-space: nowrap; }
@@ -75,3 +75,13 @@ label.btn:focus-within { box-shadow: var(--focus); }
 .p-recu { background: var(--vert-pale); color: var(--vert-texte); --ico: url("/dashboard/shared/icones/ok.svg"); }
 .p-echec { background: var(--rouge-pale); color: var(--rouge-texte); --ico: url("/dashboard/shared/icones/alerte.svg"); }
 .pied { font-size: .8125rem; color: var(--texte-3); margin-top: var(--e-6); }
+
+/* Caméra directe : flux de la caméra arrière, grand bouton rond de capture */
+.camera { position: relative; border-radius: var(--rayon-l); overflow: hidden; background: #111; aspect-ratio: 3 / 4; max-height: 70vh; }
+.camera video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.btn-capture { position: absolute; left: 50%; bottom: var(--e-5); width: 76px; height: 76px; margin-left: -38px; border-radius: 50%;
+  border: 5px solid #fff; background: rgba(255, 255, 255, .35); box-shadow: 0 2px 12px rgba(0, 0, 0, .4); cursor: pointer; }
+.btn-capture:active { background: rgba(255, 255, 255, .7); }
+.btn-capture:focus-visible { box-shadow: var(--focus); }
+.btn-reprendre { min-height: 56px; }
+#camera-etat { margin-bottom: var(--e-2); }

@@ -81,7 +81,7 @@ with sync_playwright() as p:
     pc.add_init_script(f"sessionStorage.setItem('ouaga.code.mairie', '{MAIRIE}'); localStorage.setItem('ouaga.aide.vue', '1');")
     mai = pc.new_page()
     mai.on("pageerror", lambda e: errs.append(f"mairie {e}"))
-    mai.goto(BASE + "/dashboard/")
+    mai.goto(BASE + "/dashboard/?vue=ville3d")   # ville Three.js (la redirection garde les paramètres)
     mai.wait_for_function("document.getElementById('chargement').hidden === true", timeout=120000)
     mai.wait_for_function(f"window.__ouaga.reports.some(r => r.id === '{rid}')", timeout=30000)
     mai.click("text=Calculer le plan réel")
@@ -91,7 +91,7 @@ with sync_playwright() as p:
     mai.evaluate("window.__ouaga.view.setPlaying(false)")   # un camion animé ne doit pas passer devant l'épingle
     mai.evaluate(f"""() => {{ const v = window.__ouaga.view; const pin = v.layers.groups.signalements.children.find(o => o.userData.data.id === '{rid}');
       v.rig.controls.target.set(pin.position.x, 0, pin.position.z); v.scene.camera.position.set(pin.position.x + 80, 100, pin.position.z + 80); window.__pin = pin; }}""")
-    mai.wait_for_timeout(900)
+    mai.wait_for_timeout(2500)   # rendu logiciel lent : laisser la caméra et le rendu se stabiliser avant de viser l'épingle
     xy = mai.evaluate("""() => { const v = window.__ouaga.view, pin = window.__pin; const w = pin.position.clone(); w.y = 12 * pin.scale.y;
       w.project(v.scene.camera); const r = document.querySelector('#scene').getBoundingClientRect();
       return [r.left + (w.x + 1) / 2 * r.width, r.top + (1 - w.y) / 2 * r.height]; }""")
@@ -106,7 +106,7 @@ with sync_playwright() as p:
     mai.click("#onglet-selection >> text=Marquer nettoyé")
     mai.click(".modal .btn-primary")
     mai.wait_for_selector(".toast-ok", timeout=15000)
-    mai.screenshot(path=SHOTS + "chaine_mairie.png")
+    mai.screenshot(path=SHOTS + "chaine_mairie.png", timeout=120000)   # camions déjà en pause ; rendu logiciel lent
 
     # 4. Brigade : vérifie le nettoyage et confirme.
     found = brigade_open()

@@ -43,7 +43,7 @@ def test_aucune_ressource_externe_hors_fond_2d_de_secours() -> None:
     for path in [*JS_APP, *VILLE.glob("*.html"), *VILLE.glob("*.css"), WEB / "citizen" / "index.html", WEB / "brigade" / "index.html"]:
         texte = lire(path)
         externes = re.findall(r"https?://[^\s\"'`)]+", texte)
-        if path.name == "view2d.js":
+        if path.name in ("view2d.js", "brigade.js"):   # carte 2D de secours, carte de la brigade (tuiles OSM en ligne)
             assert externes and all("openstreetmap.org" in u for u in externes)
             assert "OpenStreetMap contributors" in texte
         else:

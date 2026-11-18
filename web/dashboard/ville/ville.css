@@ -16,7 +16,7 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--trait); transition: background-color var(--duree) var(--courbe), border-color var(--duree) var(--courbe); }
 .barre-gauche { display: flex; align-items: center; gap: var(--e-3); min-width: 0; }
 .marque { display: flex; align-items: center; gap: var(--e-3); color: var(--texte); text-decoration: none; min-width: 0; border-radius: var(--rayon-s); }
-.marque .logo { width: 50px; height: 36px; }
+.marque .logo { width: 62px; height: 46px; }
 .marque b { display: block; font-size: var(--t-sous); font-weight: var(--g-fort); letter-spacing: .01em; line-height: 1.2; }
 .marque small { display: block; color: var(--texte-3); font-size: var(--t-legende); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bascule { justify-self: center; display: inline-flex; background: var(--surface-2); border-radius: var(--rayon); padding: 3px; gap: 2px; }
@@ -201,7 +201,7 @@ body.mode-sim .ligne-param input[type=range] { accent-color: var(--sim-plein); }
 /* --- Scène : surcouches ------------------------------------------------------------------------------------------- */
 .chargement { position: absolute; inset: 0; display: grid; place-items: center; background: var(--fond); z-index: 40; color: var(--texte); }
 .chargement-boite { display: grid; justify-items: center; gap: var(--e-3); text-align: center; }
-.chargement-boite .logo { width: 112px; height: 80px; border-radius: var(--rayon-l); margin-bottom: var(--e-2); box-shadow: var(--ombre-1); }
+.chargement-boite .logo { width: 140px; height: 105px; margin-bottom: var(--e-2); }
 .chargement-boite b { font-size: var(--t-sous); font-weight: var(--g-fort); }
 #chargement-etape { color: var(--texte-3); font-size: var(--t-legende); min-height: 1.4em; }
 .barre-progression { width: 240px; height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
@@ -311,7 +311,7 @@ body.vue-carte .recherche { display: block; }
 .commandes-camera .separateur { align-self: center; height: 18px; margin: 0 4px; }
 #vue-2d3d[aria-pressed="true"] { color: var(--vert-texte); }
 
-/* Commandes natives de MapLibre (zoom, boussole, plein écran, échelle) : style Yilgré, hors des panneaux */
+/* Commandes natives de MapLibre (zoom, boussole, plein écran, échelle) : style VIELA, hors des panneaux */
 .vue-carte .maplibregl-ctrl-top-right { top: calc(var(--marge) - 10px); right: calc(var(--pd) + 2 * var(--marge) - 10px); transition: right 220ms var(--courbe); }
 .vue-carte.droit-replie .maplibregl-ctrl-top-right { right: calc(var(--marge) - 10px); }
 .vue-carte .maplibregl-ctrl-bottom-right { bottom: calc(var(--marge) + 72px); right: calc(var(--pd) + 2 * var(--marge) - 10px); transition: right 220ms var(--courbe); }
@@ -335,3 +335,26 @@ body.vue-carte .recherche { display: block; }
 @media (prefers-reduced-motion: reduce) { .scene.pluie-carte::after { animation: none; } }
 /* La feuille de MapLibre met .maplibregl-map en position relative : la scène doit rester plein cadre. */
 .espace > .scene.maplibregl-map { position: absolute; inset: 0; }
+/* Légende propre à la carte : parcours déjà fait (gris, animation simulée) et repères des camions */
+.legende .trait-parcouru { height: 3px; background: #8c8981; }
+.legende .puce-camion { box-sizing: border-box; border: 2px solid; box-shadow: 0 0 0 1px rgba(0, 0, 0, .22); }
+/* Légende dépliée sur la carte : elle s'ouvre au-dessus de la barre de caméra (pas de chevauchement à 1280 px) */
+.vue-carte .legende:not(.repliee) { bottom: calc(var(--marge) + 84px); max-height: calc(100% - var(--marge) - 84px - 64px); overflow-y: auto; }
+
+/* --- « Aller à » : lieux emblématiques et visite guidée (carte/reperes.js) ------------------------------------------ */
+#aller-a { color: var(--vert-texte) !important; }
+#aller-a[aria-expanded="true"] { background: var(--vert-pale); }
+.panneau-reperes { position: absolute; z-index: 13; right: calc(var(--pd) + 2 * var(--marge)); bottom: calc(var(--marge) + 84px); width: 300px;
+  max-height: min(60vh, 520px); display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--surface); border: 1px solid var(--trait);
+  border-radius: var(--rayon-l); box-shadow: var(--ombre-3); transition: right 220ms var(--courbe); }
+body.droit-replie .panneau-reperes { right: var(--marge); }
+.reperes-entete { display: flex; align-items: center; justify-content: space-between; }
+.reperes-entete b { font-size: var(--t-sous); font-weight: var(--g-fort); }
+.reperes-note { margin: 0; font-size: 12px; color: var(--texte-3); }
+.reperes-liste { list-style: none; margin: 0 -4px; padding: 0; overflow-y: auto; flex: 1; scrollbar-width: thin; }
+.reperes-liste button { all: unset; box-sizing: border-box; display: flex; flex-direction: column; width: 100%; padding: 8px 10px; border-radius: var(--rayon-s); cursor: pointer; }
+.reperes-liste button:hover, .reperes-liste button:focus-visible { background: var(--surface-2); }
+.reperes-liste button:focus-visible { box-shadow: var(--focus); }
+.reperes-liste b { font-size: var(--t-legende); font-weight: var(--g-fort); color: var(--texte); }
+.reperes-liste span { font-size: 12px; color: var(--texte-3); }
+.chargement-astuce { max-width: 360px; margin: 6px 0 0; font-size: var(--t-legende); color: var(--texte-3); text-align: center; min-height: 2.8em; }

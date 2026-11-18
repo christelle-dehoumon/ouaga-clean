@@ -23,7 +23,7 @@ with sync_playwright() as p:
     pg = ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    pg.goto(BASE + "/dashboard/")
+    pg.goto(BASE + "/dashboard/?vue=ville3d")   # ville Three.js (la redirection garde les paramètres)
     pg.wait_for_url("**/dashboard/ville/**", timeout=15000)
     ok("/dashboard/ redirige vers la ville 3D", "/dashboard/ville/" in pg.url, pg.url)
     pg.wait_for_function("document.getElementById('chargement').hidden === true", timeout=120000)
@@ -41,7 +41,10 @@ with sync_playwright() as p:
     pg.wait_for_timeout(600)
     sous = pg.text_content("#onglet-selection .sous") or ""
     ok("clic sur une épingle dans la ville -> fiche du signalement", rid in sous, sous)
-    pg.screenshot(path=SHOTS + "geste_epingle.png")
+    # Capture camions en pause (rendu logiciel lent sous charge), puis reprise de l'animation.
+    pg.evaluate("window.__ouaga.view.setPlaying(false)")
+    pg.screenshot(path=SHOTS + "geste_epingle.png", timeout=120000)
+    pg.evaluate("window.__ouaga.view.setPlaying(true)")
     # Historique : rouvrir un plan enregistré.
     pg.click("#mode-sim")
     pg.wait_for_function("window.__ouaga.sim.sim && !window.__ouaga.busy", timeout=120000)

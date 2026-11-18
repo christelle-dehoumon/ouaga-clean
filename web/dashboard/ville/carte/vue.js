@@ -6,7 +6,8 @@ import { STATUTS } from "../map3d/layers.js";
 import { coucheCamions } from "./camions.js";
 import { CARTE, sourceHauteur } from "./config.js";
 import { Operationnel } from "./operationnel.js";
-import { construireStyle } from "./style.js";
+import { Materiaux, MOTIF_SELECTION } from "./materiaux.js";
+import { AMBIANCES, construireStyle } from "./style.js";
 
 let protocoleAjoute = false;
 
@@ -66,6 +67,16 @@ export async function createViewCarte(container, cityData) {
 
   let ambiance = "jour";
   try { ambiance = localStorage.getItem("yilgre.ambiance") || "jour"; } catch { /* ignoré */ }
+  if (!AMBIANCES[ambiance]) ambiance = "jour";
+  // Qualité : « haute » (motifs de façade, toits, ombres simulées) par défaut sur ordinateur, « leger » sinon.
+  let qualite = "haute";
+  try {
+    qualite = localStorage.getItem("yilgre.qualite") || (matchMedia("(pointer: coarse)").matches || innerWidth < 900 ? "leger" : "haute");
+  } catch { /* ignoré */ }
+  if (qualite !== "leger") qualite = "haute";
+  let motifsPrets = false;
+  let vue3D = true;
+  const optionsStyle = () => ({ motifs: motifsPrets && qualite === "haute" });
   const map = new maplibregl.Map({
     container,
     style: construireStyle(ambiance),
@@ -75,7 +86,8 @@ export async function createViewCarte(container, cityData) {
     bearing: CARTE.vueDepart.bearing,
     minZoom: CARTE.zoomMin,
     maxZoom: CARTE.zoomMax,
-    maxPitch: 78,
+    maxPitch: qualite === "leger" ? 60 : 78,
+    ...(qualite === "leger" ? { pixelRatio: 1 } : {}),
     maxBounds: [[CARTE.emprise[0][0] - 0.08, CARTE.emprise[0][1] - 0.08], [CARTE.emprise[1][0] + 0.08, CARTE.emprise[1][1] + 0.08]],
     attributionControl: false,   // attribution OSM affichée en permanence par #credit (app.js)
     canvasContextAttributes: { antialias: true },
@@ -102,15 +114,42 @@ export async function createViewCarte(container, cityData) {
   const { couche, flotte, camionEn } = coucheCamions(maplibregl, proj);
   map.addLayer(couche);
 
-  // Sélection d'un bâtiment OSM : surbrillance par identifiant OSM (attribut des tuiles).
+  // Sélection d'un bâtiment OSM : surbrillance par identifiant OSM (attribut des tuiles), sur les murs (couleur ou motif)
+  // et sur la dalle de toiture.
   let batSel = null;
+  const sel = (expr, valeur) => (batSel === null ? expr : ["case", ["==", ["get", "osm_id"], batSel], valeur, expr]);
+  const peintureDe = (id) => construireStyle(ambiance, optionsStyle()).layers.find((l) => l.id === id).paint;
   const surlignerBatiment = (props) => {
     batSel = props ? props.osm_id : null;
     if (map.getLayer("batiments-3d")) {
-      map.setPaintProperty("batiments-3d", "fill-extrusion-color", batSel === null ? construireStyle(ambiance).layers.find((l) => l.id === "batiments-3d").paint["fill-extrusion-color"]
-        : ["case", ["==", ["get", "osm_id"], batSel], "#f2c200", construireStyle(ambiance).layers.find((l) => l.id === "batiments-3d").paint["fill-extrusion-color"]]);
+      const p = peintureDe("batiments-3d");
+      map.setPaintProperty("batiments-3d", "fill-extrusion-color", sel(p["fill-extrusion-color"], "#f2c200"));
+      map.setPaintProperty("batiments-3d", "fill-extrusion-pattern", p["fill-extrusion-pattern"] ? sel(p["fill-extrusion-pattern"], MOTIF_SELECTION) : undefined);
     }
+    if (map.getLayer("batiments-toits")) map.setPaintProperty("batiments-toits", "fill-extrusion-color", sel(peintureDe("batiments-toits")["fill-extrusion-color"], "#e0b300"));
   };
+  /** Couches visibles selon le relief, la qualité et l'ambiance (pas d'ombres simulées de nuit ni en mode léger). */
+  const appliquerVisibilites = () => {
+    const vis = (id, oui) => { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", oui ? "visible" : "none"); };
+    vis("batiments-3d", vue3D);
+    vis("batiments-toits", vue3D && qualite === "haute");
+    const ombres = vue3D && qualite === "haute" && Boolean(AMBIANCES[ambiance].ombre);
+    for (const l of map.getStyle().layers) if (l.id.startsWith("ombre-")) vis(l.id, ombres);
+    if (map.getLayer("batiments-plats")) map.setLayerZoomRange("batiments-plats", 13, vue3D ? 14.6 : 24);
+  };
+  const peindreBatiments = () => {
+    const p = peintureDe("batiments-3d");
+    for (const k of ["fill-extrusion-height", "fill-extrusion-base"]) map.setPaintProperty("batiments-3d", k, p[k]);
+    surlignerBatiment(batSel === null ? null : { osm_id: batSel });
+  };
+  // Motifs de façade chargés en arrière-plan : la carte s'affiche d'abord en couleurs pleines.
+  const materiaux = new Materiaux(map);
+  materiaux.charger().then(() => {
+    materiaux.appliquer(AMBIANCES[ambiance]);
+    motifsPrets = true;
+    peindreBatiments();
+  }).catch(() => { /* motifs indisponibles : couleurs pleines, comme en mode léger */ });
+  appliquerVisibilites();
 
   const handlers = { select: () => {}, ground: () => {}, road: () => {}, hover: () => {}, camera: () => {} };
   let mode = "selection";
@@ -128,19 +167,34 @@ export async function createViewCarte(container, cityData) {
   const coucheExiste = (ids) => ids.filter((id) => map.getLayer(id));
   const boite = (p, r = 6) => [[p.x - r, p.y - r], [p.x + r, p.y + r]];
 
-  /** Objet sous le pointeur : opérationnel d'abord, puis camion, puis la ville (bâtiment, lieu, quartier). */
+  /** Objet opérationnel sous le pointeur : signalements, puis camion (modèle 3D touché ou repère), puis points du
+   *  plan, coupures et tournées, enfin camion le plus proche (petits modèles au loin). Sert au clic et au survol. */
+  function operationnelEn(point) {
+    const trouver = (couches) => {
+      for (const f of map.queryRenderedFeatures(boite(point), { layers: coucheExiste(couches) })) {
+        const objet = op.objet(f.source, f.properties.i);
+        if (objet) return { info: objet, lonlat: f.geometry.type === "Point" ? f.geometry.coordinates : null };
+      }
+      return null;
+    };
+    const camionTrouve = (c) => (c ? { info: { ...c.userData }, objet: c } : null);
+    const repere = () => {
+      const f = map.queryRenderedFeatures(boite(point, 3), { layers: coucheExiste(["op-camions"]) })[0];
+      return f ? flotte.get(f.properties.id) : null;
+    };
+    return trouver(["op-signalements", "op-simules"])
+      || camionTrouve(camionEn(point, false) || repere())
+      || trouver(["op-points", "op-coupures", "op-tournees"])
+      || camionTrouve(camionEn(point, true));
+  }
+
+  /** Objet sous le pointeur : opérationnel d'abord, puis la ville (bâtiment, lieu, quartier). */
   function objetEn(point, lngLat) {
-    const ops = map.queryRenderedFeatures(boite(point), { layers: coucheExiste(Operationnel.COUCHES_CLIC) });
-    if (ops.length) {
-      const f = ops[0];
-      const objet = op.objet(f.source, f.properties.i);
-      if (objet) return { info: objet, lonlat: f.geometry.type === "Point" ? f.geometry.coordinates : null };
-    }
-    const camion = camionEn(point);
-    if (camion) return { info: { ...camion.userData }, objet: camion };
+    const ops = operationnelEn(point);
+    if (ops) return ops;
     const poi = map.queryRenderedFeatures(boite(point, 5), { layers: coucheExiste(["poi-points", "poi-noms"]) });
     if (poi.length) return { info: { kind: "poi", props: poi[0].properties }, lonlat: poi[0].geometry.coordinates };
-    const bat = map.queryRenderedFeatures(boite(point, 1), { layers: coucheExiste(["batiments-3d", "batiments-plats"]) });
+    const bat = map.queryRenderedFeatures(boite(point, 1), { layers: coucheExiste(["batiments-toits", "batiments-3d", "batiments-plats"]) });
     if (bat.length) return { info: { kind: "batiment", props: bat[0].properties, lat: lngLat.lat, lon: lngLat.lng } };
     const t = territoryAt(lngLat.lat, lngLat.lng);
     if (t) return { info: { kind: "quartier", territory: t } };
@@ -166,14 +220,20 @@ export async function createViewCarte(container, cityData) {
       map.getCanvas().style.cursor = road ? "pointer" : "crosshair";
       return handlers.hover(road ? { kind: "route", road } : null, e.originalEvent);
     }
-    const ops = map.queryRenderedFeatures(boite(e.point), { layers: coucheExiste(Operationnel.COUCHES_CLIC) });
-    const info = ops.length ? op.objet(ops[0].source, ops[0].properties.i) : null;
-    const camion = !info && camionEn(e.point);
-    map.getCanvas().style.cursor = info || camion ? "pointer" : mode === "selection" ? "" : "crosshair";
-    if (info?.kind === "tournee") return handlers.hover(null, e.originalEvent);
-    handlers.hover(info || (camion ? { ...camion.userData } : null), e.originalEvent);
+    const info = operationnelEn(e.point)?.info || null;
+    map.getCanvas().style.cursor = info ? "pointer" : mode === "selection" ? "" : "crosshair";
+    handlers.hover(info, e.originalEvent);
   });
   map.on("mouseout", () => handlers.hover(null, null));
+
+  // Avancement des camions (animation SIMULÉE) : une mise à jour de la source op-avancement au plus deux fois par
+  // seconde, et seulement si un camion roule ; immédiate après un nouveau plan, une pause ou une sélection.
+  let camionSel = null;
+  const majAvancement = () => op.majAvancement(flotte, camionSel);
+  setInterval(() => {
+    if (document.hidden || !flotte.playing) return;
+    for (const t of flotte.trucks.values()) if (!t.idle && !t.broken) { majAvancement(); return; }
+  }, 500);
 
   const fin = () => new Promise((ok) => map.once("moveend", ok));
   const voler = (opts) => { const p = fin(); map.flyTo({ ...opts, essential: true, duration: opts.duration ?? 1600 }); return p; };
@@ -188,7 +248,8 @@ export async function createViewCarte(container, cityData) {
     fleet: flotte,
     layers: op,
     statutsLegend: STATUTS,
-    on(name, fn) { handlers[name] = fn; },
+    /** Abonne fn à l'évènement name ; renvoie le gestionnaire précédent (pour le compléter sans le perdre). */
+    on(name, fn) { const avant = handlers[name]; handlers[name] = fn; return avant; },
     onCamera(fn) { handlers.camera = fn; },
     setReports(list) { op.setReports(list); },
     setSimDumps(list) { op.setSimDumps(list); },
@@ -196,11 +257,12 @@ export async function createViewCarte(container, cityData) {
       op.setPlan(plan);
       flotte.setPlan(plan, op.couleurCamion);
       op.setCoupures(plan?.cut_roads || [], roadById);
+      majAvancement();
       map.triggerRepaint();
     },
     vehicleColor(id) { return `#${(op.couleurCamion.get(id) ?? 0x9a9a92).toString(16).padStart(6, "0")}`; },
     setRain(on) { container.classList.toggle("pluie-carte", Boolean(on)); },
-    setPlaying(on) { flotte.setPlaying(on); map.triggerRepaint(); },
+    setPlaying(on) { flotte.setPlaying(on); majAvancement(); map.triggerRepaint(); },
     setInteraction(m) {
       mode = m;
       op.afficherReseau(m === "coupure-route");
@@ -211,6 +273,9 @@ export async function createViewCarte(container, cityData) {
       op.marquer(null);
       op.surligner([]);
       surlignerBatiment(null);
+      const sel = info?.kind === "vehicule" ? info.id
+        : info?.kind === "tournee" ? String(info.data.vehicle_id || info.data.vehicle).split("_trip")[0] : null;
+      if (sel !== camionSel) { camionSel = sel; majAvancement(); }
       if (!info) return;
       if (objet?.lonlat) op.marquer(objet.lonlat);
       else if (info.data && Number.isFinite(Number(info.data.lat))) op.marquer([Number(info.data.lon), Number(info.data.lat)]);
@@ -250,28 +315,46 @@ export async function createViewCarte(container, cityData) {
     territoryAt,
     frameMs() { return frameMs; },
     setAmbiance(nom) {
+      if (!AMBIANCES[nom]) return;
       ambiance = nom;
       try { localStorage.setItem("yilgre.ambiance", nom); } catch { /* ignoré */ }
-      const style = construireStyle(nom);
+      const style = construireStyle(nom, optionsStyle());
       map.setSky(style.sky);
       map.setLight(style.light);
       for (const l of style.layers) {
-        if (!map.getLayer(l.id)) continue;
+        if (!map.getLayer(l.id) || l.id === "batiments-3d" || l.id === "batiments-toits") continue;
         for (const [k, v] of Object.entries(l.paint || {})) map.setPaintProperty(l.id, k, v);
       }
+      if (motifsPrets) materiaux.appliquer(AMBIANCES[nom]);
+      peindreBatiments();
+      appliquerVisibilites();
+      op.setAmbiance(nom);
       container.dataset.ambiance = nom;
-      if (batSel !== null) surlignerBatiment({ osm_id: batSel });
     },
     get ambiance() { return ambiance; },
+    /** « haute » : motifs de façade, toits et ombres simulées ; « leger » : couleurs pleines, sans ombres ni toits,
+     *  inclinaison maximale réduite et résolution d'écran simple (moins de calcul par image). */
+    setQualite(nom) {
+      qualite = nom === "leger" ? "leger" : "haute";
+      try { localStorage.setItem("yilgre.qualite", qualite); } catch { /* ignoré */ }
+      map.setMaxPitch(qualite === "leger" ? 60 : 78);
+      map.setPixelRatio(qualite === "leger" ? 1 : (window.devicePixelRatio || 1));
+      peindreBatiments();
+      appliquerVisibilites();
+      container.dataset.qualite = qualite;
+    },
+    get qualite() { return qualite; },
     setVue3D(oui) {
-      if (map.getLayer("batiments-3d")) map.setLayoutProperty("batiments-3d", "visibility", oui ? "visible" : "none");
-      if (map.getLayer("batiments-plats")) map.setLayerZoomRange("batiments-plats", 13, oui ? 14.6 : 24);
+      vue3D = Boolean(oui);
+      appliquerVisibilites();
       return voler({ pitch: oui ? Math.max(50, map.getPitch()) : 0, bearing: oui ? map.getBearing() : 0, duration: 900 });
     },
     sourceHauteur,
     get selectedTerritory() { return selectedTerritory; },
     toLocal,
   };
+  op.setAmbiance(ambiance);
   container.dataset.ambiance = ambiance;
+  container.dataset.qualite = qualite;
   return view;
 }

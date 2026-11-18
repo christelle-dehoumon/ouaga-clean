@@ -25,10 +25,15 @@ def setup(tmp_path: Path) -> tuple[dict[str, Any], g.Network, dict[str, Any]]:
     np.savez(tmp_path / "buildings_centroids.npz", lat=12.0 + rng.uniform(0, 0.001, 200),
              lon=-1.0 + rng.uniform(0, 0.001, 200))
     c["paths"].update({"processed_dir": str(tmp_path), "raw_dir": str(tmp_path), "territories": str(tmp_path / "t.geojson"),
-                       "flood_zones": "/nonexistent/f.geojson", "waterways": "/nonexistent/w.geojson"})
+                       "flood_zones": "/nonexistent/f.geojson", "waterways": "/nonexistent/w.geojson",
+                       "secteur": "/nonexistent/s.geojson"})
     c["bbox"] = {"west": -1.001, "south": 11.999, "east": -0.998, "north": 12.002}
-    c["model"].update({"precollect_radius_m": 150, "cell_size_m": 10, "pilot_square_m": 1000})
+    # Bâtiments jouets qui couvrent toute la commune jouet : la part des bâtiments est la bonne méthode ici.
+    c["model"].update({"precollect_radius_m": 150, "cell_size_m": 10, "pilot_square_m": 1000,
+                       "territory_population_method": "building_share"})
     c["solver"].update({"min_collection_points": 1, "max_collection_points": 4, "time_limit_s": 1})
+    c["bounds"] = {}   # graphe jouet (camions de 300 kg) : les bornes des paramètres sont testées à part
+
     params = {**c["params"], "population": 2000, "trucks": 2, "truck_capacity_kg": 5000, "budget": 1e9}
     return c, g.build_network(toy_graph(), c), params
 
@@ -301,3 +306,25 @@ def test_population_zero_serves_only_dumpsites(setup: tuple[dict[str, Any], g.Ne
     assert [p["id"] for p in plan["collection_points"]] == ["d_s0"]
     assert plan["totals"]["uncollected_kg"] == 0 and plan["totals"]["points_served"] == 1
     assert any(w.startswith("Population 0") for w in plan["warnings"])
+
+
+def test_heavy_center_is_split_not_unserved(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Point plus lourd qu'un camion : découpé en arrêts <id>_sN au même endroit, jamais non desservi pour cette raison."""
+    cfg, net, params = setup
+    plan = compute_plan({**params, "truck_capacity_kg": 300, "trucks": 10}, [], cfg=cfg, net=net)
+    _consistent(plan)
+    parts = [p for p in plan["collection_points"] if p.get("split_of")]
+    assert parts and all(p["demand_kg"] <= 300 for p in plan["collection_points"])
+    assert not any("supérieure à la capacité" in u["detail"] for u in plan["unserved"])
+
+
+def test_global_ok_is_false_when_mostly_unserved(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """checks.ok : vrai pour un plan servi ; faux si la part de points non desservis dépasse solver.max_unserved_ratio."""
+    cfg, net, params = setup
+    good = compute_plan(params, [], cfg=cfg, net=net)
+    assert good["checks"]["ok"] is True and good["checks"]["unserved_ratio"] <= cfg["solver"]["max_unserved_ratio"]
+    bad = compute_plan({**params, "trucks": 0}, [], cfg=cfg, net=net)
+    assert all_ok(bad["checks"])   # contrôles de forme toujours cohérents…
+    assert bad["checks"]["ok"] is False and bad["checks"]["unserved_ratio"] == 1.0   # … mais le plan n'est pas « vert »
+    assert bad["checks"]["unserved_count"] == len(bad["collection_points"])
+    assert any("non desservis" in m for m in bad["checks"]["messages"])

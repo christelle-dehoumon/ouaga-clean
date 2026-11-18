@@ -143,6 +143,31 @@ def _pilot_square(cfg: dict[str, Any], lat: np.ndarray, lon: np.ndarray, assumpt
     return box(center[1] - half_lon, center[0] - half_lat, center[1] + half_lon, center[0] + half_lat)
 
 
+def sector_polygon(cfg: dict[str, Any]) -> Any:
+    """Secteur de l'équipe : union des polygones de paths.secteur si le fichier existe, sinon le carré pilote."""
+    from shapely.ops import unary_union
+
+    paths = cfg.get("paths") if isinstance(cfg.get("paths"), dict) else {}
+    path_str = paths.get("secteur")
+    if isinstance(path_str, str) and path_str and _resolve(path_str).exists():
+        try:
+            data = json.loads(_resolve(path_str).read_text(encoding="utf-8"))
+            geoms = [parsed[1] for f in data.get("features", []) if (parsed := _feature(f))]
+            if geoms:
+                return unary_union(geoms)
+        except Exception:  # fichier fourni par un humain : repli sur le carré pilote
+            pass
+    return _pilot_square(cfg, np.zeros(0), np.zeros(0), [])
+
+
+def area_m2(geom: Any) -> float:
+    """Surface approximative d'une géométrie lon/lat en m² (projection locale équirectangulaire)."""
+    if geom is None or geom.is_empty:
+        return 0.0
+    lat0 = geom.centroid.y
+    return float(geom.area * METRES_PER_DEGREE_LAT ** 2 * math.cos(math.radians(lat0)))
+
+
 def active_territories(cfg: dict[str, Any], params: dict[str, Any], lat: np.ndarray, lon: np.ndarray
                        ) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     """Territoires actifs (zone pilote + params.extra_territories) : id, nom, géométrie, population fournie ou None."""
@@ -167,7 +192,9 @@ def active_territories(cfg: dict[str, Any], params: dict[str, Any], lat: np.ndar
         elif isinstance(item, str) and item in known:
             tid, (geom, props) = item, known[item]
         elif item == PILOT_ID:
-            tid, geom, props = PILOT_ID, _pilot_square(cfg, lat, lon, assumptions), {"name": "Zone pilote"}
+            tid, geom, props = PILOT_ID, sector_polygon(cfg), {"name": "Secteur de l'équipe (zone pilote)"}
+            if geom is not None:
+                _pilot_square(cfg, lat, lon, assumptions)
             if geom is None:
                 warnings.append("Zone pilote impossible à construire : ni limite communale, ni emprise, ni bâtiments.")
                 continue

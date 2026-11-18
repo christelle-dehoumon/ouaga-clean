@@ -81,8 +81,8 @@ def check_osmnx(ox: Any) -> None:
                            "simplify_graph n'accepte pas node_attrs_include. Installer requirements.txt.")
 
 
-def _configure_osmnx(cache_dir: Path) -> Any:
-    """Importe osmnx (version vérifiée) et règle le cache disque et les délais."""
+def _configure_osmnx(cache_dir: Path, cfg: dict[str, Any] | None = None) -> Any:
+    """Importe osmnx (version vérifiée) et règle le cache disque, les délais et le serveur Overpass (download.overpass_url)."""
     import osmnx as ox
 
     check_osmnx(ox)
@@ -90,7 +90,9 @@ def _configure_osmnx(cache_dir: Path) -> Any:
     ox.settings.cache_folder = str(cache_dir)
     ox.settings.requests_timeout = REQUEST_TIMEOUT_S
     ox.settings.max_query_area_size = CHUNK_AREA_M2
-    ox.settings.overpass_endpoint = "https://overpass.osm.ch/api/interpreter"
+    url = ((cfg or {}).get("download") or {}).get("overpass_url") if isinstance(cfg, dict) else None
+    if isinstance(url, str) and url:
+        ox.settings.overpass_url = url.rstrip("/")
     ox.settings.log_console = False
     _keep_road_tags(ox)
     return ox
@@ -220,7 +222,7 @@ def _prepare_roads(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force: boo
         print(f"[routes] lecture locale de {local.name} ({_human_size(local)})…", flush=True)
         graph, origin = roads_from_xml(local), f"fichier local {local.name}"
     else:
-        ox = _configure_osmnx(raw_dir / "osm_cache")
+        ox = _configure_osmnx(raw_dir / "osm_cache", cfg)
         if pilot:
             print("[routes] téléchargement Overpass (zone pilote avec marge de 500 m).", flush=True)
             polygon = _pilot_boundary(cfg, buffer_m=500.0)
@@ -270,7 +272,7 @@ def _prepare_buildings(cfg: dict[str, Any], raw_dir: Path, out_dir: Path, force:
         coords, skipped = building_centroids_from_osm(local)
         origin = f"fichier local {local.name}"
     else:
-        ox = _configure_osmnx(raw_dir / "osm_cache")
+        ox = _configure_osmnx(raw_dir / "osm_cache", cfg)
         if pilot:
             print("[bâtiments] téléchargement Overpass (zone pilote).", flush=True)
             polygon = _pilot_boundary(cfg, buffer_m=0.0)
@@ -382,7 +384,9 @@ def run(config_path: str, force: bool = False, pilot: bool = False) -> int:
 def main() -> None:
     """Point d'entrée en ligne de commande : python -m core.geo.download."""
     parser = argparse.ArgumentParser(description="Prépare une fois les données OpenStreetMap de la commune.")
-    parser.add_argument("--config", default=str(REPO_ROOT / "config" / "commune_config.json"))
+    from core.config import config_path
+
+    parser.add_argument("--config", default=str(config_path()))
     parser.add_argument("--force", action="store_true", help="refait la préparation même si les fichiers existent")
     parser.add_argument("--pilot", action="store_true", help="limite le téléchargement Overpass à la zone pilote")
     args = parser.parse_args()

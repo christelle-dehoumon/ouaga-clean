@@ -13,9 +13,8 @@ from typing import Any
 
 import numpy as np
 
-from core.config import _check_value, load_config
+from core.config import _check_value, _is_number, clamp_params, config_path, get_config, section
 from core.geo.buildings import building_demand
-from core.geo.download import REPO_ROOT
 from core.geo.graph import Network, load_network, nearest_node
 from core.optim.coherence import all_ok, check_plan
 from core.optim.matrix import MatrixCache, path_length_m, straight_matrix
@@ -24,22 +23,46 @@ from core.optim.dumpsites import dumpsite_stops
 from core.optim.tournees import (Fleet, improve, insert_cheapest, insert_in_order, route_minutes, solve_greedy, solve_ortools,
                                  trim_to_budget)
 
-CONFIG_PATH = REPO_ROOT / "config" / "commune_config.json"
-# État gardé en mémoire entre deux appels : configuration et réseau (chargé une seule fois).
-_STATE: dict[str, Any] = {"cfg": None, "net": None}
+# Réseau gardé en mémoire entre deux appels, un par fichier de configuration (chargé une seule fois).
+_STATE: dict[str, Any] = {"path": None, "net": None}
+
+
+def default_network() -> Network:
+    """Réseau de la commune courante (COMMUNE_CONFIG), chargé une seule fois."""
+    path = config_path()
+    if _STATE["net"] is None or _STATE["path"] != path:
+        _STATE["net"], _STATE["path"] = load_network(get_config()), path
+    return _STATE["net"]
 
 
 def _context(cfg: dict[str, Any] | None, net: Network | None) -> tuple[dict[str, Any], Network]:
-    """Configuration et réseau : ceux fournis, sinon ceux chargés une fois depuis le dépôt."""
+    """Configuration et réseau : ceux fournis, sinon ceux de la commune courante (core.config)."""
     if cfg is None:
-        if _STATE["cfg"] is None:
-            _STATE["cfg"] = load_config(CONFIG_PATH)
-        cfg = _STATE["cfg"]
+        cfg = get_config()
     if net is None:
-        if _STATE["net"] is None:
-            _STATE["net"] = load_network(cfg)
-        net = _STATE["net"]
+        net = default_network()
     return cfg, net
+
+
+def global_checks(plan: dict[str, Any], cfg: dict[str, Any] | None, network_available: bool) -> None:
+    """Indicateur global honnête : checks.ok est faux si un contrôle échoue, si le réseau manque, ou si la part de points
+    non desservis dépasse solver.max_unserved_ratio. Ajoute checks.unserved_count et checks.unserved_ratio."""
+    checks = plan["checks"]
+    n = len(plan.get("collection_points", []))
+    unserved = len(plan.get("unserved", []))
+    ratio = unserved / n if n else 0.0
+    limit = _num(section(cfg or {}, "solver").get("max_unserved_ratio"), 0.0)
+    checks["unserved_count"] = unserved
+    checks["unserved_ratio"] = round(ratio, 4)
+    checks["max_unserved_ratio"] = limit
+    checks["coverage_ok"] = ratio <= limit + 1e-9
+    checks["network_available"] = network_available
+    if not checks["coverage_ok"]:
+        checks["messages"].append(f"{unserved} point(s) sur {n} non desservis ({ratio:.0%}), au-delà du seuil de "
+                                  f"{limit:.0%} (solver.max_unserved_ratio) : plan non cohérent pour la mairie.")
+    if not network_available:
+        checks["messages"].append("Aucun réseau routier chargé : plan non utilisable.")
+    checks["ok"] = bool(all_ok(checks) and checks["coverage_ok"] and network_available)
 
 
 def _num(value: Any, default: float) -> float:
@@ -49,14 +72,20 @@ def _num(value: Any, default: float) -> float:
     return float(value)
 
 
-def sanitize_params(params: Any, defaults: dict[str, Any], warnings: list[str]) -> dict[str, Any]:
+def sanitize_params(params: Any, defaults: dict[str, Any], warnings: list[str],
+                    cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     """Paramètres du jury validés un par un ; valeur de la configuration (avec avertissement) si absurde."""
     if not isinstance(params, dict):
         if params is not None:
             warnings.append("Les paramètres doivent être un objet : valeurs de la configuration utilisées.")
         params = {}
-    out = {k: (_check_value(f"params.{k}", params[k], v, warnings) if k in params else copy.deepcopy(v))
+    bounded = section(cfg, "bounds") if cfg is not None else {}
+    # Paramètre borné et numérique : gardé puis ramené dans [min, max] (clamp_params) ; sinon contrôle de type et de signe.
+    out = {k: (params[k] if k in bounded and _is_number(params.get(k)) else
+               _check_value(f"params.{k}", params[k], v, warnings) if k in params else copy.deepcopy(v))
            for k, v in defaults.items()}
+    if cfg is not None:
+        out = clamp_params(out, cfg, warnings)
     out["trucks"] = int(out["trucks"])
     out["broken_trucks"] = [t for t in out["broken_trucks"] if isinstance(t, str)]
     return out
@@ -102,7 +131,7 @@ def _setup(params_in: Any, cfg: dict[str, Any], net: Network, cache: MatrixCache
     """Paramètres validés, vue sèche ou pluie, véhicules virtuels (une tournée par rotation), dépôt."""
     warnings: list[str] = []
     model = cfg["model"]
-    params = sanitize_params(params_in, cfg["params"], warnings)
+    params = sanitize_params(params_in, cfg["params"], warnings, cfg)
     view = "truck_rain" if params["rainy_season"] else "truck_dry"
     trips = max(int(_num(model.get("truck_trips_per_day"), 1)), 1)
     broken = set(params["broken_trucks"])
@@ -172,7 +201,8 @@ def _classify(ctx: Ctx, points: list[dict[str, Any]], nodes: list[int | None], p
 Stops = tuple[list[dict[str, Any]], list[int]]
 
 
-def _preselect(ctx: Ctx, cand: list[dict[str, Any]], cand_nodes: list[int], plan: dict[str, Any]) -> tuple[Stops, Stops]:
+def _preselect(ctx: Ctx, cand: list[dict[str, Any]], cand_nodes: list[int], plan: dict[str, Any],
+               protected: set[str] | None = None) -> tuple[Stops, Stops]:
     """Camions nécessaires (estimation) ; si la demande dépasse la flotte, seuls les arrêts prioritaires vont au solveur.
 
     Renvoie (arrêts gardés, arrêts écartés rangés par priorité décroissante) ; les écartés sont déjà dans plan.unserved."""
@@ -187,12 +217,14 @@ def _preselect(ctx: Ctx, cand: list[dict[str, Any]], cand_nodes: list[int], plan
         return (cand, cand_nodes), ([], [])
     factor = ctx.num("solver", "preselect_capacity_factor", 1.2) or 1.2
     limit = factor * fleet_kg
-    order = sorted(range(len(cand)), key=lambda i: (cand[i]["type"] != "center", -float(cand[i].get("trust") or 0.0),
-                                                    -cand[i]["demand_kg"], cand[i]["id"]))
+    protected = protected or set()
+    # Arrêts protégés (déjà dans une tournée gardée lors d'un recalcul partiel) : toujours en tête, jamais écartés.
+    order = sorted(range(len(cand)), key=lambda i: (cand[i]["id"] not in protected, cand[i]["type"] != "center",
+                                                    -float(cand[i].get("trust") or 0.0), -cand[i]["demand_kg"], cand[i]["id"]))
     keep: set[int] = set()
     acc = 0.0
     for i in order:
-        if acc + cand[i]["demand_kg"] > limit:
+        if acc + cand[i]["demand_kg"] > limit and cand[i]["id"] not in protected:
             break
         keep.add(i)
         acc += cand[i]["demand_kg"]
@@ -352,6 +384,30 @@ def _solve(ctx: Ctx, base: dict[str, Any], cand: list[dict[str, Any]], cand_node
     return empty
 
 
+def split_heavy(points: list[dict[str, Any]], nodes: list[int | None], capacity: float, assumptions: list[str]
+                ) -> tuple[list[dict[str, Any]], list[int | None]]:
+    """Point de regroupement plus lourd qu'un camion : découpé en k arrêts au même nœud (k = demande / capacité arrondi
+    au-dessus), jamais déclaré non desservi pour cette seule raison."""
+    if capacity <= 0:
+        return points, nodes
+    out, out_nodes, split = [], [], 0
+    for p, node in zip(points, nodes):
+        k = math.ceil(p["demand_kg"] / capacity - 1e-9) if p.get("type") == "center" else 1
+        if k <= 1:
+            out.append(p)
+            out_nodes.append(node)
+            continue
+        split += 1
+        for j in range(1, k + 1):
+            out.append({**p, "id": f"{p['id']}_s{j}", "split_of": p["id"], "part": j, "parts": k,
+                        "demand_kg": round(p["demand_kg"] / k, 1)})
+            out_nodes.append(node)
+    if split:
+        assumptions.append(f"{split} point(s) de regroupement plus lourd(s) qu'un camion ({capacity:g} kg) découpé(s) en "
+                           "plusieurs arrêts au même endroit (identifiants <id>_sN, champ split_of).")
+    return out, out_nodes
+
+
 def _full(ctx: Ctx, reports: Any) -> dict[str, Any]:
     """Calcul complet : points de regroupement des territoires actifs + arrêts dépotoirs, puis tournées."""
     demand = building_demand(ctx.cfg, ctx.params)
@@ -359,9 +415,10 @@ def _full(ctx: Ctx, reports: Any) -> dict[str, Any]:
     dumps, dump_nodes, ignored, d_assumptions = dumpsite_stops(reports, ctx.cfg, ctx.net, ctx.fleet.capacity_kg)
     ctx.warnings += demand["warnings"] + placed["warnings"]
     ctx.assumptions += demand["assumptions"] + placed["assumptions"] + d_assumptions
-    points = placed["points"] + dumps
+    centers, center_nodes = split_heavy(placed["points"], placed["node_ids"], ctx.fleet.capacity_kg, ctx.assumptions)
+    points = centers + dumps
     base = _base(ctx, points, demand["uncollected_kg"], ignored)
-    cand, cand_nodes = _classify(ctx, points, placed["node_ids"] + dump_nodes, base)
+    cand, cand_nodes = _classify(ctx, points, center_nodes + dump_nodes, base)
     (cand, cand_nodes), extra = _preselect(ctx, cand, cand_nodes, base)
     return _solve(ctx, base, cand, cand_nodes, extra)
 
@@ -400,7 +457,7 @@ def _partial(ctx: Ctx, prev: dict[str, Any], reports: Any, kind: str) -> dict[st
     old_ids = {p["id"] for p in prev["collection_points"]}
     nodes: list[int | None] = []
     for p in old_points:
-        match = re.fullmatch(r"c_(-?\d+)", str(p.get("id")))
+        match = re.fullmatch(r"c_(-?\d+)(?:_s\d+)?", str(p.get("id")))
         if match is None or int(match.group(1)) not in net.index_of:
             raise ValueError(f"Point « {p.get('id')} » du plan précédent introuvable sur le réseau.")
         nodes.append(int(match.group(1)))
@@ -415,7 +472,8 @@ def _partial(ctx: Ctx, prev: dict[str, Any], reports: Any, kind: str) -> dict[st
         placed = place_points(net, sub, [], ctx.cfg, ctx.params)
         ctx.warnings += placed["warnings"]
         existing = {p["id"]: p for p in old_points}
-        for p, node in zip(placed["points"], placed["node_ids"]):
+        new_points, new_nodes = split_heavy(placed["points"], placed["node_ids"], ctx.fleet.capacity_kg, ctx.assumptions)
+        for p, node in zip(new_points, new_nodes):
             if p["id"] in existing:          # même nœud qu'un point existant : la demande s'y ajoute
                 existing[p["id"]]["demand_kg"] = round(existing[p["id"]]["demand_kg"] + p["demand_kg"], 1)
             else:
@@ -427,9 +485,10 @@ def _partial(ctx: Ctx, prev: dict[str, Any], reports: Any, kind: str) -> dict[st
     points = old_points + dumps
     base = _base(ctx, points, demand["uncollected_kg"], ignored)
     cand, cand_nodes = _classify(ctx, points, nodes + dump_nodes, base)
-    (cand, cand_nodes), _extra = _preselect(ctx, cand, cand_nodes, base)
-    index = {p["id"]: i + 1 for i, p in enumerate(cand)}
     prev_routes = {r.get("vehicle"): r.get("stops", []) for r in prev.get("routes", []) if isinstance(r, dict)}
+    kept_ids = {s for v, stops in prev_routes.items() if v in ctx.fleet.vehicles for s in stops}
+    (cand, cand_nodes), _extra = _preselect(ctx, cand, cand_nodes, base, protected=kept_ids)
+    index = {p["id"]: i + 1 for i, p in enumerate(cand)}
     routes = [[index[s] for s in prev_routes.get(v, []) if s in index] for v in ctx.fleet.vehicles]
     in_routes = {i for r in routes for i in r}
     lost = {index[s] for v, stops in prev_routes.items() if v not in ctx.fleet.vehicles for s in stops if s in index}
@@ -511,5 +570,10 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
         plan["warnings"] = [f"Erreur interne, plan vide : {type(exc).__name__}: {exc}"]
         plan["checks"]["messages"] = [traceback.format_exc(limit=3)]
     _service_totals(plan)
+    try:
+        available = net is not None and net.views["truck_dry"].n_nodes > 0
+    except Exception:  # réseau absent ou illisible
+        available = False
+    global_checks(plan, cfg, available)
     plan["compute_ms"] = round((time.perf_counter() - t0) * 1000)
     return plan

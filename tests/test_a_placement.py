@@ -57,6 +57,8 @@ def _fake_buildings(cfg: dict[str, Any], tmp_path: Path) -> None:
     cfg["bbox"] = {"west": -1.5, "south": 11.5, "east": -0.5, "north": 12.5}
     cfg["model"]["pilot_territory_ids"] = ["pilot"]
     cfg["model"]["pilot_square_m"] = 2000
+    cfg["model"]["territory_population_method"] = "building_share"
+    cfg["paths"]["secteur"] = str(tmp_path / "pas_de_secteur.geojson")
 
 
 def test_demand_only_in_active_territories(cfg: dict[str, Any], tmp_path: Path) -> None:
@@ -82,6 +84,17 @@ def test_demand_only_in_active_territories(cfg: dict[str, Any], tmp_path: Path) 
     out = building_demand(cfg, {**params, "extra_territories": [far, {"type": "Feature", "geometry": None}]})
     assert len(out["kg"]) == 30 and any("hors de la commune" in w for w in out["warnings"])
     assert any("Feature GeoJSON" in w for w in out["warnings"])
+
+
+def test_area_share_population(cfg: dict[str, Any], tmp_path: Path) -> None:
+    """area_share : la population d'un territoire suit la part de sa surface dans la commune, pas la part des bâtiments."""
+    _fake_buildings(cfg, tmp_path)
+    cfg["model"]["territory_population_method"] = "area_share"
+    out = building_demand(cfg, {"population": 1_000_000, "subscription_rate": 0.4, "frequency_per_week": 7})
+    pilot = out["territories"][0]
+    # Carré pilote de 2 km dans une emprise de 1° × 1° : environ 4 km² sur 12 000 km², soit quelques centaines d'habitants.
+    assert 0 < pilot["population"] < 1000 and pilot["buildings"] == 30
+    assert any("part de la surface" in a or "surface de la commune" in a for a in out["assumptions"])
 
 
 def test_building_demand_missing_file(cfg: dict[str, Any], tmp_path: Path) -> None:

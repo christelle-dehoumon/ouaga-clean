@@ -4,8 +4,66 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# Seul endroit où le chemin de la configuration est connu : variable COMMUNE_CONFIG, sinon la commune par défaut.
+DEFAULT_CONFIG = "config/commune_config.json"
+_CACHE: dict[str, Any] = {"path": None, "cfg": None}
+
+
+def resolve(path_str: str | Path) -> Path:
+    """Chemin de la configuration rendu absolu par rapport à la racine du dépôt."""
+    path = Path(path_str)
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def config_path() -> Path:
+    """Fichier de configuration de la commune : $COMMUNE_CONFIG ou config/commune_config.json."""
+    return resolve(os.environ.get("COMMUNE_CONFIG") or DEFAULT_CONFIG)
+
+
+def get_config(reload: bool = False) -> dict[str, Any]:
+    """Configuration validée de la commune courante, lue une fois (relue si COMMUNE_CONFIG change ou reload)."""
+    path = config_path()
+    if reload or _CACHE["cfg"] is None or _CACHE["path"] != path:
+        _CACHE["cfg"], _CACHE["path"] = load_config(path), path
+    return _CACHE["cfg"]
+
+
+def section(cfg: dict[str, Any], name: str) -> dict[str, Any]:
+    """Section de la configuration (dictionnaire vide si absente ou mal formée)."""
+    value = cfg.get(name) if isinstance(cfg, dict) else None
+    return value if isinstance(value, dict) else {}
+
+
+def clamp_params(params: dict[str, Any], cfg: dict[str, Any], warnings: list[str]) -> dict[str, Any]:
+    """Ramène chaque paramètre borné (section « bounds ») dans [min, max], avec un avertissement ; jamais accepté tel quel."""
+    out = dict(params)
+    for key, spec in section(cfg, "bounds").items():
+        if not isinstance(spec, dict) or key not in out or not _is_number(out[key]):
+            continue
+        lo, hi = spec.get("min"), spec.get("max")
+        value = out[key]
+        if _is_number(lo) and value < lo:
+            warnings.append(f"Paramètre « {key} » = {value:g} sous le minimum {lo:g} (bounds.{key}.min) : ramené à {lo:g}.")
+            value = lo
+        if _is_number(hi) and value > hi:
+            warnings.append(f"Paramètre « {key} » = {value:g} au-dessus du maximum {hi:g} (bounds.{key}.max) : ramené à {hi:g}.")
+            value = hi
+        out[key] = int(value) if isinstance(params[key], int) and float(value).is_integer() else value
+    return out
+
+
+def hypothesis(cfg: dict[str, Any], group: str, key: str) -> float:
+    """Coefficient de simulation « hypotheses.<group>.<key>.valeur » ; KeyError explicite s'il manque."""
+    entry = section(section(cfg, "hypotheses"), group).get(key)
+    value = entry.get("valeur") if isinstance(entry, dict) else entry
+    if not _is_number(value):
+        raise KeyError(f"Hypothèse manquante ou invalide dans la configuration : hypotheses.{group}.{key}")
+    return float(value)
 
 # Valeurs de repli utilisées seulement si une clé manque ou est absurde (un avertissement est alors émis).
 # Aucune coordonnée ici : sans emprise valide, les modules géographiques refusent de travailler.
@@ -18,7 +76,8 @@ SAFE_DEFAULTS: dict[str, Any] = {
         "raw_dir": "data/raw",
         "processed_dir": "data/processed",
         "mock_dir": "data/mock",
-        "territories": "data/processed/territories.geojson",
+        "territories": "data/territories.geojson",
+        "secteur": "data/secteur.geojson",
         "flood_zones": "data/processed/flood_zones.geojson",
         "waterways": "data/processed/waterways.geojson",
     },

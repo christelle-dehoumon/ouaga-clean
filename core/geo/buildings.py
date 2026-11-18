@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from core.geo.download import BUILDINGS_FILE, REPO_ROOT
-from core.geo.territories import active_territories, assign
+from core.geo.territories import active_territories, area_m2, assign, commune_polygon
 
 DAYS_PER_WEEK = 7
 
@@ -79,12 +79,26 @@ def building_demand(cfg: dict[str, Any], params: dict[str, Any]) -> dict[str, An
         warnings.append("Population 0 : aucune demande des ménages, aucun point de regroupement ; "
                         "seuls les dépotoirs validés restent à servir.")
     summary = []
+    # Méthode de répartition de la population de la commune entre territoires (model.territory_population_method) :
+    # « building_share » = part des bâtiments (valable si les bâtiments couvrent toute la commune) ;
+    # « area_share » = part de la surface de la commune (quand seuls quelques quartiers ont leurs bâtiments).
+    method = model.get("territory_population_method", "building_share")
+    population = _num(params.get("population"), -1.0)
+    commune, _how = commune_polygon(cfg) if method == "area_share" else (None, "")
+    commune_area = area_m2(commune)
     for i, t in enumerate(territories):
         inside = owner == i
         n_t = int(inside.sum())
         if t["population"] is not None and n_t and not zero:
             persons[inside] = t["population"] / n_t
             pop, tag = t["population"], t["source"] or "provided"
+        elif method == "area_share" and commune_area > 0 and population > 0 and n_t and not zero:
+            share = area_m2(t["geometry"].intersection(commune)) / commune_area
+            pop, tag = population * share, "estimated"
+            persons[inside] = pop / n_t
+            assumptions.append(f"Territoire « {t['id']} » : {share:.2%} de la surface de la commune, donc {pop:.0f} habitants "
+                               f"sur {population:.0f} (model.territory_population_method = area_share), soit "
+                               f"{pop / n_t:.2f} personnes par bâtiment OSM ({n_t} bâtiments).")
         else:
             pop, tag = float(persons[inside].sum()), "estimated"
         summary.append({"id": t["id"], "name": t["name"], "buildings": n_t, "population": round(pop),
@@ -96,8 +110,8 @@ def building_demand(cfg: dict[str, Any], params: dict[str, Any]) -> dict[str, An
     kg = persons[keep] * per_person_pass * rate
     uncollected = float(persons[keep].sum() * per_person_pass * (1 - rate))
     assumptions.append(f"Territoires actifs : {[s['id'] for s in summary]} (model.pilot_territory_ids + params.extra_territories) ; "
-                       "population d'un territoire sans population fournie = population de la commune × part de ses bâtiments "
-                       "(estimated). Le réseau routier reste celui de toute la commune.")
+                       f"population d'un territoire sans population fournie = population de la commune × part de ses "
+                       f"{'surfaces' if method == 'area_share' else 'bâtiments'} (estimated, model.territory_population_method).")
     assumptions.append(f"Demande par passage = population × {waste:g} kg/personne/jour × taux d'abonnement {rate:g} × "
                        f"{days:.2f} jours entre deux passages ({freq:g} par semaine) ; la part non abonnée "
                        f"({uncollected / 1000:.1f} t par passage) n'est pas collectée.")

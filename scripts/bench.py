@@ -26,7 +26,8 @@ from core.geo.download import REPO_ROOT
 from core.geo.graph import Network, load_network, project
 from core.optim.matrix import MatrixCache
 from core.optim.placement import SEED, _cells
-from core.optim.plan import CONFIG_PATH, compute_plan
+from core.config import config_path
+from core.optim.plan import compute_plan
 from scripts.make_synthetic import plausible_reports
 
 RUNS = 5
@@ -203,10 +204,21 @@ def bench_scale(cfg: dict[str, Any], net: Network, params: dict[str, Any], rows:
                      "" if k != POINT_COUNTS[-1] else "Même zone, k imposé ; médiane qui inclut le premier essai à cache froid."])
 
 
+def bench_default(cfg: dict[str, Any], rows: list[list[str]]) -> None:
+    """0. Plan par défaut (paramètres de la configuration, sans signalement) : part servie et indicateur global."""
+    secs, plan = timed(lambda: compute_plan(cfg["params"], []))
+    n = len(plan["collection_points"])
+    served = n - len(plan["unserved"])
+    rows.append(["0. Plan par défaut", "compute_plan(config.params, [])", f"{secs:.2f} s",
+                 f"{plan['mode']}, {served}/{n} points servis ({served / n:.1%}) ; checks.ok = {plan['checks']['ok']} ; "
+                 f"unserved_ratio = {plan['checks']['unserved_ratio']}" if n else f"{plan['mode']}, aucun point",
+                 "Critère de cohérence : au moins 90 % des points servis et checks.ok vrai."])
+
+
 def main() -> None:
-    """Lance les six mesures et écrit docs/mesures.md."""
+    """Lance les mesures et écrit docs/mesures.md."""
     started = datetime.now(timezone.utc)
-    cfg = load_config(CONFIG_PATH)
+    cfg = load_config(config_path())
     t = time.perf_counter()
     plan = compute_plan(cfg["params"], [])          # charge le réseau une fois (gardé en mémoire par core.optim.plan)
     load_s = time.perf_counter() - t
@@ -214,7 +226,7 @@ def main() -> None:
     net = plan_mod._STATE["net"]
     params = cfg["params"]
     rows: list[list[str]] = []
-    for step in (lambda: bench_dijkstra(net, rows), lambda: bench_placement(cfg, net, rows),
+    for step in (lambda: bench_default(cfg, rows), lambda: bench_dijkstra(net, rows), lambda: bench_placement(cfg, net, rows),
                  lambda: bench_matrix(net, plan, rows), lambda: bench_breakdown(params, plan, rows),
                  lambda: bench_reports(cfg, net, params, plan, rows), lambda: bench_scale(cfg, net, params, rows)):
         step()

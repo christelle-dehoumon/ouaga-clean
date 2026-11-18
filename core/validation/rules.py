@@ -59,7 +59,7 @@ class Validator:
         self.db = sqlite3.connect(self.db_path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
-        self.grid = Grid(self.cfg["duplicate_radius_m"])
+        self.grid = Grid(self.cfg["duplicate_radius_m"], self.cfg["grid_center_lat"])
         self._rebuild()
 
     def _load(self, rel):

@@ -6,9 +6,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from core.config import load_config
+from core.config import config_path, load_config
 from core.geo.download import REPO_ROOT
-from core.optim.plan import CONFIG_PATH, compute_plan
+from core.optim.plan import compute_plan
 from scripts.make_synthetic import OUT_PLAUSIBLE
 
 N_REPORTS = 10
@@ -17,7 +17,7 @@ OUT = "plan_real.json"
 
 def main() -> None:
     """Calcule et écrit data/mock/plan_real.json (format du contrat v2, géométrie des trajets)."""
-    cfg = load_config(CONFIG_PATH)
+    cfg = load_config(config_path())
     mock = Path(cfg["paths"]["mock_dir"])
     mock = mock if mock.is_absolute() else REPO_ROOT / mock
     src = mock / OUT_PLAUSIBLE

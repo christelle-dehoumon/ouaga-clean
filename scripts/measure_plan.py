@@ -10,11 +10,11 @@ from typing import Any
 
 import numpy as np
 
-from core.config import load_config
+from core.config import config_path, load_config
 from core.geo.buildings import load_buildings
 from core.geo.graph import load_network
 from core.geo.territories import commune_polygon
-from core.optim.plan import CONFIG_PATH, compute_plan
+from core.optim.plan import compute_plan
 
 SEED = 0
 N_REPORTS = 20
@@ -40,7 +40,7 @@ def _timed(label: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
 
 def main() -> None:
     """Mesure les cinq scénarios demandés, réseau chargé une fois."""
-    cfg = load_config(CONFIG_PATH)
+    cfg = load_config(config_path())
     t = time.perf_counter()
     net = load_network(cfg)
     print(f"Chargement du réseau : {time.perf_counter() - t:.1f} s")

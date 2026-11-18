@@ -6,7 +6,7 @@ import argparse
 import time
 from collections import Counter
 
-from core.config import load_config
+from core.config import config_path, load_config
 from core.geo.buildings import building_demand
 from core.geo.graph import load_network
 from core.optim.placement import place_points
@@ -15,7 +15,7 @@ from core.optim.placement import place_points
 def main() -> None:
     """Affiche durées, nombre de points, accès et part de la demande à distance de marche."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="config/commune_config.json")
+    parser.add_argument("--config", default=str(config_path()))
     parser.add_argument("--max-points", type=int, default=None, help="remplace solver.max_collection_points")
     args = parser.parse_args()
     cfg = load_config(args.config)

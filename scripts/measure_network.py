@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 
-from core.config import load_config
+from core.config import config_path, load_config
 from core.geo.graph import Network, load_network, shortest_paths
 
 
@@ -26,7 +26,7 @@ def _view_bytes(net: Network) -> dict[str, int]:
 def main() -> None:
     """Affiche les mesures en Markdown."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="config/commune_config.json")
+    parser.add_argument("--config", default=str(config_path()))
     parser.add_argument("--sources", type=int, default=60)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()

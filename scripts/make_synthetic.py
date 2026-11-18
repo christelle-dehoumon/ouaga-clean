@@ -17,7 +17,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
-from core.config import load_config
+from core.config import config_path, load_config
 from core.geo.buildings import load_buildings
 from core.geo.download import REPO_ROOT
 from core.geo.graph import EARTH_RADIUS_M, Network, load_network, project
@@ -103,7 +103,7 @@ def main() -> None:
     parser.add_argument("--n", type=int, default=100)
     parser.add_argument("--status", default="pending", choices=["pending", "accepted"])
     args = parser.parse_args()
-    cfg = load_config(REPO_ROOT / "config" / "commune_config.json")
+    cfg = load_config(config_path())
     net = load_network(cfg)
     valid = plausible_reports(cfg, net, args.n, args.status)
     if not valid:

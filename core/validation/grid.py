@@ -51,16 +51,15 @@ class Grid:
     """Grille de cellules ~ radius_m : on ne compare qu'aux 9 cellules voisines
     au lieu de toutes les paires (amélioration chiffrée, voir bench)."""
 
-    def __init__(self, radius_m):
+    def __init__(self, radius_m, center_lat):
+        """radius_m : taille d'une cellule ; center_lat : latitude de référence de la commune (configuration)."""
         self.r = radius_m
         self.dlat = radius_m / 111320.0
+        self.dlon = radius_m / (111320.0 * max(math.cos(math.radians(center_lat)), 0.01))
         self.cells = defaultdict(list)
 
-    def _dlon(self, lat):
-        return self.r / (111320.0 * max(math.cos(math.radians(lat)), 0.01))
-
     def _key(self, lat, lon):
-        return (int(math.floor(lat / self.dlat)), int(math.floor(lon / self._dlon(12.37))))
+        return (int(math.floor(lat / self.dlat)), int(math.floor(lon / self.dlon)))
 
     def add(self, item_id, lat, lon):
         self.cells[self._key(lat, lon)].append((item_id, lat, lon))

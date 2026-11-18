@@ -1,162 +1,99 @@
-"""Contrat UI du membre C : architecture séparée, assets locaux, routes réelles.
+"""Contrat du tableau de bord de la mairie (web/dashboard/ville/) et des pages citoyen et brigade.
 
-Les tests statiques verrouillent les points qui ont déjà causé une confusion
-entre proxy de ménages synthétiques et dépotoirs réels, sans dépendre d'un
-navigateur. La nouvelle structure (index.html + dashboard.css + dashboard.js)
-remplace l'ancien tableau de bord mono-fichier ; les intentions des tests sont
-conservées et étendues au vrai Backend.
+Tests statiques, sans navigateur : ressources locales, routes réellement servies par l'API, étiquetage des données
+fictives, rendu sûr du DOM. Les parcours dans un navigateur sont dans web/tools/e2e/ (Playwright).
+Remplace l'ancien test qui figeait le tableau de bord mono-page retiré le 2026-11-18.
 """
 from __future__ import annotations
 
+import json
 import re
-import unittest
 from pathlib import Path
 
+import pytest
+
 RACINE = Path(__file__).resolve().parents[1]
-DASH = RACINE / "web" / "dashboard"
-INDEX = (DASH / "index.html").read_text(encoding="utf-8")
-CSS = (DASH / "dashboard.css").read_text(encoding="utf-8")
-JS = (DASH / "dashboard.js").read_text(encoding="utf-8")
-TOUS = "\n".join((INDEX, CSS, JS))
+WEB = RACINE / "web"
+VILLE = WEB / "dashboard" / "ville"
+SHARED = WEB / "dashboard" / "shared"
+JS_APP = sorted([*VILLE.rglob("*.js"), *SHARED.glob("*.js"), *(WEB / "citizen").glob("*.js"), *(WEB / "brigade").glob("*.js")])
 
 
-class DashboardContratTest(unittest.TestCase):
-    # --- Structure séparée et assets locaux --------------------------------
-    def test_structure_separee_avec_un_seul_script_applicatif(self):
-        scripts = re.findall(r"<script[^>]*src=\"([^\"]+)\"", INDEX)
-        applicatifs = [s for s in scripts if "dashboard.js" in s or "app.js" in s]
-        self.assertEqual(applicatifs, ["/dashboard/dashboard.js"])
-        self.assertNotIn("app.js", INDEX)
-        self.assertNotIn("app.css", INDEX)
-        self.assertEqual(INDEX.count("<header"), 1, "Un seul en-tête autorisé")
-
-    def test_assets_locaux_avec_chemins_absolus(self):
-        for chemin in (
-            "/dashboard/dashboard.css",
-            "/dashboard/dashboard.js",
-            "/dashboard/vendor/leaflet/leaflet.css",
-            "/dashboard/vendor/leaflet/leaflet.js",
-        ):
-            with self.subTest(chemin=chemin):
-                self.assertIn(chemin, INDEX)
-        for relatif in ('href="app.css"', 'src="app.js"', 'href="vendor/', 'src="vendor/'):
-            with self.subTest(relatif=relatif):
-                self.assertNotIn(relatif, INDEX)
-
-    def test_lien_citoyen_conforme_au_mount_et_lien_docs_absent_de_l_ui(self):
-        self.assertIn('href="/citizen/"', INDEX)
-        self.assertNotIn('href="/docs"', INDEX)
-
-    # --- KPI : proxy, pas des dépotoirs réels -------------------------------
-    def test_unite_proxy_affichee_sur_le_kpi(self):
-        self.assertIn("Dépôts non collectés (proxy)", INDEX)
-        self.assertIn("ménages synthétiques", INDEX)
-        self.assertNotIn(">Dépotoirs restants<", INDEX)
-
-    def test_compteur_initial_ne_reutilise_pas_les_points_de_regroupement(self):
-        self.assertIn('<b id="k-depots" class="kpi-valeur">—</b>', INDEX)
-        self.assertIn("totaux.points_unserved", JS)  # champ réel du plan (contrat §5)
-        self.assertNotIn("points_regroupement", TOUS)
-        self.assertNotIn("points_non_desservis", TOUS)
-
-    def test_sortie_simulation_porte_l_unite_du_modele(self):
-        self.assertIn("resultat.unite_depotoirs_restants", JS)
-        self.assertIn("$(\"k-depots\").title = resultat.unite_depotoirs_restants", JS)
-
-    def test_zero_dechet_affiche_un_message_jamais_cent_pourcent(self):
-        self.assertIn("Aucun déchet généré", JS)
-        self.assertIn("resultat.sans_dechet", JS)
-        self.assertNotIn("part_ramassee * 100) + \" %\"\n  }", JS)  # garde-fou de l'ancien calcul
-
-    # --- Couleurs, icônes, ressources externes ------------------------------
-    def test_couleurs_contrat_et_iconographie_locale(self):
-        self.assertIn("#EF2B2D", JS)  # camions
-        self.assertIn("#009E49", JS)  # tricycles
-        self.assertIn("/dashboard/icons/${nom}.svg", JS)
-        self.assertIn('NOMS_ICONS = ["brigade"', JS)
-        for nom in ("menage", "camion-benne", "ctvd", "point-regroupement"):
-            with self.subTest(icone=nom):
-                self.assertTrue((DASH / "icons" / f"{nom}.svg").exists())
-
-    def test_aucune_ressource_externe_hors_vendor(self):
-        motifs = [
-            r"https?://",
-            r"tile\.openstreetmap\.org",
-            r"unpkg\.com",
-            r"cdn\.jsdelivr\.net",
-            r"fonts\.googleapis\.com",
-            r"UPDATE\?nodes=",
-            r"api\.openstreetmap\.org",
-        ]
-        for motif in motifs:
-            with self.subTest(motif=motif):
-                self.assertIsNone(re.search(motif, TOUS), f"Ressource externe : {motif}")
-        self.assertIn("aucune tuile", INDEX.lower())
-
-    def test_geometries_et_fond_neutre_locaux(self):
-        for geo in ("zones.geojson", "water.geojson"):
-            with self.subTest(geo=geo):
-                self.assertIn(f"/dashboard/geo/{geo}", JS)
-                self.assertTrue((DASH / "geo" / geo).exists())
-        self.assertIn("#eef2ee", CSS)  # fond neutre, pas de tuile
-
-    def test_aucun_emoji_dans_le_dashboard(self):
-        emojis = [
-            ch for ch in TOUS
-            if 0x1F300 <= ord(ch) <= 0x1FAFF
-            or 0x2600 <= ord(ch) <= 0x27BF
-            or ord(ch) == 0xFE0F
-        ]
-        self.assertEqual(emojis, [], "Emojis résiduels dans le tableau de bord")
-
-    # --- Routes du vrai Backend --------------------------------------------
-    def test_routes_du_pont_sont_cellles_du_vrai_backend(self):
-        for route in (
-            '"/api/plans"',
-            "/api/plans/${encodeURIComponent(ETAT.plan.plan_id)}/simulation",
-            "/api/reports?limit=5000",
-            "/api/reports/${encodeURIComponent(id)}/validate",
-            "/api/reports/bulk",
-        ):
-            with self.subTest(route=route):
-                self.assertIn(route, JS)
-        # Anciennes routes de serveur mock : plus présentes.
-        for obsolete in ("/api/plan/calculer", "/api/signalements", "/api/scenarios"):
-            with self.subTest(obsolete=obsolete):
-                self.assertNotIn(obsolete, TOUS)
-
-    # --- Signalements et resilience ---------------------------------------
-    def test_polling_5s_avec_pause_onglet_masque(self):
-        self.assertIn("5000", JS)
-        self.assertIn("document.hidden", JS)
-        self.assertIn("visibilitychange", JS)
-        self.assertIn("ETAT.couchesSignalements", JS)
-
-    def test_validation_brigade_avec_motif_obligatoire(self):
-        self.assertIn('by: "brigade"', JS)
-        self.assertIn("accept: Boolean(accept)", JS)
-        self.assertIn("Le motif du rejet est obligatoire.", JS)
-        self.assertIn("note: note.trim()", JS)
-        self.assertIn("data-accept=\"false\"", JS)
-
-    def test_resilience_etiquette_ancien_sans_vider_la_carte(self):
-        self.assertIn("données anciennes", JS)
-        self.assertIn("ancien", CSS)
-        self.assertIn("showError(error, true)", JS)
-        self.assertIn("ETAT.resultat) majSimulation(ETAT.resultat, true)", JS)
-
-    # --- Accessibilité -----------------------------------------------------
-    def test_tailles_et_variables_css_accessibles(self):
-        self.assertIn("html { font-size: 16px; }", CSS)
-        self.assertIn("font-size: 28px", CSS)
-        self.assertIn("min-height: 44px", CSS)
-        self.assertIn("width: 36px; height: 36px", CSS)
-        self.assertIn("width: 24px; height: 24px", CSS)
-        self.assertIn(":root {", CSS)
-        for variable in ("--vert", "--rouge", "--jaune", "--fond", "--texte"):
-            with self.subTest(variable=variable):
-                self.assertIn(variable + ":", CSS)
+def lire(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_dashboard_par_defaut_redirige_vers_la_ville_3d() -> None:
+    index = lire(WEB / "dashboard" / "index.html")
+    assert 'url=/dashboard/ville/' in index and 'location.replace("/dashboard/ville/"' in index
+
+
+def test_page_ville_charge_un_seul_module_et_three_en_local() -> None:
+    index = lire(VILLE / "index.html")
+    assert re.findall(r'<script[^>]*src="([^"]+)"', index) == ["/dashboard/ville/app.js"]
+    carte = json.loads(re.search(r'<script type="importmap">(.*?)</script>', index, re.S).group(1))["imports"]
+    assert carte == {"three": "/dashboard/vendor/three/three.module.js", "three/addons/": "/dashboard/vendor/three/addons/"}
+    for f in ("three.module.js", "addons/controls/OrbitControls.js", "LICENSE"):
+        assert (WEB / "dashboard" / "vendor" / "three" / f).exists()
+    assert (WEB / "dashboard" / "vendor" / "leaflet" / "leaflet.js").exists()
+
+
+def test_aucune_ressource_externe_hors_fond_2d_de_secours() -> None:
+    """La ville 3D ne dépend d'aucun service en ligne ; seule la vue 2D de secours charge des tuiles OSM."""
+    for path in [*JS_APP, *VILLE.glob("*.html"), *VILLE.glob("*.css"), WEB / "citizen" / "index.html", WEB / "brigade" / "index.html"]:
+        texte = lire(path)
+        externes = re.findall(r"https?://[^\s\"'`)]+", texte)
+        if path.name == "view2d.js":
+            assert externes and all("openstreetmap.org" in u for u in externes)
+            assert "OpenStreetMap contributors" in texte
+        else:
+            assert not externes, f"Ressource externe dans {path.relative_to(RACINE)} : {externes}"
+
+
+def test_routes_appelees_existent_dans_l_api() -> None:
+    """Chaque chemin /… appelé par shared/api.js correspond à une route réellement servie par l'API."""
+    from api.main import app
+
+    servies = [re.sub(r"\{[^}]+\}", "X", p) for p in app.openapi()["paths"] if p.startswith("/api")]
+    appels = set(re.findall(r'this\.request\("(?:GET|POST)", `?"?(/[^`"?]+)', lire(SHARED / "api.js")))
+    assert len(appels) >= 15
+    for chemin in appels:
+        normal = "/api" + re.sub(r"\$\{[^}]+\}", "X", chemin)
+        assert normal in servies, f"{normal} appelé par le front mais absent de l'API"
+
+
+def test_donnees_fictives_toujours_etiquetees() -> None:
+    assert "SIMULATION — DONNÉES FICTIVES ET SCÉNARIOS DE TEST" in lire(VILLE / "app.js")
+    assert "MODE DÉMONSTRATION — DONNÉES FICTIVES" in lire(SHARED / "ui.js")
+    assert 'get("mock") === "1"' in lire(SHARED / "api.js")          # jamais de bascule automatique
+    assert "isMockMode()" in lire(SHARED / "api.js")
+
+
+def test_rendu_sur_et_sans_identifiant_en_dur() -> None:
+    for path in JS_APP:
+        texte = lire(path)
+        assert ".innerHTML" not in texte, f"innerHTML dans {path.relative_to(RACINE)}"
+        assert not re.search(r"""["'](truck1|saaba)["']""", texte), f"identifiant en dur dans {path.relative_to(RACINE)}"
+
+
+def test_aucun_emoji_dans_les_interfaces() -> None:
+    for path in [*JS_APP, *WEB.rglob("*.html"), *WEB.rglob("*.css")]:
+        if "vendor" in path.parts:
+            continue
+        emojis = [c for c in lire(path) if 0x1F300 <= ord(c) <= 0x1FAFF or 0x2600 <= ord(c) <= 0x27BF or ord(c) == 0xFE0F]
+        assert not emojis, f"emoji dans {path.relative_to(RACINE)}"
+
+
+def test_donnees_de_la_ville_sourcees() -> None:
+    meta = json.loads(lire(VILLE / "data" / "city.json"))["meta"]
+    assert meta["counts"]["buildings"] > 1000 and meta["counts"]["roads"] > 1000
+    licences = {s["license"] for s in meta["sources"]}
+    assert "ODbL-1.0" in licences
+    assert any("estimation" in s["source"] for s in meta["sources"])          # hauteurs estimées déclarées
+    assert "OpenStreetMap" in lire(VILLE / "app.js")                           # crédit affiché
+
+
+@pytest.mark.parametrize("page", ["citizen", "brigade"])
+def test_pages_mobiles_partagent_la_couche_api(page: str) -> None:
+    js = lire(WEB / page / f"{page}.js")
+    assert 'from "/dashboard/shared/api.js"' in js and "queue" in js

@@ -4,7 +4,7 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 
 | Membre | Rôle | Commits | Instantanés automatiques | API | Géo | Optimisation | Simulation | Tri | Cœur (cycle de vie, config, bases, floutage) | Page citoyen | Tableau de bord | Tests | Scripts | Docs | Configuration | Autres |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| jonathan-onjd | B (API, tri, mobile) | 11 | 29 | 1082 | 241 | 265 | 424 | 821 | 507 | 310 | 314 | 1002 | 650 | 180 | 342 | 566 |
+| jonathan-onjd | B (API, tri, mobile) | 12 | 29 | 1090 | 241 | 277 | 424 | 821 | 507 | 310 | 314 | 1093 | 752 | 336 | 713 | 688 |
 | TaniaW777 | A (géo, optimisation) | 7 | 0 |  | 988 | 1274 |  |  | 183 |  |  | 912 | 576 | 204 | 80 | 71 |
 | Christelle Dehoumon | C (simulation, tableau de bord) | 10 | 0 |  |  |  | 1286 |  |  |  | 1635 | 208 | 254 | 163 |  |  |
 

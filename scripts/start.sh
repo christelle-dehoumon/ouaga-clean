@@ -23,7 +23,7 @@ if [ ! -f "$CERT_DIR/cert.pem" ] || [ ! -f "$CERT_DIR/key.pem" ]; then
   IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
   SAN="DNS:localhost,IP:127.0.0.1${IP:+,IP:$IP}"
   echo "[https] certificat auto-signé pour $SAN (le téléphone affichera un avertissement à accepter une fois)"
-  openssl req -x509 -newkey rsa:2048 -nodes -days 365 -subj "/CN=ouaga-clean" \
+  openssl req -x509 -newkey rsa:2048 -nodes -days 365 -subj "/CN=yilgre" \
     -addext "subjectAltName=$SAN" -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" >/dev/null 2>&1
 fi
 "$PY" -m scripts.init_db

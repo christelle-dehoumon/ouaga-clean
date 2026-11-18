@@ -2,6 +2,8 @@
 services:
   api:
     build: .
+    image: yilgre:latest
+    container_name: yilgre
     ports: ["8443:8443"]
     environment:
       - BRIGADE_CODE=${BRIGADE_CODE:-brigade-demo}
@@ -11,7 +13,7 @@ services:
       - SIM_DB=/app/data/state/sim.db
       - PHOTO_DIR=/app/data/state/photos
     volumes:
-      - ouaga-data:/app/data/state
+      - yilgre-data:/app/data/state
     restart: unless-stopped
 volumes:
-  ouaga-data:
+  yilgre-data:

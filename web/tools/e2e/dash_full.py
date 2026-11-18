@@ -145,18 +145,28 @@ with sync_playwright() as p:
     pg.wait_for_function(f"window.__ouaga.plan.sim.plan_id !== '{plan4}' && !window.__ouaga.busy", timeout=60000)
     cuts = pg.evaluate("window.__ouaga.plan.sim.cut_roads.map(c => c.edge_id)")
     ok("sim : route coupée (clic sur la route) -> plan", len(cuts) >= 1, f"{cuts[:2]} | barrière dans la scène : {pg.evaluate('window.__ouaga.view.layers.groups.coupures.children.length')}")
-    # Clic sur un camion en service
-    pg.evaluate("window.__ouaga.view.setPlaying(false)")
-    xy = pg.evaluate("""() => { const v = window.__ouaga.view; const b = v.city.bounds; const t = [...v.fleet.trucks.values()].find(t => !t.broken && t.pts.length > 1 && t.object.position.x > b.minX + 200 && t.object.position.x < b.maxX - 200 && t.object.position.z > b.minZ + 200 && t.object.position.z < b.maxZ - 200);
-      v.rig.controls.target.set(t.object.position.x, 0, t.object.position.z); v.scene.camera.position.set(t.object.position.x + 50, 60, t.object.position.z + 50); window.__truck = t.object.userData.id; return 1; }""")
-    pg.wait_for_timeout(700)
-    xy = pg.evaluate("""() => { const v = window.__ouaga.view; const o = v.fleet.get(window.__truck); const w = o.position.clone(); w.y = 2 * o.scale.y; w.project(v.scene.camera);
-      const b = document.querySelector('#scene').getBoundingClientRect(); return [b.left + (w.x+1)/2*b.width, b.top + (1-w.y)/2*b.height]; }""")
-    pg.evaluate("document.getElementById('toasts')?.remove()")
-    top = pg.evaluate(f"document.elementFromPoint({xy[0]}, {xy[1]}).tagName")
-    pg.mouse.click(xy[0], xy[1])
-    pg.wait_for_timeout(500)
-    ok("3D : clic sur un camion -> fiche (élément sous le pointeur : " + top + ")", "Camion" in pg.text_content("#onglet-selection h2"), pg.text_content("#onglet-selection .sous"))
+    # Clic sur un camion en service : jusqu'à trois camions, point visé contrôlé (dans la ville, sur le canevas).
+    pg.evaluate("window.__ouaga.view.setPlaying(false); window.__ouaga.view.rig.flight = null")
+    picked = None
+    for k in range(3):
+        pg.evaluate("""(k) => { const v = window.__ouaga.view; const b = v.city.bounds;
+          const ts = [...v.fleet.trucks.values()].filter(t => !t.broken && t.pts.length > 1 && t.object.position.x > b.minX + 200
+            && t.object.position.x < b.maxX - 200 && t.object.position.z > b.minZ + 200 && t.object.position.z < b.maxZ - 200);
+          const t = ts[k % ts.length]; v.rig.controls.target.set(t.object.position.x, 0, t.object.position.z);
+          v.scene.camera.position.set(t.object.position.x + 50, 60, t.object.position.z + 50); window.__truck = t.object.userData.id; }""", k)
+        pg.wait_for_timeout(800)
+        xy = pg.evaluate("""() => { const v = window.__ouaga.view; const o = v.fleet.get(window.__truck); const w = o.position.clone(); w.y = 2 * o.scale.y; w.project(v.scene.camera);
+          const b = document.querySelector('#scene').getBoundingClientRect(); return [b.left + (w.x+1)/2*b.width, b.top + (1-w.y)/2*b.height]; }""")
+        pg.evaluate("document.getElementById('toasts')?.remove()")
+        top = pg.evaluate(f"(document.elementFromPoint({xy[0]}, {xy[1]}) || {{}}).tagName")
+        if top != "CANVAS":
+            continue
+        pg.mouse.click(xy[0], xy[1])
+        pg.wait_for_timeout(500)
+        if "Camion" in (pg.text_content("#onglet-selection h2") or ""):
+            picked = window_truck = pg.evaluate("window.__truck")
+            break
+    ok("3D : clic sur un camion -> fiche", picked is not None, pg.text_content("#onglet-selection .sous"))
     pg.screenshot(path=SH + "full_camion.png")
     # Clic sur un quartier
     pg.evaluate("window.__ouaga.view.focusTerritory('paglayiri')")

@@ -88,6 +88,7 @@ with sync_playwright() as p:
     mai.wait_for_function("window.__ouaga.plan.reel && !window.__ouaga.busy", timeout=60000)
     in_plan = mai.evaluate(f"window.__ouaga.plan.reel.consolidation_points.some(p => p.id === 'd_{rid}')")
     ok("3. mairie : le dépotoir confirmé entre dans le plan réel", in_plan, mai.text_content("#statut-plan"))
+    mai.evaluate("window.__ouaga.view.setPlaying(false)")   # un camion animé ne doit pas passer devant l'épingle
     mai.evaluate(f"""() => {{ const v = window.__ouaga.view; const pin = v.layers.groups.signalements.children.find(o => o.userData.data.id === '{rid}');
       v.rig.controls.target.set(pin.position.x, 0, pin.position.z); v.scene.camera.position.set(pin.position.x + 80, 100, pin.position.z + 80); window.__pin = pin; }}""")
     mai.wait_for_timeout(900)
@@ -96,7 +97,11 @@ with sync_playwright() as p:
       return [r.left + (w.x + 1) / 2 * r.width, r.top + (1 - w.y) / 2 * r.height]; }""")
     mai.evaluate("document.getElementById('toasts')?.remove()")
     mai.mouse.click(xy[0], xy[1])
-    mai.wait_for_selector("#onglet-selection >> text=Marquer nettoyé", timeout=10000)
+    try:
+        mai.wait_for_selector("#onglet-selection >> text=Marquer nettoyé", timeout=10000)
+    except Exception:
+        print("fiche obtenue :", mai.text_content("#onglet-selection")[:200])
+        raise
     ok("   mairie : clic sur l'épingle -> fiche « Dépotoir confirmé »", rid in mai.text_content("#onglet-selection .sous"))
     mai.click("#onglet-selection >> text=Marquer nettoyé")
     mai.click(".modal .btn-primary")

@@ -232,17 +232,19 @@ def main() -> None:
         step()
         print(rows[-1][:4], flush=True)
     lines = [
-        "# Mesures du membre A",
+        "# Mesures reproductibles",
         "",
         f"Générées le {started.strftime('%Y-%m-%d %H:%M')} UTC par `python -m scripts.bench` (relançable, une commande).",
         f"Machine : {machine()}.",
         f"Temps médian sur {RUNS} essais sauf mention ; réseau chargé une fois avant les mesures "
-        f"(premier calcul complet, chargement compris : {load_s:.1f} s). Zone pilote, configuration du dépôt.",
+        f"(premier calcul complet, chargement compris : {load_s:.1f} s). Secteur pilote, configuration du dépôt.",
         "Signalements : synthétiques (`scripts/make_synthetic.py`, graine fixe), statut accepted. Valeurs `observed` sur cette machine.",
         "",
         "| Mesure | Variante | Médiane | Résultat | Ce que ça montre |",
         "|---|---|---|---|---|",
     ] + ["| " + " | ".join(r) + " |" for r in rows] + [""]
+    from scripts.bench_blur import markdown, measure
+    lines += markdown(measure())
     OUT.write_text("\n".join(lines), encoding="utf-8")
     print(f"Écrit {OUT} en {(datetime.now(timezone.utc) - started).total_seconds():.0f} s.")
 

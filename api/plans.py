@@ -135,8 +135,8 @@ def compute(body: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
 @router.post("/plans")
 def create_plan(body: Any = Body(default=None), _role: str = MAIRIE) -> dict[str, Any]:
-    """Calcul (complet ou partiel) avec événements ; enregistré dans la base du mode."""
-    return compute(body or {})[1]
+    """Calcul (complet ou partiel) avec événements ; enregistré dans la base du mode. Corps vide = plan par défaut."""
+    return compute({} if body is None else body)[1]
 
 
 @router.get("/plans/{plan_id}")
@@ -223,7 +223,9 @@ def list_scenarios(_role: str = MAIRIE) -> list[dict[str, Any]]:
 @router.post("/scenarios")
 def create_scenario(body: Any = Body(default=None), _role: str = MAIRIE) -> dict[str, Any]:
     """Scénario = plan (avec événements) puis simulation de `days` jours, enregistrés ensemble."""
-    body = body if isinstance(body, dict) else {}
+    body = {} if body is None else body
+    if not isinstance(body, dict):
+        raise HTTPException(422, "Le corps doit être un objet JSON.")
     t0 = time.perf_counter()
     mode, plan = compute(body)
     found = load_plan(plan["plan_id"])
@@ -256,7 +258,9 @@ def compare(a: str = Query(...), b: str = Query(...), _role: str = MAIRIE) -> di
 
 def _point(body: Any) -> tuple[float, float]:
     """(lat, lon) valides d'un corps JSON ; 422 sinon."""
-    lat, lon = (body or {}).get("lat"), (body or {}).get("lon")
+    if not isinstance(body, dict):
+        raise HTTPException(422, "Le corps doit être un objet JSON avec lat et lon.")
+    lat, lon = body.get("lat"), body.get("lon")
     if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (lat, lon)) \
             or not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise HTTPException(422, "lat et lon doivent être des nombres valides.")

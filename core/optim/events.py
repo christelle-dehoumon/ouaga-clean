@@ -46,7 +46,7 @@ def _truck_id(value: Any, trucks: int) -> str:
     text = str(value) if isinstance(value, (str, int)) and not isinstance(value, bool) else ""
     match = re.fullmatch(r"(?:truck)?(\d+)(?:_trip\d+)?", text.strip())
     if not match or not 1 <= int(match.group(1)) <= trucks:
-        raise EventError(f"Camion « {value} » inconnu : la flotte compte {trucks} camion(s), truck1 à truck{trucks}.")
+        raise EventError(f"Camion « {value} » inconnu : la flotte compte {trucks} camion(s), identifiants truck<n> avec n de 1 à {trucks}.")
     return f"truck{int(match.group(1))}"
 
 
@@ -88,12 +88,19 @@ def _postponed(plan: dict[str, Any], previous: dict[str, Any] | None, down: list
     global_checks(plan, cfg, bool(plan["checks"].get("network_available", True)))
 
 
-def _inaccessible(plan: dict[str, Any], base: Network, cut: Network) -> list[dict[str, Any]]:
-    """Points dont le nœud routier le plus proche était praticable et ne l'est plus après les coupures."""
+def _inaccessible(plan: dict[str, Any], base: Network, cut: Network,
+                  previous: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Points (du plan précédent s'il est donné, sinon du plan calculé) dont le nœud routier le plus proche était
+    praticable et ne l'est plus après les coupures ; le calcul a pu déplacer ces points vers un nœud accessible."""
     out = []
+    points = list((previous or {}).get("collection_points") or []) + list(plan["collection_points"])
+    seen: set[str] = set()
     for view_name in ("truck_rain" if plan["params_used"].get("rainy_season") else "truck_dry",):
         bv, cv = base.views[view_name], cut.views[view_name]
-        for p in plan["collection_points"]:
+        for p in points:
+            if p.get("id") in seen:
+                continue
+            seen.add(p.get("id"))
             near = nearest_node(bv, p.get("lat"), p.get("lon"))
             if near and not cv.node_mask[base.index_of[near[0]]]:
                 out.append({"id": p["id"], "reason": "Route coupée : point isolé du réseau camion."})
@@ -117,6 +124,6 @@ def plan_with_events(params: dict[str, Any] | None, reports: list[dict[str, Any]
     plan["events"] = events or []
     plan["cut_roads"] = cuts
     plan["warnings"] = plan["warnings"] + cut_warnings
-    plan["inaccessible_due_to_cuts"] = _inaccessible(plan, base_net, work_net) if cuts else []
+    plan["inaccessible_due_to_cuts"] = _inaccessible(plan, base_net, work_net, previous_plan) if cuts else []
     _postponed(plan, previous_plan, down, cfg)
     return plan

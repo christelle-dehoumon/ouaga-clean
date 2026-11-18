@@ -1,3 +1,7 @@
+> **Note du 2026-11-18** : le contrat de l'API publique est désormais [docs/api.md](api.md) (statuts du cycle de vie,
+> réponse citoyen opaque, codes par rôle). Ce document reste la référence des formats internes du moteur (plan,
+> points, tournées) ; les statuts `pending|accepted|rejected|to_review` ci-dessous ne sont plus exposés par l'API.
+
 # Contrat de données — version 2
 
 Version 2.1 (2026-11-17, membre A, sur demande de Tania) : `totals.demand_non_subscribers_kg`, `capacity_shortfall_kg`, `coverage_rate_subscribers` (ajouts, rien de retiré).

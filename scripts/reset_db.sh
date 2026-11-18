@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
-# reset_db.sh — supprime la base locale et réinitialise via l'API si elle tourne.
+# Remise à zéro de la démonstration : vide sim.db et recharge le jeu factice. reel.db seulement avec --reel.
+# Usage : ./scripts/reset_db.sh [--reel]
 set -euo pipefail
-
-DB="${REPORTS_DB:-data/reports.db}"
-API_URL="${API_URL:-http://localhost:8000}"
-
-echo "Suppression de ${DB}…"
-rm -f "${DB}"
-echo "  → fichier supprimé (ou absent)."
-
-if curl -sf "${API_URL}/api/health" > /dev/null 2>&1; then
-  echo "API détectée sur ${API_URL} — appel de POST /api/admin/reset…"
-  curl -s -X POST "${API_URL}/api/admin/reset" | python3 -m json.tool
-  echo "  → reset API effectué."
-else
-  echo "API non joignable sur ${API_URL} — reset fichier uniquement."
-fi
+cd "$(dirname "$0")/.."
+PY="${PYTHON_BIN:-.venv/bin/python}"
+"$PY" - "$@" <<'PYEOF'
+import sys
+from core.db import reset
+modes = ["sim"] + (["reel"] if "--reel" in sys.argv[1:] else [])
+for mode in modes:
+    reset(mode)
+    print(f"[reset] base {mode} vidée")
+PYEOF
+"$PY" -m scripts.init_db

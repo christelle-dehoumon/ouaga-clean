@@ -121,3 +121,19 @@ def test_absurd_params_are_clamped(client: TestClient) -> None:
     plan = _plan(client, params={"population": 1e15, "trucks": -5})
     assert plan["params_used"]["population"] == client.get("/api/config").json()["params"]["population"]["max"]
     assert plan["params_used"]["trucks"] == 0 and any("ramené" in w for w in plan["warnings"])
+
+
+def test_cutting_all_roads_around_a_point_isolates_it(client: TestClient) -> None:
+    """Toutes les routes autour d'un point coupées : le point est listé comme rendu inaccessible."""
+    from core.geo.graph import edge_id, nearest_node
+    from core.optim.plan import default_network
+
+    net = default_network()
+    base = _plan(client)
+    point = base["consolidation_points"][0]
+    node, _ = nearest_node(net.views["truck_dry"], point["lat"], point["lon"])
+    k = net.index_of[node]
+    around = [edge_id(net, i) for i in range(len(net.edges["u"])) if k in (net.edges["u"][i], net.edges["v"][i])]
+    plan = _plan(client, cut_roads=[{"edge_id": e} for e in around], previous_plan_id=base["plan_id"])
+    assert point["id"] in {p["id"] for p in plan["inaccessible_due_to_cuts"]}
+    assert len(plan["cut_roads"]) >= 1

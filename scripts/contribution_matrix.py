@@ -43,7 +43,11 @@ BRICKS = [
     ("pyosmium", "4.3.2", "BSD-2-Clause", "lecture des fichiers OSM"), ("Mesa", "3.5.2", "Apache-2.0", "simulation multi-agents"),
     ("OpenCV (opencv-python-headless)", "4.12.0.88", "Apache-2.0 (roue avec FFmpeg LGPL-2.1, voir THIRD_PARTY_LICENSES.md)", "floutage"),
     ("Requests", "2.34.2", "Apache-2.0", "scripts de préparation"), ("pytest / httpx", "9.2.0 / 0.28.1", "MIT / BSD-3-Clause", "tests"),
-    ("Three.js", "r170", "MIT", "ville 3D"), ("Leaflet", "1.9.4", "BSD-2-Clause", "carte 2D de secours"),
+    ("Three.js", "r170", "MIT", "camions 3D, ville 3D du secteur pilote"), ("Leaflet", "1.9.4", "BSD-2-Clause", "carte 2D de secours, carte de la brigade"),
+    ("MapLibre GL JS", "6.16.0", "BSD-3-Clause", "carte 3D de l'agglomération"), ("PMTiles (JavaScript)", "4.5.0", "BSD-3-Clause", "lecture des tuiles auto-hébergées"),
+    ("Polices Noto Sans", "—", "SIL OFL-1.1", "étiquettes de la carte"), ("Textures Poly Haven", "—", "CC0-1.0", "façades des bâtiments (stylistique)"),
+    ("Planetiler (outil de fabrication, non livré)", "0.10.2", "Apache-2.0", "fabrication des tuiles"),
+    ("pmtiles / mapbox-vector-tile (Python, fabrication, non livrés)", "3.8.1 / 2.2.0", "BSD-3-Clause / MIT", "validation des tuiles, index de recherche"),
     ("Playwright (outil de test, non livré)", "—", "Apache-2.0", "tests de bout en bout"),
     ("Données OpenStreetMap", "—", "ODbL-1.0, « © OpenStreetMap contributors »", "routes, bâtiments, eau, quartiers"),
     ("Images de test (Wikimedia Commons)", "—", "domaine public / CC0", "mesure du floutage"),
@@ -63,7 +67,7 @@ def main() -> None:
     data_files: dict[str, set[str]] = defaultdict(set)
     commits: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # commits, instantanés
     author, skip = "", False
-    log = git("log", "--all", "--no-merges", "--numstat", "--pretty=format:@@%an|%s")
+    log = git("log", "--all", "--no-merges", "--numstat", "--pretty=format:@@%aN|%s")   # %aN : identités fusionnées par .mailmap
     for row in log.splitlines():
         if row.startswith("@@"):
             author, subject = (row[2:].split("|", 1) + [""])[:2]
@@ -81,7 +85,7 @@ def main() -> None:
     names = [n for _, n in LAYERS] + ["Autres"]
     authors = sorted(commits, key=lambda a: -sum(lines[a].values()))
     out = [
-        "# Matrice de Contribution de Yilgré",
+        "# Matrice de Contribution de VIELA",
         "",
         "Générée par `python -m scripts.contribution_matrix` à partir de git (toutes branches, sans fusions). "
         "Lignes ajoutées par couche, hors données, bibliothèques copiées et images (comptées en fichiers).",

@@ -1,4 +1,4 @@
-# Matrice de Contribution de Yilgré
+# Matrice de Contribution de VIELA
 
 Générée par `python -m scripts.contribution_matrix` à partir de git (toutes branches, sans fusions). Lignes ajoutées par couche, hors données, bibliothèques copiées et images (comptées en fichiers).
 
@@ -6,28 +6,28 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 
 | Membre (auteur git) | Rôle | Commits | Instantanés automatiques (non attribués) | Fichiers de données touchés |
 |---|---|---|---|---|
-| jonathan-onjd | API, tri, interfaces (à confirmer) | 28 | 29 | 36 |
+| jonathan-onjd | API, tri, interfaces (à confirmer) | 29 | 0 | 36 |
+| Christelle Dehoumon | simulation, tableau de bord (à confirmer) | 18 | 0 | 61 |
 | TaniaW777 | géo, optimisation (à confirmer) | 7 | 0 | 6 |
-| Christelle Dehoumon | simulation, tableau de bord (à confirmer) | 10 | 0 | 17 |
 
 ## Lignes ajoutées par couche
 
-| Couche | jonathan-onjd | TaniaW777 | Christelle Dehoumon |
+| Couche | jonathan-onjd | Christelle Dehoumon | TaniaW777 |
 |---|---|---|---|
-| API | 1092 |  |  |
-| Tri | 821 |  |  |
-| Moteur (géo, optimisation) | 518 | 2262 |  |
-| Simulation | 424 |  | 1286 |
-| Cycle de vie, bases, floutage | 507 | 183 |  |
-| Citoyen | 680 |  |  |
-| Brigade | 384 |  |  |
-| Mairie 3D | 3424 |  |  |
-| Ancien tableau de bord | 325 |  | 1588 |
-| Tests | 1895 | 912 | 208 |
-| Scripts, déploiement | 1341 | 576 | 254 |
-| Documentation | 1629 | 244 | 163 |
-| Configuration | 713 | 80 |  |
-| Autres | 126 | 31 |  |
+| API | 963 |  |  |
+| Tri | 540 |  |  |
+| Moteur (géo, optimisation) | 518 |  | 2262 |
+| Simulation | 424 | 1286 |  |
+| Cycle de vie, bases, floutage | 509 |  | 183 |
+| Citoyen | 525 | 224 |  |
+| Brigade | 384 | 263 |  |
+| Mairie 3D | 3424 | 2280 |  |
+| Ancien tableau de bord | 325 | 1589 |  |
+| Tests | 1779 | 449 | 912 |
+| Scripts, déploiement | 1279 | 908 | 576 |
+| Documentation | 1605 | 621 | 244 |
+| Configuration | 699 |  | 80 |
+| Autres | 84 | 124 | 31 |
 
 Lecture et limites :
 
@@ -54,8 +54,14 @@ Lecture et limites :
 | OpenCV (opencv-python-headless) | 4.12.0.88 | Apache-2.0 (roue avec FFmpeg LGPL-2.1, voir THIRD_PARTY_LICENSES.md) | floutage |
 | Requests | 2.34.2 | Apache-2.0 | scripts de préparation |
 | pytest / httpx | 9.2.0 / 0.28.1 | MIT / BSD-3-Clause | tests |
-| Three.js | r170 | MIT | ville 3D |
-| Leaflet | 1.9.4 | BSD-2-Clause | carte 2D de secours |
+| Three.js | r170 | MIT | camions 3D, ville 3D du secteur pilote |
+| Leaflet | 1.9.4 | BSD-2-Clause | carte 2D de secours, carte de la brigade |
+| MapLibre GL JS | 6.16.0 | BSD-3-Clause | carte 3D de l'agglomération |
+| PMTiles (JavaScript) | 4.5.0 | BSD-3-Clause | lecture des tuiles auto-hébergées |
+| Polices Noto Sans | — | SIL OFL-1.1 | étiquettes de la carte |
+| Textures Poly Haven | — | CC0-1.0 | façades des bâtiments (stylistique) |
+| Planetiler (outil de fabrication, non livré) | 0.10.2 | Apache-2.0 | fabrication des tuiles |
+| pmtiles / mapbox-vector-tile (Python, fabrication, non livrés) | 3.8.1 / 2.2.0 | BSD-3-Clause / MIT | validation des tuiles, index de recherche |
 | Playwright (outil de test, non livré) | — | Apache-2.0 | tests de bout en bout |
 | Données OpenStreetMap | — | ODbL-1.0, « © OpenStreetMap contributors » | routes, bâtiments, eau, quartiers |
 | Images de test (Wikimedia Commons) | — | domaine public / CC0 | mesure du floutage |

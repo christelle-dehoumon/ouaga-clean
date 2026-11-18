@@ -46,7 +46,7 @@ def _places(cfg: dict[str, Any], raw_dir: Path) -> list[dict[str, Any]]:
     url = str((cfg.get("download") or {}).get("overpass_url") or "https://overpass-api.de/api").rstrip("/")
     for attempt in range(5):  # serveur public souvent saturé : réessais avec attente croissante
         resp = requests.post(url + "/interpreter", data={"data": query}, timeout=120,
-                             headers={"User-Agent": "ouaga-clean (logiciel libre, hackathon)"})
+                             headers={"User-Agent": "yilgre (logiciel libre, hackathon)"})
         if resp.ok:
             break
         print(f"[quartiers] Overpass HTTP {resp.status_code}, nouvel essai dans {15 * 2 ** attempt} s")

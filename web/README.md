@@ -1,4 +1,4 @@
-# Front Ouaga Clean (web/)
+# Front Yilgré (web/)
 
 HTML, CSS et JavaScript natifs (modules ES), sans framework ni étape de construction. Contrat d'API : `docs/api.md`.
 

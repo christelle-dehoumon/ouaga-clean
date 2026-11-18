@@ -4,7 +4,7 @@ Nov 16, 2026 · @Wedtoin
 
 ## La décision
 
-On suit la proposition 2 (le guide d'équipe), on y greffe cinq éléments de la proposition 1 (Ouaga Clean) et on ajoute trois choses nouvelles. Ce document remplace les deux propositions : c'est la seule route.
+On suit la proposition 2 (le guide d'équipe), on y greffe cinq éléments de la proposition 1 (Yilgré) et on ajoute trois choses nouvelles. Ce document remplace les deux propositions : c'est la seule route.
 
 | What                                      | Why                                                                                   | How                                                                                                  |
 |-------------------------------------------|---------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|

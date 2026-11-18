@@ -1,4 +1,4 @@
-# Image de l'API Ouaga Clean (même démarrage que scripts/run.sh, sans venv).
+# Image de Yilgré (API et interfaces web) (même démarrage que scripts/run.sh, sans venv).
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

@@ -1,4 +1,4 @@
-"""API Ouaga Clean : signalements (cycle de vie), plan de gestion, simulation, exports.
+"""API Yilgré : signalements (cycle de vie), plan de gestion, simulation, exports.
 
 Toutes les erreurs sont du JSON {"detail": "..."} en français, jamais une trace Python.
 """
@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = ROOT / "web"
 LOG = logging.getLogger("ouaga")
 
-app = FastAPI(title="Ouaga Clean API", version="1.0")
+app = FastAPI(title="Yilgré API", version="1.0")
 
 STATUS_TEXT = {400: "Requête invalide.", 401: "Code d'accès manquant ou incorrect.", 403: "Action non autorisée.",
                404: "Ressource introuvable.", 405: "Méthode non autorisée pour ce chemin.", 409: "Conflit.",

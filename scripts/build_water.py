@@ -34,7 +34,7 @@ def _fetch(cfg: dict) -> dict:
     url = str((cfg.get("download") or {}).get("overpass_url") or "https://overpass-api.de/api").rstrip("/")
     for attempt in range(5):
         resp = requests.post(url + "/interpreter", data={"data": query}, timeout=240,
-                             headers={"User-Agent": "ouaga-clean (logiciel libre, hackathon)"})
+                             headers={"User-Agent": "yilgre (logiciel libre, hackathon)"})
         if resp.ok:
             break
         print(f"[eau] Overpass HTTP {resp.status_code}, nouvel essai dans {15 * 2 ** attempt} s")

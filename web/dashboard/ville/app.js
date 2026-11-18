@@ -93,6 +93,13 @@ async function init() {
   window.__ouaga = S;   // inspection et tests
 }
 
+/** Couverture réduite (tuiles absentes ou carte en échec) : bandeau permanent, jamais une ville incomplète sans le dire. */
+function couvertureLimitee(message) {
+  const b = $("#bandeau-couverture");
+  b.textContent = message;
+  b.hidden = false;
+}
+
 async function createView(cityData, other = null) {
   const host = $("#scene");
   const { detectWebGL } = await import("./map3d/scene.js");
@@ -108,11 +115,11 @@ async function createView(cityData, other = null) {
         return await createViewCarte(host, cityData);
       } catch (err) {
         console.error(err);
-        toast(`La carte n'a pas pu démarrer (${err.message}) : ville 3D du secteur pilote.`, "erreur", 8000);
+        couvertureLimitee(`Carte de toute la ville indisponible (${err.message}) : affichage limité au secteur pilote et aux quartiers téléchargés.`);
         host.querySelectorAll(".maplibregl-canvas-container, .maplibregl-control-container").forEach((n) => n.remove());
       }
     } else {
-      toast("Tuiles de la carte absentes (./scripts/fabriquer_tuiles.sh) : ville 3D du secteur pilote.", "info", 8000);
+      couvertureLimitee("Carte de toute la ville indisponible : tuiles non fabriquées sur ce poste (lancer ./scripts/fabriquer_tuiles.sh). Affichage limité au secteur pilote et aux quartiers téléchargés.");
     }
   }
   if (!forced2d && !other && detectWebGL()) {

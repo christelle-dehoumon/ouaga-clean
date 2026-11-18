@@ -52,3 +52,6 @@ data/communes/*/photos/
 # versionnement à décider). Sans elles, la mairie se replie sur la ville 3D du secteur pilote.
 web/dashboard/ville/carte/data/ouagadougou.pmtiles
 web/dashboard/ville/carte/data/recherche.json
+web/dashboard/ville/carte/data/.fabrication.json
+web/dashboard/ville/carte/data/.ouagadougou.en-cours.pmtiles
+web/dashboard/ville/carte/data/recherche.json.tmp

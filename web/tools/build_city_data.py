@@ -166,7 +166,7 @@ def main() -> int:
     minx, miny, maxx, maxy = extent.bounds
     city = {
         "meta": {
-            "origin": [proj.lat0, proj.lon0], "unit": "décimètres, deltas", "axes": "x est, z sud",
+            "commune": cfg.get("commune"), "origin": [proj.lat0, proj.lon0], "unit": "décimètres, deltas", "axes": "x est, z sud",
             "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "extent_lonlat": [round(minx, 5), round(miny, 5), round(maxx, 5), round(maxy, 5)],
             "counts": {"buildings": len(blds), "roads": len(rds), "water": len(water), **hstats},

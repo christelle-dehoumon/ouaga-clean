@@ -100,11 +100,11 @@ export class MockApi {
     if (!roles.includes(this.role)) throw new ApiError(`Action réservée à : ${roles.join(", ")}.`, { status: 403 });
   }
 
-  async health() { await this._delay(); return { ok: true, commune: "Ouagadougou (démonstration)", simulation: "démonstration", network_nodes: this.graph?.nodes.size || 0 }; }
+  async health() { await this._delay(); return { ok: true, commune: "Ouagadougou", simulation: "démonstration", network_nodes: this.graph?.nodes.size || 0 }; }
   async config() {
     await this._delay();
     const p = (min, max, def, unit, label) => ({ min, max, default: def, unit, label });
-    return { commune: "Ouagadougou (démonstration)", center: CENTER, zoom: 14, modes: ["reel", "sim"], territories: TERRITORIES,
+    return { commune: "Ouagadougou", center: CENTER, zoom: 14, modes: ["reel", "sim"], territories: TERRITORIES,
       params: { population: p(0, 6000000, 3000000, "habitants", "Population de la commune"),
         subscription_rate: p(0, 1, 0.4, "part (0 a 1)", "Taux d'abonnement a la pre-collecte"),
         trucks: p(0, 60, 10, "camions", "Camions de la mairie"), truck_capacity_kg: p(500, 20000, 5000, "kg", "Capacite d'un camion"),
@@ -362,4 +362,6 @@ export class MockApi {
     return { edge: { edge_id: edgeId }, cut, active_cuts: [...this.cuts].map((e) => ({ edge_id: e })) };
   }
   async exportReports() { await this._delay(); return { type: "FeatureCollection", features: [], license: "fictif" }; }
+  async exportOsm() { await this._delay(); return "<?xml version='1.0' encoding='UTF-8'?>\n<osm version='0.6' upload='never'>\n</osm>\n"; }
+  async exportPlan(id) { const p = await this.getPlan(id); return { type: "FeatureCollection", name: "plan fictif", features: [] , data_tag: p.data_tag }; }
 }

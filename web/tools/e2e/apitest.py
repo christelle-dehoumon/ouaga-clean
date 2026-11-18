@@ -31,5 +31,9 @@ JS = """async () => {
 with sync_playwright() as p:
     b = p.chromium.launch()
     pg = b.new_page(); pg.goto(BASE + "/citizen/")
-    for k, v in pg.evaluate(JS).items(): print(f"{k:16s} {v}")
+    out = pg.evaluate(JS)
+    for k, v in out.items(): print(f"{k:16s} {v}")
+    assert out["sans_code"][0] == 401 and out["plan_404"][0] == 404 and out["brigade_plan"][0] == 403
+    assert out["delai"][0] == "delai" and out["reseau"][0] == "reseau" and out["get_dedoublonne"] == 1
+    assert out["plan"][0] == "complet" and out["mock_409"][0] == 409
     b.close()

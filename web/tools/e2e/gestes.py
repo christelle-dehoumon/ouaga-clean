@@ -58,6 +58,19 @@ with sync_playwright() as p:
     pg.wait_for_function(f"window.__ouaga.plan.sim.plan_id !== '{courant}'", timeout=20000)
     ok("historique : « Rouvrir » affiche le plan enregistré", True,
        pg.evaluate("window.__ouaga.plan.sim.plan_id") + " | " + pg.locator(".toast").last.text_content())
+    # Exports (données ouvertes) : vrais téléchargements depuis le mode réel.
+    pg.click("#mode-reel")
+    pg.wait_for_selector("text=Fichier OSM (JOSM)", timeout=20000)
+    with pg.expect_download() as d:
+        pg.click("#panneau-gauche >> text=GeoJSON")
+    geo = open(d.value.path(), encoding="utf-8").read()
+    with pg.expect_download() as d2:
+        pg.click("text=Fichier OSM (JOSM)")
+    osm = open(d2.value.path(), encoding="utf-8").read()
+    ok("exports : GeoJSON (licence) et fichier OSM téléchargés", '"license"' in geo and "upload='never'" in osm,
+       f"{d.value.suggested_filename}, {d2.value.suggested_filename}")
     ok("aucune erreur JavaScript", not errs, str(errs[:3]))
     b.close()
 print(f"{sum(res)}/{len(res)} vérifications OK")
+import sys
+sys.exit(0 if all(res) else 1)

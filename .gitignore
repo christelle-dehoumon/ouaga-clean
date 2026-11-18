@@ -47,3 +47,4 @@ data/raw/*
 data/communes/*/reel.db*
 data/communes/*/sim.db*
 data/communes/*/photos/
+.venv-e2e/

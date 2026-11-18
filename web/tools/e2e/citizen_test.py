@@ -42,4 +42,6 @@ with sync_playwright() as p:
     pg2.goto(B + "/citizen/"); pg2.wait_for_selector("#pos-etat.erreur", timeout=25000)
     print("8 GPS refusé :", pg2.text_content("#pos-etat"), "| bouton :", pg2.is_enabled("#envoyer"))
     print("erreurs JS :", errs)
+    assert not errs and pg.locator(".pastille.p-recu").count() >= 2, "parcours citoyen incomplet"
+    assert pg2.is_enabled("#envoyer") is False
     b.close()

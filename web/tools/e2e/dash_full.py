@@ -190,3 +190,4 @@ with sync_playwright() as p:
     ok("aucune erreur JavaScript", not errs, str(errs[:5]))
     b.close()
 print(f"\n{sum(r for _, r in RESULTS)}/{len(RESULTS)} vérifications OK")
+sys.exit(0 if all(r for _, r in RESULTS) else 1)

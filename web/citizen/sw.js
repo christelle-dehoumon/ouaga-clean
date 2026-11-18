@@ -1,9 +1,12 @@
 // Service worker de la page citoyen : la page s'ouvre sans réseau (coquille en cache). Les appels /api ne sont
 // jamais mis en cache : un envoi n'est « reçu » que sur réponse réelle du serveur.
-const CACHE = "ouaga-citoyen-v1";
+const CACHE = "yilgre-citoyen-v2";
 const SHELL = [
   "/citizen/", "/citizen/citizen.css", "/citizen/citizen.js",
-  "/dashboard/shared/api.js", "/dashboard/shared/store.js", "/dashboard/shared/ui.js", "/dashboard/shared/shared.css",
+  "/dashboard/shared/api.js", "/dashboard/shared/store.js", "/dashboard/shared/ui.js", "/dashboard/shared/design.css", "/dashboard/shared/shared.css",
+  "/dashboard/shared/logo.jpg", "/dashboard/shared/icones/photo.svg", "/dashboard/shared/icones/envoyer.svg", "/dashboard/shared/icones/ok.svg",
+  "/dashboard/shared/icones/horloge.svg", "/dashboard/shared/icones/alerte.svg", "/dashboard/shared/icones/position.svg",
+  "/dashboard/shared/icones/reseau.svg", "/dashboard/shared/icones/reseau-off.svg", "/dashboard/shared/icones/aide.svg",
 ];
 
 self.addEventListener("install", (e) => {

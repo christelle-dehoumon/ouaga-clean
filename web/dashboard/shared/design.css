@@ -1,0 +1,108 @@
+/* Yilgré : jetons du système de design, communs aux trois interfaces (citoyen, brigade, mairie).
+   Couleurs du drapeau du Burkina Faso employées avec retenue : vert = identité et actions positives,
+   jaune = accent rare (sélection, alerte douce), rouge = erreurs, rejets, danger uniquement.
+   Mode clair par défaut ; la mairie active le mode sombre automatique avec <html class="theme-auto">. */
+:root {
+  color-scheme: light;
+  /* Neutres chauds */
+  --fond: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #f1eee8;
+  --surface-3: #e8e4dc;
+  --trait: #e0dbd1;
+  --trait-fort: #c9c3b8;
+  --texte: #1e2320;
+  --texte-2: #545a56;
+  --texte-3: #6b706c;
+  --encre: #1e2320;          /* fonds sombres ponctuels (toast, infobulle) */
+  --sur-encre: #f6f4ef;
+
+  /* Drapeau */
+  --vert: #0a7a42;           /* texte blanc dessus : AA */
+  --vert-vif: #009e49;
+  --vert-pale: #e2f2e8;
+  --vert-texte: #0a6a3a;
+  --jaune: #fcd116;
+  --jaune-pale: #fff5c7;
+  --jaune-texte: #6e5200;
+  --rouge: #c62828;
+  --rouge-vif: #ef2b2d;
+  --rouge-pale: #fde8e7;
+  --rouge-texte: #9f1d1d;
+
+  /* Statuts (toujours couleur + libellé + icône) */
+  --st-verifier: #b25d00;   --st-verifier-pale: #fdedd6;
+  --st-confirme: #0a7a42;   --st-confirme-pale: #e2f2e8;
+  --st-rejete: #c62828;     --st-rejete-pale: #fde8e7;
+  --st-nettoyage: #3d6373;  --st-nettoyage-pale: #e2ebef;
+  --st-simule: #6a4c9c;     --st-simule-pale: #eee8f7;
+
+  /* Espacements : grille de 8 px */
+  --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-5: 24px; --e-6: 32px; --e-7: 48px;
+
+  /* Typographie : une famille, quatre tailles, deux graisses */
+  --police: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --t-titre: 1.25rem;
+  --t-sous: 1rem;
+  --t-corps: .9375rem;
+  --t-legende: .8125rem;
+  --g-normal: 400;
+  --g-fort: 600;
+
+  /* Formes */
+  --rayon-s: 8px;
+  --rayon: 10px;
+  --rayon-l: 12px;
+  --rayon-plein: 999px;
+  --ombre-1: 0 1px 2px rgba(30, 35, 32, .06), 0 1px 1px rgba(30, 35, 32, .04);
+  --ombre-2: 0 4px 16px rgba(30, 35, 32, .10), 0 1px 3px rgba(30, 35, 32, .06);
+  --ombre-3: 0 16px 40px rgba(30, 35, 32, .18);
+  --voile: rgba(24, 27, 25, .45);
+
+  /* Mouvement */
+  --duree: 180ms;
+  --courbe: cubic-bezier(.2, .7, .2, 1);
+
+  --focus: 0 0 0 3px var(--surface), 0 0 0 5px var(--vert-vif);
+  --cible: 44px;
+}
+
+/* Mode sombre (tableau de bord mairie uniquement) */
+@media (prefers-color-scheme: dark) {
+  :root.theme-auto {
+    color-scheme: dark;
+    --fond: #141614;
+    --surface: #1d201e;
+    --surface-2: #262a27;
+    --surface-3: #313532;
+    --trait: #333834;
+    --trait-fort: #4a504b;
+    --texte: #ecebe5;
+    --texte-2: #b7b6ae;
+    --texte-3: #9c9b93;
+    --encre: #0f110f;
+    --sur-encre: #ecebe5;
+    --vert: #1f9a5a;
+    --vert-pale: rgba(43, 191, 110, .14);
+    --vert-texte: #6fdaa0;
+    --jaune-pale: rgba(252, 209, 22, .14);
+    --jaune-texte: #f5d75a;
+    --rouge: #d64545;
+    --rouge-pale: rgba(239, 43, 45, .15);
+    --rouge-texte: #ff9d9b;
+    --st-verifier: #f0a54a;   --st-verifier-pale: rgba(240, 165, 74, .15);
+    --st-confirme: #6fdaa0;   --st-confirme-pale: rgba(43, 191, 110, .14);
+    --st-rejete: #ff9d9b;     --st-rejete-pale: rgba(239, 43, 45, .15);
+    --st-nettoyage: #9cc3d2;  --st-nettoyage-pale: rgba(120, 170, 190, .15);
+    --st-simule: #c3aef0;     --st-simule-pale: rgba(150, 120, 220, .18);
+    --ombre-1: 0 1px 2px rgba(0, 0, 0, .3);
+    --ombre-2: 0 6px 20px rgba(0, 0, 0, .35);
+    --ombre-3: 0 18px 48px rgba(0, 0, 0, .5);
+    --voile: rgba(0, 0, 0, .6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duree: 0ms; }
+  *, *::before, *::after { animation-duration: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 0ms !important; scroll-behavior: auto !important; }
+}

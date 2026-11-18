@@ -1,20 +1,109 @@
-/* Styles communs : bandeau du mode démonstration, fenêtres de confirmation, messages. */
+/* Composants communs aux trois interfaces. Les jetons (couleurs, espacements, typographie) sont dans design.css. */
 [hidden] { display: none !important; }
-.bandeau-demo { position: sticky; top: 0; z-index: 1000; background: repeating-linear-gradient(135deg, #fcd116 0 14px, #f3c400 14px 28px);
-  color: #1d1f1e; font: 700 .9rem/1.2 system-ui, sans-serif; letter-spacing: .04em; text-align: center; padding: .45rem .8rem; }
-.toasts { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 1200; display: grid; gap: .4rem; width: min(92vw, 30rem); }
-.toast { background: #1d1f1e; color: #fff; padding: .7rem .9rem; border-radius: 8px; font: .92rem/1.35 system-ui, sans-serif;
-  border-left: 5px solid #fcd116; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
-.toast-ok { border-left-color: #009e49; }
-.toast-erreur { border-left-color: #ef2b2d; }
-.modal-overlay { position: fixed; inset: 0; z-index: 1100; background: rgba(20, 20, 18, .55); display: grid; place-items: center; padding: 1rem; }
-.modal { background: #fff; color: #1d1f1e; border-radius: 12px; padding: 1.2rem; width: min(100%, 26rem); font: 1rem/1.45 system-ui, sans-serif;
-  box-shadow: 0 12px 40px rgba(0,0,0,.3); }
-.modal h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
-.modal p { margin: 0 0 1rem; color: #4a4f4b; }
-.modal .input { width: 100%; font: inherit; padding: .7rem; border: 1.5px solid #8b8f8a; border-radius: 8px; margin-bottom: .9rem; }
-.modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
-.modal .btn { min-height: 44px; padding: .5rem 1rem; font: 600 .95rem system-ui, sans-serif; border-radius: 8px; border: 1.5px solid #1d1f1e;
-  background: #fff; color: #1d1f1e; cursor: pointer; width: auto; margin: 0; }
-.modal .btn-primary { background: #1d1f1e; color: #fff; }
-.modal .btn-danger { background: #ef2b2d; border-color: #ef2b2d; color: #fff; }
+.visuellement-cache { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* --- Icônes : fichiers SVG locaux, teintés par la couleur du texte --------------------------------------------- */
+.ico, .avec-ico::before {
+  display: inline-block; flex: none; width: 1.15em; height: 1.15em; background: currentColor;
+  -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat;
+}
+.avec-ico::before { content: ""; }
+.i-ok { --ico: url("/dashboard/shared/icones/ok.svg"); }
+.i-croix { --ico: url("/dashboard/shared/icones/croix.svg"); }
+.i-horloge { --ico: url("/dashboard/shared/icones/horloge.svg"); }
+.i-alerte { --ico: url("/dashboard/shared/icones/alerte.svg"); }
+.i-balai { --ico: url("/dashboard/shared/icones/balai.svg"); }
+.i-fiole { --ico: url("/dashboard/shared/icones/fiole.svg"); }
+.i-camion { --ico: url("/dashboard/shared/icones/camion.svg"); }
+.i-pluie { --ico: url("/dashboard/shared/icones/pluie.svg"); }
+.i-quartier { --ico: url("/dashboard/shared/icones/quartier.svg"); }
+.i-photo { --ico: url("/dashboard/shared/icones/photo.svg"); }
+.i-reseau { --ico: url("/dashboard/shared/icones/reseau.svg"); }
+.i-reseau-off { --ico: url("/dashboard/shared/icones/reseau-off.svg"); }
+.i-actualiser { --ico: url("/dashboard/shared/icones/actualiser.svg"); }
+.i-panneau-g { --ico: url("/dashboard/shared/icones/panneau-g.svg"); }
+.i-panneau-d { --ico: url("/dashboard/shared/icones/panneau-d.svg"); }
+.i-retour { --ico: url("/dashboard/shared/icones/retour.svg"); }
+.i-position { --ico: url("/dashboard/shared/icones/position.svg"); }
+.i-envoyer { --ico: url("/dashboard/shared/icones/envoyer.svg"); }
+.i-aide { --ico: url("/dashboard/shared/icones/aide.svg"); }
+.i-cle { --ico: url("/dashboard/shared/icones/cle.svg"); }
+
+/* --- Logo officiel : posé tel quel sur une pastille claire ------------------------------------------------------ */
+.logo { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: var(--rayon-s);
+  background: #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06); overflow: hidden; }
+.logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* --- Boutons ------------------------------------------------------------------------------------------------------ */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2); min-height: var(--cible);
+  padding: 0 var(--e-4); border-radius: var(--rayon-s); border: 1px solid var(--trait-fort); background: var(--surface);
+  color: var(--texte); font: var(--g-fort) var(--t-corps)/1.2 var(--police); text-decoration: none; cursor: pointer;
+  transition: background-color var(--duree) var(--courbe), border-color var(--duree) var(--courbe), color var(--duree) var(--courbe), box-shadow var(--duree) var(--courbe); }
+.btn:hover:not(:disabled) { border-color: var(--texte-3); background: var(--surface-2); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primaire, .btn-primary, .btn-vert { background: var(--vert); border-color: var(--vert); color: #fff; }
+.btn-primaire:hover:not(:disabled), .btn-primary:hover:not(:disabled), .btn-vert:hover:not(:disabled) { background: var(--vert-texte); border-color: var(--vert-texte); color: #fff; }
+.btn-danger, .btn-rouge { background: var(--rouge); border-color: var(--rouge); color: #fff; }
+.btn-danger:hover:not(:disabled), .btn-rouge:hover:not(:disabled) { background: var(--rouge-texte); border-color: var(--rouge-texte); color: #fff; }
+.btn-jaune { background: var(--jaune-pale); border-color: #e9c84a; color: var(--jaune-texte); }
+.btn-jaune:hover:not(:disabled) { background: var(--jaune-pale); border-color: var(--jaune-texte); }
+.btn-fantome { background: transparent; border-color: transparent; color: var(--texte-2); }
+.btn-fantome:hover:not(:disabled) { background: var(--surface-2); border-color: transparent; color: var(--texte); }
+.btn.actif { border-color: var(--jaune-texte); box-shadow: inset 0 0 0 1px var(--jaune-texte); background: var(--jaune-pale); color: var(--jaune-texte); }
+.btn .ico { width: 18px; height: 18px; }
+.btn[aria-busy="true"] { position: relative; color: transparent !important; }
+.btn[aria-busy="true"]::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid currentColor; border-color: var(--texte-3) transparent var(--texte-3) transparent; animation: tourne 800ms linear infinite; }
+
+/* --- Indicateur de chargement ----------------------------------------------------------------------------------- */
+.chargeur { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--trait);
+  border-top-color: var(--vert-vif); animation: tourne 800ms linear infinite; vertical-align: middle; }
+@keyframes tourne { to { transform: rotate(360deg); } }
+
+/* --- Puces de statut (couleur + libellé + icône) ---------------------------------------------------------------- */
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: var(--rayon-plein);
+  font: var(--g-fort) var(--t-legende)/1.5 var(--police); white-space: nowrap; background: var(--surface-2); color: var(--texte-2); }
+.chip::before { content: ""; width: 14px; height: 14px; background: currentColor; -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat; }
+.chip-verifier { background: var(--st-verifier-pale); color: var(--st-verifier); --ico: url("/dashboard/shared/icones/horloge.svg"); }
+.chip-confirme { background: var(--st-confirme-pale); color: var(--st-confirme); --ico: url("/dashboard/shared/icones/ok.svg"); }
+.chip-rejete { background: var(--st-rejete-pale); color: var(--st-rejete); --ico: url("/dashboard/shared/icones/croix.svg"); }
+.chip-nettoyage { background: var(--st-nettoyage-pale); color: var(--st-nettoyage); --ico: url("/dashboard/shared/icones/balai.svg"); }
+.chip-simule { background: var(--st-simule-pale); color: var(--st-simule); --ico: url("/dashboard/shared/icones/fiole.svg"); }
+
+/* --- Bandeau du mode démonstration : hachuré, toujours visible --------------------------------------------------- */
+.bandeau-demo { position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; gap: var(--e-2);
+  background: repeating-linear-gradient(135deg, var(--jaune) 0 12px, #f2c400 12px 24px); color: #1e2320;
+  font: var(--g-fort) var(--t-legende)/1.2 var(--police); letter-spacing: .06em; text-align: center; padding: 6px var(--e-4); }
+
+/* --- Messages (toasts) -------------------------------------------------------------------------------------------- */
+.toasts { position: fixed; left: 50%; bottom: max(var(--e-5), env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 1200;
+  display: grid; gap: var(--e-2); width: min(calc(100vw - 32px), 28rem); }
+.toast { display: flex; align-items: flex-start; gap: var(--e-3); background: var(--encre); color: var(--sur-encre);
+  padding: var(--e-3) var(--e-4); border-radius: var(--rayon); font: var(--g-normal) var(--t-corps)/1.4 var(--police);
+  box-shadow: var(--ombre-3); animation: monte var(--duree) var(--courbe); }
+.toast::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 1px; background: var(--jaune);
+  -webkit-mask: url("/dashboard/shared/icones/aide.svg") center / contain no-repeat; mask: url("/dashboard/shared/icones/aide.svg") center / contain no-repeat; }
+.toast-ok::before { background: #4cd38a; -webkit-mask-image: url("/dashboard/shared/icones/ok.svg"); mask-image: url("/dashboard/shared/icones/ok.svg"); }
+.toast-erreur::before { background: #ff8a88; -webkit-mask-image: url("/dashboard/shared/icones/alerte.svg"); mask-image: url("/dashboard/shared/icones/alerte.svg"); }
+@keyframes monte { from { opacity: 0; transform: translateY(6px); } }
+
+/* --- Fenêtre de confirmation et saisie du code -------------------------------------------------------------------- */
+.modal-overlay { position: fixed; inset: 0; z-index: 1100; background: var(--voile); display: grid; place-items: center; padding: var(--e-4);
+  animation: fondu var(--duree) var(--courbe); }
+.modal { background: var(--surface); color: var(--texte); border-radius: var(--rayon-l); padding: var(--e-5); width: min(100%, 24rem);
+  font: var(--g-normal) var(--t-corps)/1.5 var(--police); box-shadow: var(--ombre-3); }
+.modal h2 { margin: 0 0 var(--e-2); font-size: var(--t-titre); font-weight: var(--g-fort); line-height: 1.3; }
+.modal p { margin: 0 0 var(--e-5); color: var(--texte-2); }
+.modal .input { width: 100%; min-height: 48px; font: inherit; font-size: 1rem; padding: 0 var(--e-3); border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon-s); background: var(--surface); color: var(--texte); margin-bottom: var(--e-4); }
+.modal .input:focus { outline: none; border-color: var(--vert); box-shadow: 0 0 0 3px var(--vert-pale); }
+.modal-actions { display: flex; gap: var(--e-2); justify-content: flex-end; }
+.modal .btn { width: auto; margin: 0; min-height: var(--cible); }
+.modal-overlay[data-role] .modal { text-align: left; }
+.modal-overlay[data-role] .modal-actions .btn { flex: 1; }
+@keyframes fondu { from { opacity: 0; } }
+
+/* --- Onglets, interrupteur, curseurs, état vide ------------------------------------------------------------------- */
+.etat-vide { color: var(--texte-3); font-size: var(--t-legende); text-align: center; padding: var(--e-5) var(--e-3); }
+input[type=range] { accent-color: var(--vert); }

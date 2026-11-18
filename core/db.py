@@ -31,9 +31,11 @@ CREATE TABLE IF NOT EXISTS reports(
   nb_signalements INTEGER NOT NULL DEFAULT 1,
   duplicate_of TEXT,
   source TEXT NOT NULL CHECK (source IN ('reel', 'sim')),
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  cell_y INTEGER, cell_x INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_reports_statut ON reports(statut, type);
+CREATE INDEX IF NOT EXISTS idx_reports_cell ON reports(cell_y, cell_x);
 CREATE INDEX IF NOT EXISTS idx_reports_photo ON reports(photo_hash);
 CREATE TABLE IF NOT EXISTS historique(
   id INTEGER PRIMARY KEY AUTOINCREMENT,

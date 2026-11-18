@@ -81,7 +81,9 @@ class Triage:
         for geom in (self.commune, self.sector, self.water):
             if geom is not None:
                 shapely.prepare(geom)
-        self.grids: dict[str, Grid] = {}
+        # Grille anti-doublon : cellule de la taille du rayon, clé rangée en base (index) ; on ne compare un envoi qu'aux
+        # cas actifs des 9 cellules voisines, jamais à toutes les paires, et sans état en mémoire (plusieurs processus).
+        self.grid = Grid(float(self.v["duplicate_radius_m"]), float(self.v["grid_center_lat"]))
         self.lock = threading.Lock()
 
     def _water(self) -> Any:
@@ -104,22 +106,9 @@ class Triage:
         """Vrai si la règle PRES_PLAN_EAU peut se déclencher (fichier des plans d'eau présent et non vide)."""
         return self.water is not None
 
-    def _grid(self, mode: str, conn: Any) -> Grid:
-        """Grille des cas actifs du mode, construite une fois depuis la base."""
-        if mode not in self.grids:
-            grid = Grid(float(self.v["duplicate_radius_m"]), float(self.v["grid_center_lat"]))
-            for r in conn.execute("SELECT id, lat, lon, reported_at FROM reports WHERE type='depotoir' AND statut IN (?,?)",
-                                  ACTIVE).fetchall():
-                grid.add(r["id"], r["lat"], r["lon"])
-            self.grids[mode] = grid
-        return self.grids[mode]
-
     def forget(self, mode: str | None = None) -> None:
-        """Oublie la grille (remise à zéro de la base)."""
-        if mode is None:
-            self.grids.clear()
-        else:
-            self.grids.pop(mode, None)
+        """Compatibilité : la grille est en base (aucun état en mémoire à oublier)."""
+
 
     # ------------------------------------------------------------------ issues
     def _resume(self, raw: Any, body: bytes) -> str:
@@ -219,27 +208,29 @@ class Triage:
         if blur_report.get("status") != "ok":
             alerts.append("FLOUTAGE_NON_VERIFIE")
         source = "sim" if mode == "sim" else "reel"
+        cell_y, cell_x = self.grid.key(lat, lon)
         with self.lock:
             conn = get_db(mode)
             try:
-                grid = self._grid(mode, conn)
+                # Un seul écrivain (même entre processus) de la recherche du doublon à l'insertion : la transaction
+                # ouverte ici est validée par lifecycle.create ou lifecycle.reinforce (with conn), annulée sinon.
+                conn.execute("BEGIN IMMEDIATE")
                 window = timedelta(hours=float(v["duplicate_window_h"]))
-                for oid, olat, olon in grid.near(lat, lon):
-                    if haversine_m(lat, lon, olat, olon) >= float(v["duplicate_radius_m"]):
-                        continue
-                    row = conn.execute("SELECT reported_at FROM reports WHERE id=? AND type='depotoir' AND statut IN (?,?)",
-                                       (oid, *ACTIVE)).fetchone()
-                    if row and abs(reported - _parse_dt(row["reported_at"])) < window:
-                        count = lifecycle.reinforce(conn, oid, "DOUBLON_PROBABLE")
-                        return {"issue": "renforce", "id": oid, "nb_signalements": count}
+                near = conn.execute("SELECT id, lat, lon, reported_at FROM reports WHERE cell_y BETWEEN ? AND ? "
+                                    "AND cell_x BETWEEN ? AND ? AND type='depotoir' AND statut IN (?,?) ORDER BY created_at",
+                                    (cell_y - 1, cell_y + 1, cell_x - 1, cell_x + 1, *ACTIVE)).fetchall()
+                for row in near:
+                    if haversine_m(lat, lon, row["lat"], row["lon"]) < float(v["duplicate_radius_m"]) \
+                            and abs(reported - _parse_dt(row["reported_at"])) < window:
+                        count = lifecycle.reinforce(conn, row["id"], "DOUBLON_PROBABLE")
+                        return {"issue": "renforce", "id": row["id"], "nb_signalements": count}
                 if conn.execute("SELECT 1 FROM reports WHERE photo_hash=? LIMIT 1", (photo_hash,)).fetchone():
                     alerts.append("PHOTO_DEJA_VUE")
                 rid = uuid.uuid4().hex[:16]
                 photo_path = self._store_photo(mode, rid, blurred)
                 lifecycle.create(conn, {"id": rid, "lat": float(lat), "lon": float(lon), "photo_path": photo_path,
                                         "photo_hash": photo_hash, "reported_at": reported.isoformat(),
-                                        "alertes": sorted(set(alerts)), "source": source})
-                grid.add(rid, lat, lon)
+                                        "alertes": sorted(set(alerts)), "source": source, "cell": (cell_y, cell_x)})
                 return {"issue": "cree", "id": rid, "alertes": sorted(set(alerts)), "floutage": blur_report}
             finally:
                 conn.close()

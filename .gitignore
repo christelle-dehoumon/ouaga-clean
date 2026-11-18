@@ -26,20 +26,21 @@ htmlcov/
 .cache/osmnx/
 data/raw/osm_cache/
 
-# Données locales volumineuses ou générées dynamiquement
-# (pkl/npz en filet de sécurité global, au cas où un fichier atterrit hors data/processed/)
-*.pkl
-*.npz
+# Données locales générées à l'exécution (jamais dans git)
 data/reports.db
+data/reel.db*
+data/sim.db*
+data/photos/
+data/certs/
 data/osm/
 data/openbuildings/*
 !data/openbuildings/README.md
-data/raw/
-data/processed/
+# Brut OSM : seul le contour de la commune est versionné (cache Overpass ignoré)
+data/raw/*
+!data/raw/boundary.geojson
+# Données préparées versionnées pour qu'un clone neuf ait un plan (voir README, taille vérifiée < 10 Mo par fichier)
+*.pkl
+*.npz
+!data/processed/roads_graph.pkl
+!data/processed/buildings_centroids.npz
 .claude/settings.local.json
-
-# Conserver explicitement les données de test / maquettes
-!data/mock/
-!data/mock/*.geojson
-!data/mock/*.json
-data/reports.db

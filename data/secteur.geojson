@@ -1,0 +1,40 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -1.5107031420393306,
+       12.34479093854554
+      ],
+      [
+       -1.5107031420393306,
+       12.38970649729509
+      ],
+      [
+       -1.5566857330070414,
+       12.38970649729509
+      ],
+      [
+       -1.5566857330070414,
+       12.34479093854554
+      ],
+      [
+       -1.5107031420393306,
+       12.34479093854554
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "id": "pilot",
+    "nom": "Secteur de l'équipe (carré pilote par défaut)",
+    "method": "carré de 5000 m centré sur la commune ; à remplacer par le vrai secteur"
+   }
+  }
+ ]
+}

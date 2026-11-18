@@ -1,0 +1,10 @@
+.venv
+.git
+**/__pycache__
+.pytest_cache
+data/reel.db*
+data/sim.db*
+data/photos
+data/certs
+data/reports.db
+data/raw/osm_cache

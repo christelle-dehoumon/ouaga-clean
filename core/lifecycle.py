@@ -55,10 +55,11 @@ def create(conn: sqlite3.Connection, report: dict[str, Any], who: str = "citoyen
     when = now()
     with conn:
         conn.execute("INSERT INTO reports(id, type, statut, lat, lon, photo_path, photo_hash, reported_at, alertes, "
-                     "nb_signalements, duplicate_of, source, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                     "nb_signalements, duplicate_of, source, created_at, updated_at, cell_y, cell_x) "
+                     "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                      (report["id"], "depotoir", "a_verifier", report["lat"], report["lon"], report.get("photo_path"),
                       report.get("photo_hash"), report["reported_at"], json.dumps(report.get("alertes", [])), 1, None,
-                      report["source"], when, when))
+                      report["source"], when, when, *(report.get("cell") or (None, None))))
         _history(conn, report["id"], who, "creation", (None, None), ("depotoir", "a_verifier"), when)
 
 

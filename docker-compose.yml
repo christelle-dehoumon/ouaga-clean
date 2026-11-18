@@ -1,0 +1,17 @@
+# docker compose up --build   ->   https://localhost:8443/
+services:
+  api:
+    build: .
+    ports: ["8443:8443"]
+    environment:
+      - BRIGADE_CODE=${BRIGADE_CODE:-brigade-demo}
+      - MAIRIE_CODE=${MAIRIE_CODE:-mairie-demo}
+      - COMMUNE_CONFIG=${COMMUNE_CONFIG:-config/commune_config.json}
+      - REEL_DB=/app/data/state/reel.db
+      - SIM_DB=/app/data/state/sim.db
+      - PHOTO_DIR=/app/data/state/photos
+    volumes:
+      - ouaga-data:/app/data/state
+    restart: unless-stopped
+volumes:
+  ouaga-data:

@@ -1,0 +1,146 @@
+{
+ "type": "FeatureCollection",
+ "name": "signalements (données SIMULÉES)",
+ "data_tag": "synthetic",
+ "license": "ODbL-1.0",
+ "license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+ "attribution": "Jeu fictif généré par scripts/make_synthetic.py (positions tirées des bâtiments OSM)",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.5198,
+     12.3712
+    ]
+   },
+   "properties": {
+    "id": "r001",
+    "date": "2026-11-17T08:05:00Z",
+    "status_source": "accepted",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.5197,
+     12.3713
+    ]
+   },
+   "properties": {
+    "id": "r002",
+    "date": "2026-11-17T08:40:00Z",
+    "status_source": "accepted",
+    "data_tag": "synthetic",
+    "note": "duplicate_merged"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.487,
+     12.3405
+    ]
+   },
+   "properties": {
+    "id": "r003",
+    "date": "2026-11-17T09:10:00Z",
+    "status_source": "accepted",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.553,
+     12.4021
+    ]
+   },
+   "properties": {
+    "id": "r004",
+    "date": "2026-11-17T09:30:00Z",
+    "status_source": "accepted",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.5402,
+     12.355
+    ]
+   },
+   "properties": {
+    "id": "r005",
+    "date": "2026-11-17T10:00:00Z",
+    "status_source": "pending",
+    "data_tag": "synthetic",
+    "note": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.4955,
+     12.3891
+    ]
+   },
+   "properties": {
+    "id": "r006",
+    "date": "2026-11-17T10:05:00Z",
+    "status_source": "to_review",
+    "data_tag": "synthetic",
+    "note": "low_trust"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     2.3522,
+     48.8566
+    ]
+   },
+   "properties": {
+    "id": "r007",
+    "date": "2026-11-17T10:10:00Z",
+    "status_source": "rejected",
+    "data_tag": "synthetic",
+    "note": "out_of_zone"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.52,
+     95.0
+    ]
+   },
+   "properties": {
+    "id": "r008",
+    "date": "2026-11-17T10:15:00Z",
+    "status_source": "rejected",
+    "data_tag": "synthetic",
+    "note": "invalid_coordinates"
+   }
+  }
+ ]
+}

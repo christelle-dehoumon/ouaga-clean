@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "name": "flood_zones",
+  "source": "estimated",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "fz_canal_central",
+        "name": "Zone inondable du canal central et des bas-fonds",
+        "description": "Hypothèse de vulnérabilité aux inondations (saison pluvieuse)",
+        "source": "estimated"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-1.536, 12.362],
+            [-1.528, 12.362],
+            [-1.524, 12.372],
+            [-1.530, 12.376],
+            [-1.538, 12.370],
+            [-1.536, 12.362]
+          ]
+        ]
+      }
+    }
+  ]
+}

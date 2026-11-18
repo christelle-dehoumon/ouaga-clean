@@ -58,8 +58,11 @@ class Grid:
         self.dlon = radius_m / (111320.0 * max(math.cos(math.radians(center_lat)), 0.01))
         self.cells = defaultdict(list)
 
-    def _key(self, lat, lon):
+    def key(self, lat, lon):
+        """Cellule (ligne, colonne) d'un point ; aussi rangée en base (reports.cell_y, cell_x) avec un index."""
         return (int(math.floor(lat / self.dlat)), int(math.floor(lon / self.dlon)))
+
+    _key = key
 
     def add(self, item_id, lat, lon):
         self.cells[self._key(lat, lon)].append((item_id, lat, lon))

@@ -21,6 +21,11 @@
       <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
       <span><b>Yilgré</b><small>Mairie · aide à la décision</small></span>
     </a>
+    <div class="recherche" role="search">
+      <input id="recherche" type="search" placeholder="Quartier, rue, lieu, camion…" aria-label="Rechercher dans la ville"
+        autocomplete="off" spellcheck="false" aria-controls="recherche-resultats" aria-expanded="false">
+      <ul id="recherche-resultats" class="recherche-resultats" role="listbox" aria-label="Résultats" hidden></ul>
+    </div>
   </div>
   <div class="bascule" role="group" aria-label="Type de données">
     <button type="button" id="mode-reel" class="actif" aria-pressed="true">Données réelles</button>
@@ -57,6 +62,12 @@
       <button type="button" data-cam="rue" title="Marcher dans la rue (flèches ou ZQSD, glisser pour regarder)">Rue</button>
       <button type="button" data-cam="recentrer" title="Revenir à la vue de départ">Recentrer</button>
       <button type="button" data-cam="animation" aria-pressed="true" title="Mettre en pause ou relancer les camions">Pause</button>
+      <span class="separateur seulement-carte" aria-hidden="true"></span>
+      <button type="button" id="vue-2d3d" class="seulement-carte" aria-pressed="true" title="Bâtiments en relief ou carte à plat">3D</button>
+      <label class="seulement-carte ambiance-choix" title="Ambiance de la carte (couleurs seulement)">
+        <span class="visuellement-cache">Ambiance</span>
+        <select id="ambiance"><option value="jour">Jour</option><option value="soir">Soir</option><option value="nuit">Nuit</option></select>
+      </label>
     </div>
     <div id="legende" class="legende" aria-label="Légende"></div>
     <p id="credit" class="credit"></p>
@@ -87,11 +98,14 @@
       <li><b>Se déplacer</b> : glisser avec le bouton droit (ou deux doigts).</li>
       <li><b>Zoomer</b> : molette.</li>
       <li><b>Sélectionner</b> : cliquer sur un signalement, un camion, un point de collecte ou un quartier.</li>
-      <li><b>Vue rue</b> : flèches ou Z Q S D pour marcher, glisser pour regarder, Maj pour aller plus vite.</li>
+      <li><b>Vue rue</b> : flèches ou Z Q S D pour marcher, glisser pour regarder, Maj pour aller plus vite (ville 3D du secteur pilote).</li>
+      <li><b>Carte</b> : clic droit glissé ou Ctrl + glisser pour pivoter et incliner ; boussole en haut à droite pour revenir au nord.</li>
+      <li><b>Rechercher</b> : un quartier, une rue, un lieu ou un camion dans le champ de la barre du haut.</li>
       <li><b>Panneaux</b> : les boutons aux deux bouts de la barre du haut les masquent pour voir toute la ville.</li>
     </ul>
-    <p class="note">Bâtiments et routes : OpenStreetMap. Hauteurs des bâtiments estimées, arbres illustratifs.
-      Seuls le secteur pilote et les quartiers téléchargés sont modélisés.</p>
+    <p class="note">Carte : OpenStreetMap (ODbL), toute l'agglomération. Moins de 0,1 % des bâtiments ont une hauteur ou des
+      étages dans OSM : les autres hauteurs sont estimées et la fiche du bâtiment le dit. Les tournées se calculent sur le
+      réseau du secteur pilote et des quartiers téléchargés.</p>
     <button type="button" id="aide-fermer" class="btn btn-primaire">Compris</button>
   </div>
 </div>

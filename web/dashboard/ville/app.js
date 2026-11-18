@@ -79,9 +79,12 @@ async function init() {
   bindView();
   bindChrome();
   progress("Chargement des signalements…", 85);
-  $("#credit").textContent = S.view.kind === "3d"
-    ? "Bâtiments et routes © contributeurs OpenStreetMap (ODbL) · hauteurs estimées · arbres illustratifs"
-    : "Vue 2D de secours";
+  $("#credit").textContent = S.view.kind === "carte"
+    ? "Carte © contributeurs OpenStreetMap (ODbL) · MapLibre · hauteurs des bâtiments estimées sauf mention OSM"
+    : S.view.kind === "3d"
+      ? "Bâtiments et routes © contributeurs OpenStreetMap (ODbL) · hauteurs estimées · arbres illustratifs"
+      : "Vue 2D de secours";
+  document.body.classList.toggle("vue-carte", S.view.kind === "carte");
   renderLegend();
   await setMode("reel");
   $("#chargement").hidden = true;
@@ -93,7 +96,25 @@ async function init() {
 async function createView(cityData, other = null) {
   const host = $("#scene");
   const { detectWebGL } = await import("./map3d/scene.js");
-  const forced2d = new URLSearchParams(location.search).get("vue") === "2d";
+  const demande = new URLSearchParams(location.search).get("vue");
+  const forced2d = demande === "2d";
+  // Vue par défaut : la carte de toute l'agglomération (MapLibre, tuiles OSM locales). ?vue=ville3d garde la ville
+  // Three.js du secteur pilote ; repli automatique sur elle si les tuiles n'ont pas été fabriquées (clone neuf).
+  if (!forced2d && !other && demande !== "ville3d" && detectWebGL()) {
+    const { createViewCarte, tuilesDisponibles } = await import("./carte/vue.js");
+    if (await tuilesDisponibles()) {
+      try {
+        progress("Chargement de la carte de Ouagadougou (OpenStreetMap)…", 60);
+        return await createViewCarte(host, cityData);
+      } catch (err) {
+        console.error(err);
+        toast(`La carte n'a pas pu démarrer (${err.message}) : ville 3D du secteur pilote.`, "erreur", 8000);
+        host.querySelectorAll(".maplibregl-canvas-container, .maplibregl-control-container").forEach((n) => n.remove());
+      }
+    } else {
+      toast("Tuiles de la carte absentes (./scripts/fabriquer_tuiles.sh) : ville 3D du secteur pilote.", "info", 8000);
+    }
+  }
   if (!forced2d && !other && detectWebGL()) {
     try {
       const { createView3D } = await import("./view3d.js");
@@ -341,8 +362,47 @@ function renderSelection() {
     ]));
     return;
   }
-  const builders = { signalement: ficheSignalement, simule: ficheSimule, point: fichePoint, vehicule: ficheVehicule, quartier: ficheQuartier, route: ficheRoute, coupure: ficheRoute };
+  const builders = { signalement: ficheSignalement, simule: ficheSimule, point: fichePoint, vehicule: ficheVehicule, quartier: ficheQuartier, route: ficheRoute, coupure: ficheRoute,
+    batiment: ficheBatiment, poi: fichePoi, lieu: fichePoi, tournee: ficheTournee };
   host.replaceChildren(...[].concat((builders[s.kind] || (() => el("p", {}, ["Objet sans fiche."])))(s)));
+}
+
+// --- Fiches des objets de la carte OpenStreetMap (vue « carte ») -------------------------------------------------
+const TYPES_BATIMENT = { yes: "bâtiment (type non précisé dans OSM)", house: "maison", residential: "habitation", apartments: "immeuble d'habitation",
+  school: "école", mosque: "mosquée", church: "église", chapel: "chapelle", hospital: "hôpital", commercial: "commerce", retail: "commerce",
+  industrial: "industrie", warehouse: "entrepôt", hangar: "hangar", garage: "garage", construction: "en construction", office: "bureaux",
+  public: "bâtiment public", government: "administration", university: "université", hotel: "hôtel", hut: "case", shed: "abri" };
+
+function ficheBatiment({ props: p, lat, lon }) {
+  const h = S.view.sourceHauteur(p);
+  return el("div", { class: "fiche" }, [
+    el("h2", {}, [p.nom || "Bâtiment"]),
+    el("p", { class: "sous" }, [`OpenStreetMap · way ${p.osm_id}`]),
+    dl([["Type", TYPES_BATIMENT[p.type] || p.type || "—"],
+      ["Hauteur affichée", `${fmt.n(h.m)} m`], ["Origine de la hauteur", h.source],
+      p.niveaux !== undefined ? ["Niveaux (OSM)", `${p.niveaux}`] : null,
+      p.toit ? ["Toit (OSM)", p.toit] : null,
+      p.amenite ? ["Usage (OSM)", p.amenite] : null,
+      ["Quartier du plan", S.view.territoryAt(lat, lon)?.nom || "hors des quartiers modélisés"]]),
+    el("button", { class: "btn", type: "button", onclick: () => S.view.focusLatLon(lat, lon, 120) }, ["Centrer la caméra"]),
+    el("p", { class: "vide" }, ["Emprise exacte d'OpenStreetMap. Corriger ou compléter : openstreetmap.org (données ouvertes, ODbL)."]),
+  ]);
+}
+
+function fichePoi({ props: p }) {
+  return el("div", { class: "fiche" }, [
+    el("h2", {}, [p.nom || "Lieu sans nom"]),
+    el("p", { class: "sous" }, [`OpenStreetMap · ${p.classe || "lieu"}`]),
+    dl([["Catégorie", p.famille || p.classe || "—"], p.osm_id ? ["Identifiant OSM", `${p.osm_id}`] : null]),
+    el("p", { class: "vide" }, ["Information cartographique : pas une donnée de la mairie."]),
+  ]);
+}
+
+function ficheTournee({ data: r }) {
+  const v = (S.plan[S.mode]?.vehicles || []).find((x) => x.id === String(r.vehicle_id || r.vehicle).split("_trip")[0]);
+  if (v) return ficheVehicule(v);
+  return el("div", { class: "fiche" }, [el("h2", {}, [`Tournée ${r.vehicle_id || r.vehicle}`]),
+    dl([["Arrêts", `${(r.stops || []).length}`], ["Distance", `${fmt.n(r.distance_km)} km`], ["Charge", fmt.t(r.load_kg)]])]);
 }
 
 function dl(pairs) {
@@ -711,12 +771,14 @@ function renderLegend() {
   const L = S.view.statutsLegend;
   const sw = (c) => el("span", { class: "puce", style: `background:#${c.toString(16).padStart(6, "0")}` });
   const box = $("#legende");
+  box.classList.toggle("repliee", S.view.kind === "carte");
   box.replaceChildren(
-    el("button", { class: "legende-titre", type: "button", "aria-expanded": "true", onclick: (e) => {
+    // Carte : légende repliée au départ (la carte reste dégagée) ; un clic l'ouvre.
+    el("button", { class: "legende-titre", type: "button", "aria-expanded": String(S.view.kind !== "carte"), onclick: (e) => {
       const folded = box.classList.toggle("repliee");
       e.currentTarget.setAttribute("aria-expanded", String(!folded));
       e.currentTarget.textContent = folded ? "Légende ▸" : "Légende ▾";
-    } }, ["Légende ▾"]),
+    } }, [S.view.kind === "carte" ? "Légende ▸" : "Légende ▾"]),
     el("h4", {}, ["Signalements"]),
     el("ul", {}, Object.values(L).map((s) => el("li", {}, [sw(s.couleur), s.libelle]))),
     el("h4", {}, ["Plan"]),
@@ -796,6 +858,7 @@ function bindChrome() {
   $("#mode-sim").addEventListener("click", () => S.mode !== "sim" && setMode("sim"));
   $("#aide-btn").addEventListener("click", () => { $("#aide").hidden = false; });
   $("#aide-fermer").addEventListener("click", () => { $("#aide").hidden = true; });
+  if (S.view.kind === "carte") bindCarte();
   // Panneaux repliables : la ville reste en plein cadre, seule la surcouche se masque.
   for (const [id, cls] of [["#replier-gauche", "gauche-replie"], ["#replier-droit", "droit-replie"]]) {
     $(id).addEventListener("click", (e) => {
@@ -824,6 +887,79 @@ function bindChrome() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { if (!$("#aide").hidden) $("#aide").hidden = true; else if (S.interaction !== "selection") setInteraction("selection"); else select(null); }
   });
+}
+
+// --- Carte : recherche, relief, ambiance ------------------------------------------------------------------------------
+function bindCarte() {
+  const v = S.view;
+  const champ = $("#recherche");
+  const liste = $("#recherche-resultats");
+  let resultats = [];
+  let actif = -1;
+  import("./carte/recherche.js").then(({ chargerIndex, chercher }) => {
+    chargerIndex().catch((err) => toast(`Recherche limitée : ${err.message}`, "info", 6000));
+    const extras = () => [
+      ...S.territories.map((t) => ({ n: t.nom, t: "Quartier du plan", extra: true, territoire: t.id })),
+      ...(S.plan[S.mode]?.vehicles || []).map((c) => ({ n: `Camion ${c.id.replace("truck", "n° ")}`, t: S.mode === "sim" ? "Camion (simulé)" : "Camion du plan", extra: true, camion: c.id })),
+    ];
+    const afficher = () => {
+      liste.replaceChildren(...resultats.map((r, i) => el("li", { role: "option", id: `rr-${i}`, "aria-selected": String(i === actif),
+        class: i === actif ? "actif" : "", onmousedown: (e) => { e.preventDefault(); choisir(r); } }, [el("b", {}, [r.n]), el("span", {}, [r.t])])));
+      liste.hidden = !resultats.length;
+      champ.setAttribute("aria-expanded", String(!liste.hidden));
+    };
+    const choisir = async (r) => {
+      champ.value = r.n;
+      resultats = [];
+      afficher();
+      champ.blur();
+      if (r.camion) {
+        const o = v.fleet.get(r.camion);
+        if (o) {
+          const [lat, lon] = v.proj.toLatLon(o.position.x, o.position.z);
+          await v.focusLatLon(lat, lon, 160);
+          select({ ...o.userData }, o);
+        }
+      } else if (r.territoire && v.city.territories.some((t) => t.id === r.territoire)) {
+        await v.focusTerritory(r.territoire);
+        select({ kind: "quartier", territory: v.city.territories.find((t) => t.id === r.territoire) });
+      } else if (r.b) {
+        await v.focusLngLatBounds([[r.b[0], r.b[1]], [r.b[2], r.b[3]]]);
+        select({ kind: "lieu", props: { nom: r.n, classe: r.t.toLowerCase(), famille: r.t } });
+      } else if (r.c) {
+        v.focusLatLon(r.c[1], r.c[0], r.z >= 17 ? 140 : 900);
+        select({ kind: "lieu", props: { nom: r.n, classe: r.t.toLowerCase(), famille: r.t } }, { lonlat: r.c });
+      }
+    };
+    champ.addEventListener("input", () => { resultats = chercher(champ.value, extras()); actif = resultats.length ? 0 : -1; afficher(); });
+    champ.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!resultats.length) return;
+        actif = (actif + (e.key === "ArrowDown" ? 1 : -1) + resultats.length) % resultats.length;
+        afficher();
+        champ.setAttribute("aria-activedescendant", `rr-${actif}`);
+      } else if (e.key === "Enter" && resultats[actif]) {
+        e.preventDefault();
+        choisir(resultats[actif]);
+      } else if (e.key === "Escape") {
+        resultats = [];
+        afficher();
+        e.stopPropagation();
+      }
+    });
+    champ.addEventListener("blur", () => setTimeout(() => { resultats = []; afficher(); }, 120));
+  });
+  const relief = $("#vue-2d3d");
+  relief.addEventListener("click", () => {
+    const oui = relief.getAttribute("aria-pressed") !== "true";
+    relief.setAttribute("aria-pressed", String(oui));
+    relief.textContent = oui ? "3D" : "2D";
+    v.setVue3D(oui);
+  });
+  const amb = $("#ambiance");
+  amb.value = v.ambiance;
+  amb.addEventListener("change", () => v.setAmbiance(amb.value));
 }
 
 init().catch((err) => {

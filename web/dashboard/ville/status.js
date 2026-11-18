@@ -18,8 +18,11 @@ export function planStatus(plan, stale = null) {
     st = { niveau: "ko", titre: `Plan irréalisable${secours}`, details: details.length ? details : ["Aucune tournée possible."] };
   } else if (!(ch.capacity_ok !== false && ch.budget_ok !== false && ch.vehicles_ok !== false && ch.network_ok !== false)) {
     st = { niveau: "ko", titre: `Plan irréalisable : contrôle en échec${secours}`, details };
+  } else if (ch.ok && !postponed && !unserved) {
+    st = { niveau: "ok", titre: `Plan réalisable — ${n}/${n} points desservis${secours}`, details };
   } else if (ch.ok && !postponed) {
-    st = { niveau: "ok", titre: `Plan réalisable — ${n - unserved}/${n} points desservis${secours}`, details };
+    // Contrôle du serveur réussi (dans sa tolérance) mais des points restent non desservis : jamais de vert.
+    st = { niveau: "partiel", titre: `Plan réalisable — ${n - unserved}/${n} points desservis, ${unserved} non desservi(s)${secours}`, details };
   } else if (ch.ok && postponed) {
     st = { niveau: "partiel", titre: `Plan partiellement réalisable — ${postponed} arrêt(s) reporté(s)${secours}`, details };
   } else {

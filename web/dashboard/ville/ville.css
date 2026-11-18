@@ -289,3 +289,49 @@ body.gauche-replie .credit { left: var(--marge); }
 @media (max-width: 1100px) {
   :root { --pg: 280px; --pd: 300px; }
 }
+
+/* --- Carte MapLibre (vue par défaut) ------------------------------------------------------------------------------- */
+.seulement-carte { display: none !important; }
+body.vue-carte .seulement-carte { display: inline-flex !important; }
+.recherche { position: relative; display: none; }
+body.vue-carte .recherche { display: block; }
+.recherche input { width: clamp(180px, 22vw, 320px); min-height: 36px; padding: 0 12px 0 34px; border-radius: var(--rayon-plein); border: 1px solid var(--trait);
+  background: var(--surface-2) url("/dashboard/shared/icones/position.svg") 11px center / 16px no-repeat; color: var(--texte); font-size: var(--t-legende);
+  transition: border-color var(--duree) var(--courbe), background-color var(--duree) var(--courbe), width 220ms var(--courbe); }
+.recherche input::placeholder { color: var(--texte-3); }
+.recherche input:focus { outline: none; background-color: var(--surface); border-color: var(--vert); box-shadow: 0 0 0 3px var(--vert-pale); width: clamp(220px, 28vw, 380px); }
+.recherche-resultats { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; width: max(100%, 320px); max-height: 360px; overflow-y: auto; margin: 0; padding: 6px;
+  list-style: none; background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); box-shadow: var(--ombre-3); }
+.recherche-resultats li { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: var(--rayon-s); cursor: pointer; }
+.recherche-resultats li b { font-weight: var(--g-fort); font-size: var(--t-legende); color: var(--texte); }
+.recherche-resultats li span { font-size: 12px; color: var(--texte-3); }
+.recherche-resultats li:hover, .recherche-resultats li.actif { background: var(--surface-2); }
+.ambiance-choix select { min-height: 34px; border: 0; background: transparent; color: var(--texte-2); font-size: 12.5px; font-weight: var(--g-fort); padding: 0 6px; border-radius: var(--rayon-s); cursor: pointer; }
+.ambiance-choix select:hover { background: var(--surface-2); color: var(--texte); }
+.commandes-camera .separateur { align-self: center; height: 18px; margin: 0 4px; }
+#vue-2d3d[aria-pressed="true"] { color: var(--vert-texte); }
+
+/* Commandes natives de MapLibre (zoom, boussole, plein écran, échelle) : style Yilgré, hors des panneaux */
+.vue-carte .maplibregl-ctrl-top-right { top: calc(var(--marge) - 10px); right: calc(var(--pd) + 2 * var(--marge) - 10px); transition: right 220ms var(--courbe); }
+.vue-carte.droit-replie .maplibregl-ctrl-top-right { right: calc(var(--marge) - 10px); }
+.vue-carte .maplibregl-ctrl-bottom-right { bottom: calc(var(--marge) + 72px); right: calc(var(--pd) + 2 * var(--marge) - 10px); transition: right 220ms var(--courbe); }
+.vue-carte.droit-replie .maplibregl-ctrl-bottom-right { right: calc(var(--marge) - 10px); }
+.vue-carte .maplibregl-ctrl-group { background: var(--surface); border-radius: var(--rayon); box-shadow: var(--ombre-2); border: 1px solid var(--trait); overflow: hidden; }
+.vue-carte .maplibregl-ctrl-group button { width: 34px; height: 34px; }
+.vue-carte .maplibregl-ctrl-group button + button { border-top: 1px solid var(--trait); }
+.vue-carte .maplibregl-ctrl-group button:focus-visible { box-shadow: inset 0 0 0 2px var(--vert-vif); }
+.vue-carte .maplibregl-ctrl-scale { background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--texte-2); border-color: var(--texte-3); font-size: 11px; }
+:root.theme-auto .vue-carte .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
+@media (prefers-color-scheme: dark) { :root.theme-auto .vue-carte .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg); } }
+.vue-carte .scene { background: var(--fond); }
+.vue-carte .scene .maplibregl-canvas { outline: none; }
+
+/* Saison des pluies (simulation) : voile et pluie discrète, sans gêner la lecture de la carte */
+.scene.pluie-carte::after { content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  background: linear-gradient(rgba(38, 58, 82, .22), rgba(38, 58, 82, .22)),
+    repeating-linear-gradient(105deg, rgba(255, 255, 255, 0) 0 18px, rgba(230, 240, 255, .55) 18px 19.5px, rgba(255, 255, 255, 0) 19.5px 37px);
+  background-size: 100% 100%, 240px 240px; animation: pluie 600ms linear infinite; }
+@keyframes pluie { to { background-position: 0 0, -40px 240px; } }
+@media (prefers-reduced-motion: reduce) { .scene.pluie-carte::after { animation: none; } }
+/* La feuille de MapLibre met .maplibregl-map en position relative : la scène doit rester plein cadre. */
+.espace > .scene.maplibregl-map { position: absolute; inset: 0; }

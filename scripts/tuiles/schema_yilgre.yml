@@ -1,0 +1,323 @@
+# Schéma Planetiler des tuiles vectorielles de Yilgré (agglomération de Ouagadougou).
+# Source : extrait OpenStreetMap du Burkina Faso (Geofabrik), © contributeurs OpenStreetMap, ODbL.
+# Les attributs sont ceux d'OSM, sans invention : une hauteur absente reste absente (le style l'estime à l'affichage
+# et le signale). Fabrication : ./scripts/fabriquer_tuiles.sh (voir docs/carte.md).
+schema_name: Yilgré
+schema_description: Ouagadougou depuis OpenStreetMap (bâtiments, routes, eau, occupation du sol, lieux, points d'intérêt)
+attribution: <a href="https://www.openstreetmap.org/copyright">&copy; contributeurs OpenStreetMap</a>
+args:
+  osm_path: burkina-faso-latest.osm.pbf
+  maxzoom: 14
+sources:
+  osm:
+    type: osm
+    local_path: '${ args.osm_path }'
+tag_mappings:
+  building:levels: integer
+  building:min_level: integer
+  layer: integer
+definitions:
+  nom: &nom
+    key: nom
+    coalesce:
+      - tag_value: name:fr
+      - tag_value: name
+layers:
+  # --- Bâtiments : emprises OSM exactes ; hauteur et étages seulement s'ils sont cartographiés ---------------------
+  - id: batiments
+    features:
+      - source: osm
+        geometry: polygon
+        min_zoom: 13
+        include_when:
+          building: __any__
+          building:part: __any__
+        exclude_when:
+          building: ["no", "roof"]
+        attributes:
+          - key: osm_id
+            value: '${ feature.id }'
+          - key: type
+            coalesce:
+              - tag_value: building
+              - tag_value: building:part
+          - key: partie
+            value: true
+            include_when:
+              building:part: __any__
+          - key: niveaux
+            tag_value: building:levels
+          - key: niveaux_min
+            tag_value: building:min_level
+          - key: hauteur
+            value: '${ double(feature.tags.height.replace(" m", "").replace("m", "")) }'
+            include_when: '${ feature.tags.has("height") && feature.tags.height.matches("^[0-9]+(\\.[0-9]+)? ?m?$") }'
+          - key: hauteur_min
+            value: '${ double(feature.tags.min_height.replace(" m", "").replace("m", "")) }'
+            include_when: '${ feature.tags.has("min_height") && feature.tags.min_height.matches("^[0-9]+(\\.[0-9]+)? ?m?$") }'
+          - key: toit
+            tag_value: roof:shape
+          - key: amenite
+            tag_value: amenity
+          - *nom
+
+  # --- Routes : classe, nom, sens unique, vitesse, pont, tunnel, revêtement -------------------------------------------
+  - id: routes
+    features:
+      - source: osm
+        geometry: line
+        include_when:
+          highway:
+            - motorway
+            - motorway_link
+            - trunk
+            - trunk_link
+            - primary
+            - primary_link
+            - secondary
+            - secondary_link
+            - tertiary
+            - tertiary_link
+            - unclassified
+            - residential
+            - living_street
+            - service
+            - pedestrian
+            - track
+            - footway
+            - path
+            - cycleway
+            - steps
+        min_zoom:
+          default_value: 14
+          overrides:
+            6:
+              highway: [motorway, trunk]
+            8:
+              highway: [primary, motorway_link, trunk_link]
+            10:
+              highway: [secondary, primary_link]
+            11:
+              highway: [tertiary, secondary_link, tertiary_link]
+            12:
+              highway: [unclassified, residential, living_street]
+            13:
+              highway: [service, pedestrian, track]
+        attributes:
+          - key: osm_id
+            value: '${ feature.id }'
+          - key: classe
+            value: '${ feature.tags.highway.replace("_link", "") }'
+          - key: bretelle
+            value: true
+            include_when: '${ feature.tags.highway.endsWith("_link") }'
+          - *nom
+          - key: ref
+            tag_value: ref
+          - key: sens_unique
+            value: true
+            include_when:
+              oneway: ["yes", "1", "true"]
+          - key: sens_unique_inverse
+            value: true
+            include_when:
+              oneway: ["-1"]
+          - key: vitesse_max
+            tag_value: maxspeed
+          - key: pont
+            value: true
+            include_when:
+              bridge: __any__
+          - key: tunnel
+            value: true
+            include_when:
+              tunnel: __any__
+          - key: revetement
+            tag_value: surface
+          - key: giratoire
+            value: true
+            include_when:
+              junction: [roundabout, circular]
+          - key: niveau
+            tag_value: layer
+
+  # --- Rail ----------------------------------------------------------------------------------------------------------
+  - id: rail
+    features:
+      - source: osm
+        geometry: line
+        min_zoom: 10
+        include_when:
+          railway: [rail, light_rail, disused, abandoned]
+        attributes:
+          - key: classe
+            tag_value: railway
+          - *nom
+
+  # --- Eau : surfaces (barrages, bassins) et cours d'eau / canaux -------------------------------------------------------
+  - id: eau
+    features:
+      - source: osm
+        geometry: polygon
+        min_zoom: 8
+        include_when:
+          natural: water
+          landuse: [reservoir, basin]
+          waterway: riverbank
+        attributes:
+          - key: classe
+            coalesce:
+              - tag_value: water
+              - tag_value: landuse
+              - value: eau
+          - *nom
+  - id: cours_eau
+    features:
+      - source: osm
+        geometry: line
+        min_zoom: 11
+        include_when:
+          waterway: [river, stream, canal, drain, ditch]
+        attributes:
+          - key: classe
+            tag_value: waterway
+          - *nom
+          - key: tunnel
+            value: true
+            include_when:
+              tunnel: __any__
+
+  # --- Occupation du sol : espaces verts, marchés, équipements, zones bâties -------------------------------------------
+  - id: occupation
+    features:
+      - source: osm
+        geometry: polygon
+        min_zoom: 10
+        min_size: 2
+        include_when:
+          landuse: [residential, commercial, retail, industrial, cemetery, grass, forest, farmland, meadow, recreation_ground,
+                    religious, military, construction, brownfield, greenfield, orchard, allotments, institutional, education]
+          leisure: [park, garden, pitch, stadium, sports_centre, golf_course, nature_reserve, playground]
+          natural: [wood, scrub, grassland, wetland, sand, bare_rock, heath]
+          amenity: [school, university, college, hospital, clinic, marketplace, place_of_worship, grave_yard, parking,
+                    bus_station, police, townhall, prison, fire_station, kindergarten]
+          aeroway: [aerodrome, apron, runway, taxiway]
+        attributes:
+          - key: classe
+            coalesce:
+              - tag_value: amenity
+              - tag_value: leisure
+              - tag_value: aeroway
+              - tag_value: landuse
+              - tag_value: natural
+          - *nom
+
+  # --- Lieux nommés : ville, arrondissements, secteurs, quartiers (points OSM place=*) -----------------------------------
+  - id: lieux
+    features:
+      - source: osm
+        geometry: point
+        include_when:
+          place: [city, town, suburb, quarter, neighbourhood, village, hamlet, borough]
+        min_zoom:
+          default_value: 13
+          overrides:
+            4:
+              place: city
+            9:
+              place: [town, borough]
+            11:
+              place: [suburb, quarter]
+            12:
+              place: village
+        attributes:
+          - key: osm_id
+            value: '${ feature.id }'
+          - key: classe
+            tag_value: place
+          - *nom
+          - key: population
+            tag_value: population
+
+  # --- Limites administratives cartographiées (lignes) -------------------------------------------------------------------
+  - id: limites
+    features:
+      - source: osm
+        geometry: line
+        min_zoom: 8
+        include_when:
+          boundary: administrative
+        attributes:
+          - key: niveau_admin
+            tag_value: admin_level
+
+  # --- Points d'intérêt : équipements, marchés, santé, écoles, cultes, commerces (nœuds et centres de surfaces) ------------
+  - id: poi
+    features:
+      - source: osm
+        geometry: polygon_point_on_surface
+        include_when: &poi_tags
+          amenity: __any__
+          shop: __any__
+          tourism: __any__
+          leisure: [park, stadium, sports_centre]
+          healthcare: __any__
+          office: [government]
+          historic: __any__
+          man_made: [water_tower, water_well]
+        exclude_when: &poi_exclusions
+          amenity: [parking_space, bench, waste_basket, vending_machine, bicycle_parking]
+        min_zoom: &poi_min_zoom
+          default_value: 15
+          overrides:
+            12:
+              amenity: [hospital, marketplace, university, townhall, bus_station]
+            13:
+              amenity: [clinic, school, college, police, fire_station, place_of_worship, fuel, bank, pharmacy]
+              leisure: [stadium, park]
+              tourism: [museum, hotel, attraction]
+              office: government
+            14:
+              shop: [supermarket, mall]
+              amenity: [restaurant, cafe, bar, post_office, kindergarten]
+        attributes: &poi_attrs
+          - key: osm_id
+            value: '${ feature.id }'
+          - key: classe
+            coalesce:
+              - tag_value: amenity
+              - tag_value: shop
+              - tag_value: tourism
+              - tag_value: leisure
+              - tag_value: healthcare
+              - tag_value: office
+              - tag_value: historic
+              - tag_value: man_made
+          - key: famille
+            value:
+              commerce:
+                shop: __any__
+                amenity: marketplace
+              sante:
+                amenity: [hospital, clinic, pharmacy, doctors, dentist]
+                healthcare: __any__
+              education:
+                amenity: [school, university, college, kindergarten]
+              culte:
+                amenity: place_of_worship
+              transport:
+                amenity: [bus_station, fuel, taxi]
+              administration:
+                amenity: [townhall, police, courthouse, post_office, fire_station]
+                office: government
+              loisirs:
+                leisure: __any__
+                tourism: __any__
+              autre: otherwise
+          - *nom
+      - source: osm
+        geometry: point
+        include_when: *poi_tags
+        exclude_when: *poi_exclusions
+        min_zoom: *poi_min_zoom
+        attributes: *poi_attrs

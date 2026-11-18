@@ -47,3 +47,8 @@ data/communes/*/reel.db*
 data/communes/*/sim.db*
 data/communes/*/photos/
 .venv-e2e/
+
+# Tuiles de la carte : générées par ./scripts/fabriquer_tuiles.sh (16 Mo, au-dessus de la limite de 10 Mo par fichier ;
+# versionnement à décider). Sans elles, la mairie se replie sur la ville 3D du secteur pilote.
+web/dashboard/ville/carte/data/ouagadougou.pmtiles
+web/dashboard/ville/carte/data/recherche.json

@@ -37,8 +37,10 @@ def _collect(reports: Any, by_size: dict[str, Any], commune: Any) -> tuple[list[
         if status == "cleaned":
             ignored.append({"report_id": rid, "reason": "Dépotoir déjà nettoyé."})
             continue
-        if status not in ("active", "accepted"):
-            ignored.append({"report_id": rid, "reason": f"Statut « {status} » : signalement non validé."})
+        # « confirme » : cas confirmé sur place par la brigade (cycle de vie, core.lifecycle) ; seul statut réel retenu
+        # par l'API. « active » / « accepted » : formats du contrat de données historique (tests, jeux synthétiques).
+        if status not in ("active", "accepted", "confirme"):
+            ignored.append({"report_id": rid, "reason": f"Statut « {status} » : signalement non confirmé par la brigade."})
             continue
         lat, lon = _num(r.get("lat")), _num(r.get("lon"))
         if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
@@ -55,7 +57,7 @@ def _collect(reports: Any, by_size: dict[str, Any], commune: Any) -> tuple[list[
             ignored.append({"report_id": rid, "reason": "Ni « estimated_kg » ni taille connue (small, medium, large)."})
             continue
         key = rid if status == "active" else str(r.get("dumpsite_id") or rid)
-        trust = min(max(_num(r.get("trust")) or 0.0, 0.0), 1.0)
+        trust = 1.0 if status == "confirme" else min(max(_num(r.get("trust")) or 0.0, 0.0), 1.0)
         site = sites.get(key)
         if site is None:
             sites[key] = {"id": key, "lat": lat, "lon": lon, "kg": kg, "validated": status == "active", "members": [rid],

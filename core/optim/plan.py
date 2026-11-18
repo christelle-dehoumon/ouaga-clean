@@ -44,24 +44,29 @@ def _context(cfg: dict[str, Any] | None, net: Network | None) -> tuple[dict[str,
     return cfg, net
 
 
+GLOBAL_TAG = "[global] "
+
+
 def global_checks(plan: dict[str, Any], cfg: dict[str, Any] | None, network_available: bool) -> None:
-    """Indicateur global honnête : checks.ok est faux si un contrôle échoue, si le réseau manque, ou si la part de points
-    non desservis dépasse solver.max_unserved_ratio. Ajoute checks.unserved_count et checks.unserved_ratio."""
+    """Indicateur global honnête (idempotent) : checks.ok est faux si un contrôle échoue, si le réseau manque, ou si la
+    part de points non desservis dépasse solver.max_unserved_ratio. Les arrêts reportés (panne) sont comptés à part."""
     checks = plan["checks"]
+    checks["messages"] = [m for m in checks.get("messages", []) if not m.startswith(GLOBAL_TAG)]
     n = len(plan.get("collection_points", []))
     unserved = len(plan.get("unserved", []))
+    postponed = len(plan.get("postponed", []))
     ratio = unserved / n if n else 0.0
     limit = _num(section(cfg or {}, "solver").get("max_unserved_ratio"), 0.0)
-    checks["unserved_count"] = unserved
-    checks["unserved_ratio"] = round(ratio, 4)
-    checks["max_unserved_ratio"] = limit
-    checks["coverage_ok"] = ratio <= limit + 1e-9
-    checks["network_available"] = network_available
+    checks.update({"unserved_count": unserved, "unserved_ratio": round(ratio, 4), "postponed_count": postponed,
+                   "max_unserved_ratio": limit, "coverage_ok": ratio <= limit + 1e-9,
+                   "network_available": network_available})
     if not checks["coverage_ok"]:
-        checks["messages"].append(f"{unserved} point(s) sur {n} non desservis ({ratio:.0%}), au-delà du seuil de "
-                                  f"{limit:.0%} (solver.max_unserved_ratio) : plan non cohérent pour la mairie.")
+        checks["messages"].append(f"{GLOBAL_TAG}{unserved} point(s) sur {n} non desservis ({ratio:.0%}), au-delà du seuil "
+                                  f"de {limit:.0%} (solver.max_unserved_ratio) : plan non cohérent pour la mairie.")
+    if postponed:
+        checks["messages"].append(f"{GLOBAL_TAG}{postponed} arrêt(s) reporté(s) au prochain passage (camion en panne).")
     if not network_available:
-        checks["messages"].append("Aucun réseau routier chargé : plan non utilisable.")
+        checks["messages"].append(f"{GLOBAL_TAG}Aucun réseau routier chargé : plan non utilisable.")
     checks["ok"] = bool(all_ok(checks) and checks["coverage_ok"] and network_available)
 
 
@@ -533,7 +538,7 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
     try:
         cfg, net = _context(cfg, net)
         cache = net.__dict__.setdefault("matrix_cache", MatrixCache())      # un cache de distances par réseau
-        plan, note = None, "Plan précédent illisible : calcul complet."
+        plan, note, kind = None, "Plan précédent illisible : calcul complet.", "full"
         if isinstance(previous_plan, dict) and isinstance(previous_plan.get("collection_points"), list):
             ctx = _setup(params, cfg, net, cache)
             dump_ids = {p["id"] for p in dumpsite_stops(reports, cfg, net, ctx.fleet.capacity_kg)[0]}
@@ -550,7 +555,13 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
                     plan = None
             note = "Recalcul partiel incohérent ou impossible : calcul complet." if kind != "full" \
                 else "Changement non traité en partiel : calcul complet."
-        if plan is not None and any(u.get("reason") in ("capacity", "time") for u in plan["unserved"]):
+        if plan is not None and kind == "breakdown":
+            # Panne : seuls les arrêts du camion perdu sont redistribués ; ceux qui ne trouvent pas de place sont
+            # reportés (core.optim.events), sans relancer un calcul complet qui déplacerait toutes les tournées.
+            if any(u.get("reason") in ("capacity", "time") for u in plan["unserved"]):
+                plan["warnings"].append("Panne : arrêts du camion perdu réinsérés là où il restait de la place ; "
+                                        "les autres sont reportés, les tournées des camions en service sont gardées.")
+        elif plan is not None and any(u.get("reason") in ("capacity", "time") for u in plan["unserved"]):
             full = _full(_setup(params, cfg, net, cache), reports)
             if all_ok(full["checks"]) and _score(full) < _score(plan):
                 full["warnings"].append(f"Recalcul partiel : {len(plan['unserved'])} point(s) non servi(s), coût "
@@ -564,6 +575,7 @@ def compute_plan(params: dict, reports: list[dict], previous_plan: dict | None =
             plan = _full(_setup(params, cfg, net, cache), reports)
             if previous_plan is not None:
                 plan["assumptions"].append(note)
+        plan.setdefault("postponed", [])
     except Exception as exc:  # dernier recours : jamais d'exception vers l'appelant
         plan = _empty_plan(params if isinstance(params, dict) else {}, [], "no_route", "")
         plan["ignored_reports"] = []

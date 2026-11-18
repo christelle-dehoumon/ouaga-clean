@@ -63,6 +63,8 @@ class Network:
     warnings: list[str] = field(default_factory=list)
     load_s: float = 0.0
     stats: dict[str, int] = field(default_factory=dict)
+    # Arêtes du réseau commun, gardées pour les coupures manuelles (copie des vues, graphe en cache jamais modifié).
+    edges: dict[str, Any] = field(default_factory=dict)
 
 
 def project(lat: np.ndarray, lon: np.ndarray, origin: tuple[float, float]) -> np.ndarray:
@@ -278,7 +280,73 @@ def build_network(graph: Any, cfg: dict[str, Any]) -> Network:
              "rain_cut": int(rain_cut.sum()), "rain_cut_tagged": int(tagged_cut.sum()),
              "rain_cut_waterway": int(near_water.sum()), "rain_cut_flood_zone": int(in_zone.sum()),
              "rain_cut_truck": int((is_truck & rain_cut).sum()), "rain_cut_tricycle": int((is_tricycle & rain_cut).sum())}
-    return Network(node_ids, lat, lon, index_of, views, assumptions, warnings, time.perf_counter() - t0, stats)
+    mids = np.column_stack([(lat[u] + lat[v]) / 2, (lon[u] + lon[v]) / 2]) if len(u) else np.zeros((0, 2))
+    edge_data = {"u": u, "v": v, "length": length, "rain_weight": rain_weight, "masks": masks, "mid": mids,
+                 "tree": cKDTree(project(mids[:, 0], mids[:, 1], origin)) if len(u) else None, "origin": origin}
+    return Network(node_ids, lat, lon, index_of, views, assumptions, warnings, time.perf_counter() - t0, stats, edge_data)
+
+
+def edge_id(net: Network, k: int) -> str:
+    """Identifiant stable d'une arête : « idOSM_départ-idOSM_arrivée »."""
+    e = net.edges
+    return f"{int(net.node_ids[e['u'][k]])}-{int(net.node_ids[e['v'][k]])}"
+
+
+def resolve_cuts(net: Network, cuts: Any, max_snap_m: float) -> tuple[np.ndarray, list[dict[str, Any]], list[str]]:
+    """Arêtes à couper (les deux sens) depuis [{edge_id} | {lat, lon}] ; (masque, coupures retenues, avertissements)."""
+    e = net.edges
+    n_edges = len(e.get("u", ()))
+    mask = np.zeros(n_edges, dtype=bool)
+    done: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    if not n_edges:
+        return mask, done, (["Aucun réseau routier : coupure ignorée."] if cuts else [])
+    pair_index: dict[tuple[int, int], list[int]] = {}
+    for k, (a, b) in enumerate(zip(e["u"].tolist(), e["v"].tolist())):
+        pair_index.setdefault((min(a, b), max(a, b)), []).append(k)
+    for cut in cuts if isinstance(cuts, list) else []:
+        k = None
+        if isinstance(cut, dict) and isinstance(cut.get("edge_id"), str):
+            try:
+                a, b = (net.index_of[int(x)] for x in cut["edge_id"].split("-"))
+            except (KeyError, ValueError):
+                warnings.append(f"Route « {cut['edge_id']} » inconnue : coupure ignorée.")
+                continue
+            ks = pair_index.get((min(a, b), max(a, b)))
+            if not ks:
+                warnings.append(f"Route « {cut['edge_id']} » inconnue : coupure ignorée.")
+                continue
+            k = ks[0]
+        elif isinstance(cut, dict) and all(isinstance(cut.get(c), (int, float)) and not isinstance(cut.get(c), bool)
+                                           and math.isfinite(cut[c]) for c in ("lat", "lon")):
+            dist, k = e["tree"].query(project(np.array([cut["lat"]]), np.array([cut["lon"]]), e["origin"])[0])
+            if dist > max_snap_m:
+                warnings.append(f"Aucune route à moins de {max_snap_m:g} m de ({cut['lat']}, {cut['lon']}) : coupure ignorée.")
+                continue
+            k = int(k)
+        else:
+            warnings.append("Coupure mal formée (il faut edge_id ou lat/lon) : ignorée.")
+            continue
+        a, b = int(e["u"][k]), int(e["v"][k])
+        both = pair_index[(min(a, b), max(a, b))]
+        mask[both] = True
+        done.append({"edge_id": edge_id(net, k), "lat": round(float(e["mid"][k][0]), 6),
+                     "lon": round(float(e["mid"][k][1]), 6), "directions_cut": len(both)})
+    return mask, done, warnings
+
+
+def cut_network(net: Network, cut_mask: np.ndarray) -> Network:
+    """Copie du réseau dont les quatre vues excluent les arêtes coupées ; le réseau d'origine n'est pas modifié."""
+    import dataclasses
+
+    if not cut_mask.any():
+        return net
+    e = net.edges
+    views = {name: _view(name, m & ~cut_mask, e["u"], e["v"], e["rain_weight"] if name.endswith("_rain") else e["length"],
+                         e["length"], net.node_ids, net.lat, net.lon, e["origin"]) for name, m in e["masks"].items()}
+    copy_net = dataclasses.replace(net, views=views, assumptions=list(net.assumptions) + [
+        f"{int(cut_mask.sum())} arête(s) coupée(s) à la main pour ce calcul seulement (réseau d'origine inchangé)."])
+    return copy_net
 
 
 def _empty_network(message: str) -> Network:

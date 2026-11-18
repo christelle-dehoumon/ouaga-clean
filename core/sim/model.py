@@ -1,672 +1,372 @@
-"""Simulation multi-agents — 4 acteurs : ménages, pré-collecteurs, brigade Laabal, mairie.
+"""Simulation multi-agents (Mesa) : ménages, pré-collecteurs, brigade Laabal, mairie.
 
-Le plan entre, 3 chiffres sortent : part ramassée, coût, dépotoirs restants.
-Mesa 3.x est utilisé quand il est disponible. À défaut, un shim local expose la
-même API (Agent, Model, agents.shuffle_do) : une seule implémentation des règles,
-donc le même résultat pour une même graine, quel que soit le moteur.
+Le plan de collecte entre, trois chiffres sortent : part des déchets ramassée, coût, dépotoirs restants.
+Chaque acteur suit deux ou trois règles écrites ci-dessous ; tous les coefficients viennent de la section
+« hypotheses » de la configuration de la commune (aucun n'est mesuré, ils sont recopiés dans la sortie).
+
+La simulation ne lit jamais la base réelle : elle reçoit le plan et, au besoin, les dépotoirs simulés (sim.db).
+Tout ce qu'elle produit est étiqueté « simulated ».
+
+Règles :
+- Ménage : (1) produit chaque jour personnes × kg/personne/jour ; (2) abonné desservi : attend le pré-collecteur,
+  mais vide sa poubelle dans la rue si elle déborde ; (3) abonné non desservi ou non abonné : dépôt sauvage avec une
+  probabilité donnée, divisée par l'effet de la sensibilisation.
+- Pré-collecteur (tricycle) : (1) peut tomber en panne ; (2) passe avec une probabilité (réduite par la pluie) ;
+  (3) vide les poubelles des abonnés desservis jusqu'à sa capacité et dépose au point de regroupement.
+- Brigade Laabal : (1) visite les plus gros dépotoirs et les signale à la mairie ; (2) sensibilise les ménages
+  dans un rayon autour du dépotoir visité.
+- Mairie : (1) les jours de collecte (fréquence), envoie les camions en service (panne, pluie) dans la limite du
+  budget ; (2) vide les points de regroupement desservis par le plan ; (3) avec la capacité restante, nettoie les
+  dépotoirs signalés.
 """
+
 from __future__ import annotations
 
-import json
 import math
-import random
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Moteur : Mesa 3.x si disponible, shim compatible sinon.
-# ---------------------------------------------------------------------------
-try:  # Mesa >= 3
-    from mesa import Agent, Model  # type: ignore
+import mesa
 
-    MOTEUR = "mesa 3.x"
-except Exception:  # pragma: no cover - environnement sans Mesa
-    MOTEUR = "fallback local (sans Mesa)"
+from core.config import clamp_params, get_config, hypothesis, section
 
-    class Agent:  # type: ignore[no-redef]
-        def __init__(self, model: "Model"):
-            self.model = model
-            model._agents.append(self)
-
-    class _AgentSet:  # type: ignore[no-redef]
-        """Vue live sur les agents, comme l'AgentSet de Mesa."""
-
-        def __init__(self, model: "Model"):
-            self.model = model
-
-        def __iter__(self):
-            return iter(self.model._agents)
-
-        def __len__(self) -> int:
-            return len(self.model._agents)
-
-        def shuffle_do(self, method: str) -> None:
-            ordre = list(self.model._agents)
-            self.model.random.shuffle(ordre)
-            for agent in ordre:
-                getattr(agent, method)()
-
-    class Model:  # type: ignore[no-redef]
-        def __init__(self, seed: int | None = None):
-            self.random = random.Random(seed)
-            self._agents: list[Agent] = []
-            self.agents = _AgentSet(self)
+MOTEUR = f"mesa {mesa.__version__}"
+ACTEURS = ("menages", "pre_collecteurs", "brigade", "mairie")
+NOMS_ACTEURS = {"menages": "Ménages", "pre_collecteurs": "Pré-collecteurs", "brigade": "Brigade Laabal",
+                "mairie": "Mairie"}
+METRES_PAR_DEGRE = 111_320.0
 
 
-RACINE = Path(__file__).resolve().parents[2]
+def _num(value: Any, default: float = 0.0) -> float:
+    """Nombre fini, sinon default."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return default
+    return float(value)
 
 
-def _charger_json(chemin: Path) -> dict[str, Any]:
-    try:
-        with chemin.open(encoding="utf-8") as f:
-            donnees = json.load(f)
-        return donnees if isinstance(donnees, dict) else {}
-    except Exception:  # un fichier absent ne doit jamais casser la simulation
-        return {}
+def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distance approchée en mètres (projection locale)."""
+    dy = (lat2 - lat1) * METRES_PAR_DEGRE
+    dx = (lon2 - lon1) * METRES_PAR_DEGRE * math.cos(math.radians((lat1 + lat2) / 2))
+    return math.hypot(dx, dy)
 
 
-def _config_defaut() -> dict[str, Any]:
-    return _charger_json(RACINE / "config" / "commune_config.json")
+class Menage(mesa.Agent):
+    """Un agent = `echelle` ménages réels rattachés au même point de regroupement."""
 
-
-def _plan_reference() -> dict[str, Any]:
-    """Plan de démonstration utilisé par run_simulation quand aucun plan n'est fourni."""
-    return _charger_json(RACINE / "data" / "mock" / "plan_real.json")
-
-
-# ---------------------------------------------------------------------------
-# Aide : bornes et lecture tolérante des paramètres
-# ---------------------------------------------------------------------------
-def _born(x: float, lo: float, hi: float) -> float:
-    return max(lo, min(hi, x))
-
-
-def _nombre(parametres: dict[str, Any], cle: str, defaut: float) -> float:
-    try:
-        return float(parametres.get(cle, defaut))
-    except (TypeError, ValueError):
-        return defaut
-
-
-def _crises(parametres: dict[str, Any]) -> set[str]:
-    brut = parametres.get("crises_actives") or []
-    if isinstance(brut, str):
-        brut = [brut]
-    return {str(c) for c in brut if c}
-
-
-def _cout_plan(plan: Any) -> float:
-    """Le plan de A porte un coût en FCFA dans totals.cost : on le convertit en M FCFA."""
-    if not isinstance(plan, dict):
-        return 0.0
-    for cle in ("cout_annuel_m_fcfa", "cout_m_fcfa"):
-        if cle in plan:
-            return round(float(plan[cle]), 3)
-    coher = plan.get("coherence") if isinstance(plan.get("coherence"), dict) else {}
-    for cle in ("cout_annuel_m_fcfa", "cout_m_fcfa"):
-        if cle in coher:
-            return round(float(coher[cle]), 3)
-    totaux = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
-    if "cost" in totaux:
-        return round(float(totaux["cost"]) / 1_000_000, 3)
-    return 0.0
-
-
-def _regles(parametres: dict[str, Any], config: dict[str, Any]):
-    """Coefficients d'une journée, dérivés des curseurs, de la config et des crises."""
-    hypo = config.get("hypotheses_simulation", {}) if isinstance(config, dict) else {}
-    h_menage = hypo.get("menage", {}) if isinstance(hypo, dict) else {}
-    h_pre = hypo.get("pre_collecteur", {}) if isinstance(hypo, dict) else {}
-    h_brigade = hypo.get("brigade_laabal", {}) if isinstance(hypo, dict) else {}
-    actives = _crises(parametres)
-
-    population = _nombre(parametres, "population", 1_200_000)
-    # 500 ménages synthétiques = proxy de démonstration, pas un recensement.
-    # Aucun ménage => aucun déchet : on ne fabrique pas de proxy dans ce cas.
-    n_menages = 0 if population <= 0 else int(_born(population / 2400.0, 150, 900))
-
-    abonnement = _born(_nombre(parametres, "taux_abonnement_pct", 35) / 100.0, 0.0, 1.0)
-    desserte = _born(0.2 + abonnement * 0.8, 0.0, 0.98)
-
-    camions = _nombre(parametres, "nb_camions", 12)
-    freq_camions = _nombre(parametres, "freq_camions_par_semaine", 3)
-    tricycles = _nombre(parametres, "nb_tricycles", 40)
-    freq_tricycles = _nombre(parametres, "freq_tricycles_par_semaine", 6)
-    budget_m = _nombre(parametres, "budget_annuel_m_fcfa", 1200)
-
-    coeff_camion = _born(0.60 + camions / 12.0 * 0.25 + freq_camions / 7.0 * 0.15, 0.2, 1.0)
-    coeff_tricycle = _born(
-        0.50 + tricycles / 40.0 * 0.30 + freq_tricycles / 6.0 * 0.20, 0.2, 1.0
-    )
-    coeff_budget = _born(budget_m / 1200.0, 0.4, 1.1)
-
-    if "panne_camions" in actives:
-        coeff_camion *= 0.70
-    if "saison_pluies" in actives:
-        coeff_tricycle *= 0.80
-        coeff_camion *= 0.90
-    if "nouveau_quartier" in actives:
-        # Le nouveau quartier n'est pas encore desservi par les points de regroupement.
-        desserte *= 0.85
-        n_menages = int(n_menages * 1.10)
-
-    return {
-        "n_menages": n_menages,
-        "nb_pre": max(1, int(tricycles / 10)),
-        "desserte": desserte,
-        "coeff_camion": coeff_camion,
-        "coeff_tricycle": coeff_tricycle,
-        "coeff_budget": coeff_budget,
-        "proba_depot_desservi": float(
-            h_menage.get("proba_depot_sauvage_si_desservi_mais_plein", 0.35)
-        ),
-        "proba_depot_non_desservi": float(
-            h_menage.get("proba_depot_sauvage_si_non_desservi", 0.78)
-        ),
-        "proba_panne_tricycle": float(h_pre.get("proba_panne_tricycle_jour", 0.04)),
-        "proba_passage": float(h_pre.get("proba_passage_si_freq_respectee", 0.88)),
-        "proba_sensibilisation": float(h_brigade.get("proba_sensibilisation_reussie", 0.22)),
-        "crises": sorted(actives),
-    }
-
-
-# ---------------------------------------------------------------------------
-# Pont explicite avec le plan de A (aucune hypothèse inventée)
-# ---------------------------------------------------------------------------
-def _taux_non_servis(plan: Any) -> float:
-    """Part des points du plan réellement laissés sans tournée.
-
-    `unserved` et `totals.points_unserved` sont au contrat §5 ; quand les deux
-    sont présents on préfère la liste, qui porte les raisons. Le dénominateur
-    est `points_served + points_unserved` du plan, jamais un nombre synthétique.
-    """
-    if not isinstance(plan, dict):
-        return 0.0
-    totaux = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
-    servi = totaux.get("points_served")
-    non_servi = totaux.get("points_unserved")
-    if isinstance(non_servi, (int, float)) and not isinstance(non_servi, bool):
-        if isinstance(servi, (int, float)) and not isinstance(servi, bool):
-            total = float(servi) + float(non_servi)
-            if total > 0:
-                return _born(float(non_servi) / total, 0.0, 1.0)
-    liste = plan.get("unserved")
-    points = plan.get("collection_points")
-    if isinstance(liste, list) and isinstance(points, list) and points:
-        return _born(len(liste) / len(points), 0.0, 1.0)
-    return 0.0
-
-
-def _raison_non_servis(plan: Any) -> list[str]:
-    """Raisons déclarées par A dans `unserved` (jamais devinées)."""
-    if not isinstance(plan, dict) or not isinstance(plan.get("unserved"), list):
-        return []
-    raisons = {
-        str(p["reason"])
-        for p in plan["unserved"]
-        if isinstance(p, dict) and p.get("reason")
-    }
-    return sorted(raisons)
-
-
-def _masse_collectee(plan: Any) -> float | None:
-    """`totals.collected_kg` du contrat §5, en kg ; None si le plan ne le porte pas."""
-    if not isinstance(plan, dict):
-        return None
-    totaux = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
-    valeur = totaux.get("collected_kg")
-    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)) or not math.isfinite(valeur):
-        return None
-    return max(0.0, float(valeur))
-
-
-def _regles_plan(plan: Any, r: dict[str, Any]) -> dict[str, Any]:
-    """Décline les chiffres du plan dans les règles des agents C.
-
-    Deux leviers seulement, tous deux lus dans le plan :
-    * un point `unserved` n'est pas vidé par la mairie : moins il y en a, plus
-      la saturation des centres est forte, donc plus le dépôt sauvage augmente ;
-    * `totals.collected_kg` fixe l'échelle de la charge traitée par les
-      pré-collecteurs, rapportée à la taille du proxy (ménages synthétiques).
-    """
-    taux = _taux_non_servis(plan)
-    collecte = _masse_collectee(plan)
-    quotient = None if collecte is None else collecte / max(1, r["n_menages"])
-    return {
-        "taux_points_non_servis": round(taux, 4),
-        "raisons_non_servis": _raison_non_servis(plan),
-        "kg_collectes_plan": collecte,
-        "kg_collectes_par_menage": None if quotient is None else round(quotient, 3),
-        # Saturation des points de regroupement : 0 si tout le plan est servi,
-        # 1 si tous ses points sont en `unserved`.
-        "saturation_plan": round(taux, 4),
-        # La collecte du plan module la probabilité de passage des tricycles.
-        "facteur_collecte": (
-            1.0 if quotient is None else _born(0.6 + quotient / 250.0, 0.6, 1.0)
-        ),
-    }
-
-
-# ---------------------------------------------------------------------------
-# Agents
-# ---------------------------------------------------------------------------
-class Menage(Agent):
-    def __init__(self, uid: int, model: "Model", desservi: bool, r: dict[str, Any]):
+    def __init__(self, model: "ModeleOuaga", point: dict[str, Any], abonne: bool, lat: float, lon: float):
         super().__init__(model)
-        self.unique_id = uid
-        self.desservi = desservi
-        self.r = r
-        self.a_depose = False
+        self.point, self.abonne, self.lat, self.lon = point, abonne, lat, lon
+        self.stock_kg = 0.0
+        self.sensibilise_jusqua = -1
 
-    def step(self):
-        r = self.r
-        if self.desservi:
-            # Un ménage desservi peut encore jeter si le service est saturé.
-            saturation = 1.0 - 0.5 * r["coeff_camion"] * r["coeff_budget"]
-            saturation = max(saturation, r["saturation_plan"])
-            proba = r["proba_depot_desservi"] * _born(saturation, 0.3, 1.0)
+    @property
+    def desservi(self) -> bool:
+        """Point de regroupement desservi par une tournée du plan."""
+        return bool(self.point["desservi"])
+
+    def step(self) -> None:
+        m = self.model
+        produit = m.kg_par_menage_jour * m.echelle
+        self.stock_kg += produit
+        m.jour_courant["produit_kg"] += produit
+        effet = m.h("menages", "effet_sensibilisation") if self.sensibilise_jusqua >= m.jour else 1.0
+        if self.abonne and self.desservi:
+            plein = self.stock_kg > m.kg_par_menage_jour * m.echelle * m.h("menages", "jours_avant_debordement")
+            proba = m.h("menages", "proba_depot_sauvage_sature") * effet if plein else 0.0
+        elif self.abonne:
+            proba = m.h("menages", "proba_depot_sauvage_non_desservi") * effet
         else:
-            proba = r["proba_depot_non_desservi"]
-        self.a_depose = self.model.random.random() < proba  # type: ignore[attr-defined]
+            proba = m.h("menages", "proba_depot_sauvage_non_abonne") * effet
+        if proba and self.random.random() < proba:
+            m.deposer(self, self.stock_kg)
+            self.stock_kg = 0.0
 
 
-class PreCollecteur(Agent):
-    def __init__(self, uid: int, model: "Model", r: dict[str, Any]):
+class PreCollecteur(mesa.Agent):
+    """Tricycle de pré-collecte : ménages abonnés desservis -> point de regroupement."""
+
+    def __init__(self, model: "ModeleOuaga"):
         super().__init__(model)
-        self.unique_id = uid
-        self.r = r
+        self.en_panne = False
+        self.ramasse_kg = 0.0
 
-    def step(self):
-        r = self.r
-        panne = r["proba_panne_tricycle"] + (0.12 if "saison_pluies" in r["crises"] else 0.0)
-        if self.model.random.random() < panne:  # type: ignore[attr-defined]
+    def step(self) -> None:
+        m = self.model
+        self.en_panne = self.random.random() < m.h("pre_collecteurs", "proba_panne_jour")
+        passage = m.h("pre_collecteurs", "proba_passage") * (m.h("pre_collecteurs", "facteur_pluie") if m.pluie else 1.0)
+        if self.en_panne or self.random.random() >= passage:
             return
-        proba = r["proba_passage"] * r["coeff_tricycle"] * 0.25 * r["facteur_collecte"]
-        # Chaque pré-collecteur ne couvre qu'une part des ménages : la flotte compte.
-        tournee = self.unique_id - 10_000
-        for agent in self.model.agents:  # type: ignore[attr-defined]
-            if isinstance(agent, Menage) and agent.a_depose and agent.unique_id % self.r["nb_pre"] == tournee:
-                if self.model.random.random() < proba:  # type: ignore[attr-defined]
-                    agent.a_depose = False
+        capacite = m.capacite_tricycle_kg * m.h("pre_collecteurs", "tournees_par_jour")
+        clients = [a for a in m.menages if a.abonne and a.desservi and a.stock_kg > 0]
+        self.random.shuffle(clients)
+        for menage in clients:
+            if capacite <= 0:
+                break
+            pris = min(menage.stock_kg, capacite)
+            menage.stock_kg -= pris
+            capacite -= pris
+            menage.point["stock_kg"] += pris
+            self.ramasse_kg += pris
+            m.jour_courant["precollecte_kg"] += pris
 
 
-class Brigade(Agent):
-    def __init__(self, uid: int, model: "Model", r: dict[str, Any]):
+class Brigade(mesa.Agent):
+    """Patrouille de la brigade Laabal : signale les dépotoirs et sensibilise autour."""
+
+    def __init__(self, model: "ModeleOuaga"):
         super().__init__(model)
-        self.unique_id = uid
-        self.r = r
+        self.patrouilles = 0
+        self.sensibilises = 0
 
-    def step(self):
-        r = self.r
-        proba = r["proba_sensibilisation"]
-        if "saison_pluies" in r["crises"]:
-            proba *= 0.8
-        for agent in self.model.agents:  # type: ignore[attr-defined]
-            if isinstance(agent, Menage) and agent.a_depose:
-                if self.model.random.random() < proba:  # type: ignore[attr-defined]
-                    agent.a_depose = False
+    def step(self) -> None:
+        m = self.model
+        actifs = sorted((d for d in m.depotoirs.values() if d["kg"] > 0 and not d["signale"]),
+                        key=lambda d: (-d["kg"], d["id"]))
+        rayon = m.h("brigade", "rayon_m")
+        for depotoir in actifs[:int(m.h("brigade", "depotoirs_par_patrouille"))]:
+            depotoir["signale"] = True
+            self.patrouilles += 1
+            for menage in m.menages:
+                if _distance_m(menage.lat, menage.lon, depotoir["lat"], depotoir["lon"]) <= rayon and \
+                        self.random.random() < m.h("brigade", "proba_sensibilisation"):
+                    menage.sensibilise_jusqua = m.jour + int(m.h("menages", "duree_sensibilisation_jours"))
+                    self.sensibilises += 1
 
 
-class Mairie(Agent):
-    def __init__(self, uid: int, model: "Model", r: dict[str, Any]):
+class Mairie(mesa.Agent):
+    """Camions de la mairie : points desservis les jours de collecte, puis dépotoirs signalés, dans le budget."""
+
+    def __init__(self, model: "ModeleOuaga"):
         super().__init__(model)
-        self.unique_id = uid
-        self.r = r
+        self.depense_fcfa = 0.0
+        self.collecte_kg = 0.0
+        self.nettoye_kg = 0.0
+        self.jours_collecte = 0
 
-    def step(self):
-        r = self.r
-        # La mairie envoie la brigade mécanisée selon les camions, la fréquence et le budget.
-        # Un point en `unserved` n'est pas vidé : la charge restante augmente.
-        proba = 0.12 * r["coeff_camion"] * r["coeff_budget"] * (1.0 - r["saturation_plan"])
-        for agent in self.model.agents:  # type: ignore[attr-defined]
-            if isinstance(agent, Menage) and agent.a_depose:
-                if self.model.random.random() < proba:  # type: ignore[attr-defined]
-                    agent.a_depose = False
-
-
-# Noms exigés par le guide final (les alias gardent les anciens imports valides).
-Menages = Menage
-PreCollecteurs = PreCollecteur
-BrigadeLaabal = Brigade
-Municipalite = Mairie
-
-AGENTS = (
-    {"nom": "Ménages", "classe": "Menage", "regle": "déposent ou non selon la desserte et la saturation"},
-    {"nom": "Précollecteurs", "classe": "PreCollecteur", "regle": "ramassent une part des dépôts, panne possible"},
-    {"nom": "Brigade Laabal", "classe": "Brigade", "regle": "sensibilise et évite certains dépôts sauvages"},
-    {"nom": "Municipalité", "classe": "Mairie", "regle": "envoie la brigade mécanisée selon camions, fréquence et budget"},
-)
-
-
-class OuagaModel(Model):
-    def __init__(self, parametres: dict[str, Any], config: dict[str, Any], r: dict[str, Any], seed: int):
-        super().__init__(seed=seed)
-        self.regles = r
-        for i in range(r["n_menages"]):
-            desservi = self.random.random() < r["desserte"]  # type: ignore[attr-defined]
-            Menage(i, self, desservi, r)
-        for i in range(r["nb_pre"]):
-            PreCollecteur(10_000 + i, self, r)
-        for i in range(3):
-            Brigade(20_000 + i, self, r)
-        Mairie(30_000, self, r)
-
-    def step(self):
-        self.agents.shuffle_do("step")  # type: ignore[attr-defined]
+    def step(self) -> None:
+        m = self.model
+        # Règle 1 : jour de collecte selon la fréquence, camions en service, budget du passage.
+        if math.floor((m.jour + 1) * m.frequence / 7) == math.floor(m.jour * m.frequence / 7):
+            return
+        if m.camions_en_service <= 0 or m.capacite_jour_kg <= 0:
+            return
+        part_budget = min(1.0, m.budget_passage / m.cout_passage) if m.cout_passage > 0 else 1.0
+        capacite = m.capacite_jour_kg * part_budget
+        self.jours_collecte += 1
+        self.depense_fcfa += m.cout_passage * part_budget
+        m.jour_courant["cout_fcfa"] += m.cout_passage * part_budget
+        # Règle 2 : vider les points desservis.
+        for point in m.points:
+            if not point["desservi"] or capacite <= 0:
+                continue
+            pris = min(point["stock_kg"], capacite)
+            point["stock_kg"] -= pris
+            capacite -= pris
+            self.collecte_kg += pris
+            m.jour_courant["collecte_kg"] += pris
+        # Règle 3 : nettoyer les dépotoirs signalés avec une part de la capacité restante.
+        reste = capacite * m.h("mairie", "part_capacite_nettoyage")
+        for depotoir in sorted((d for d in m.depotoirs.values() if d["signale"] and d["kg"] > 0),
+                               key=lambda d: (-d["kg"], d["id"])):
+            if reste <= 0:
+                break
+            pris = min(depotoir["kg"], reste)
+            depotoir["kg"] -= pris
+            reste -= pris
+            self.nettoye_kg += pris
+            m.jour_courant["collecte_kg"] += pris
+            if depotoir["kg"] <= 0:
+                depotoir["signale"] = False
 
 
-# ---------------------------------------------------------------------------
-# API publique — conserve exactement les clés historiques du contrat
-# ---------------------------------------------------------------------------
-def simuler(
-    plan: Any,
-    parametres: dict[str, Any] | None,
-    config: dict[str, Any] | None,
-    jours: int = 7,
-    seed: int = 0,
-) -> dict[str, Any]:
-    parametres = parametres if isinstance(parametres, dict) else {}
-    config = config if isinstance(config, dict) else {}
+class ModeleOuaga(mesa.Model):
+    """Modèle journalier ; activation dans l'ordre ménages, pré-collecteurs, brigade, mairie."""
+
+    def __init__(self, plan: dict[str, Any], params: dict[str, Any], cfg: dict[str, Any], seed: int,
+                 actifs: dict[str, bool], depotoirs_sim: list[dict[str, Any]]):
+        super().__init__(rng=seed)
+        self.cfg = cfg
+        self.jour = 0
+        self.actifs = actifs
+        self.pluie = bool(params.get("rainy_season"))
+        self.frequence = max(_num(params.get("frequency_per_week"), 1.0), 0.0)
+        model_cfg = section(cfg, "model")
+        self.kg_personne_jour = _num(model_cfg.get("waste_kg_per_person_day"))
+        self.kg_par_menage_jour = self.kg_personne_jour * self.h("menages", "personnes_par_menage")
+        self.capacite_tricycle_kg = _num(params.get("tricycle_capacity_kg"))
+        trucks = int(_num(params.get("trucks")))
+        broken = {t for t in params.get("broken_trucks") or [] if isinstance(t, str)}
+        self.camions_en_service = len([i for i in range(1, trucks + 1) if f"truck{i}" not in broken])
+        trips = max(int(_num(model_cfg.get("truck_trips_per_day"), 1.0)), 1)
+        self.capacite_jour_kg = (self.camions_en_service * _num(params.get("truck_capacity_kg")) * trips
+                                 * (self.h("mairie", "facteur_pluie_camions") if self.pluie else 1.0))
+        totals = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
+        self.cout_passage = _num(totals.get("cost"))
+        self.budget_passage = max(_num(params.get("budget")), 0.0)
+        self.points = self._points(plan)
+        self.depotoirs: dict[str, dict[str, Any]] = {}
+        for d in depotoirs_sim:
+            if _num(d.get("lat"), None) is not None and _num(d.get("lon"), None) is not None:
+                did = str(d.get("id") or f"sim_{len(self.depotoirs)}")
+                self.depotoirs[did] = {"id": did, "lat": float(d["lat"]), "lon": float(d["lon"]),
+                                       "kg": _num(d.get("kg"), self.h("mairie", "seuil_depotoir_kg") * 4),
+                                       "signale": False, "source": "sim", "origine": "ajouté par la mairie"}
+        self.menages: list[Menage] = []
+        self.echelle = 1.0
+        self.ignores: list[str] = []
+        self._creer_menages(plan, params)
+        self.tricycles = [PreCollecteur(self) for _ in range(int(_num(params.get("tricycles"))))] \
+            if actifs["pre_collecteurs"] else []
+        self.patrouilles = [Brigade(self) for _ in range(int(self.h("brigade", "patrouilles_par_jour")))] \
+            if actifs["brigade"] else []
+        self.mairie = Mairie(self) if actifs["mairie"] else None
+        self.jour_courant: dict[str, float] = {}
+        self.series: list[dict[str, Any]] = []
+
+    def h(self, groupe: str, cle: str) -> float:
+        """Coefficient d'hypothèse lu dans la configuration."""
+        return hypothesis(self.cfg, groupe, cle)
+
+    @staticmethod
+    def _points(plan: dict[str, Any]) -> list[dict[str, Any]]:
+        """Points de regroupement du plan (parties découpées regroupées) et leur desserte."""
+        servis = {s for r in plan.get("routes") or [] if isinstance(r, dict) for s in r.get("stops") or []}
+        groupes: dict[str, dict[str, Any]] = {}
+        for p in plan.get("collection_points") or []:
+            if not isinstance(p, dict) or p.get("type") != "center":
+                continue
+            pid = str(p.get("split_of") or p.get("id"))
+            g = groupes.setdefault(pid, {"id": pid, "lat": _num(p.get("lat")), "lon": _num(p.get("lon")),
+                                         "demand_kg": 0.0, "parts": 0, "servies": 0, "stock_kg": 0.0})
+            g["demand_kg"] += _num(p.get("demand_kg"))
+            g["parts"] += 1
+            g["servies"] += int(p.get("id") in servis)
+        for g in groupes.values():
+            g["desservi"] = g["servies"] == g["parts"]
+        return sorted(groupes.values(), key=lambda g: g["id"])
+
+    def _creer_menages(self, plan: dict[str, Any], params: dict[str, Any]) -> None:
+        """Ménages abonnés et non abonnés répartis sur les points selon leur demande (proportions du plan)."""
+        if not self.points or self.kg_par_menage_jour <= 0 or not self.actifs["menages"]:
+            return
+        # La demande du plan est calculée par passage, à la fréquence du plan (pas celle simulée).
+        freq_plan = _num((plan.get("params_used") or {}).get("frequency_per_week"), self.frequence) or self.frequence
+        jours = 7 / freq_plan if freq_plan > 0 else 7
+        abonnes_kg = sum(p["demand_kg"] for p in self.points)
+        totals = plan.get("totals") if isinstance(plan.get("totals"), dict) else {}
+        non_abonnes_kg = _num(totals.get("uncollected_kg"))
+        reels_ab = abonnes_kg / (self.kg_par_menage_jour * jours)
+        reels_non = non_abonnes_kg / (self.kg_par_menage_jour * jours)
+        total = reels_ab + reels_non
+        if total <= 0:
+            return
+        max_agents = self.h("simulation", "max_agents_menages")
+        n = int(min(max_agents, max(1, round(total))))
+        self.echelle = total / n
+        n_ab = int(round(n * reels_ab / total))
+        poids = [p["demand_kg"] for p in self.points]
+        disp = self.h("simulation", "dispersion_menages_m") / METRES_PAR_DEGRE
+        for i in range(n):
+            point = self.random.choices(self.points, weights=poids)[0]
+            lat = point["lat"] + self.random.gauss(0, disp)
+            lon = point["lon"] + self.random.gauss(0, disp / max(math.cos(math.radians(point["lat"])), 0.1))
+            self.menages.append(Menage(self, point, i < n_ab, lat, lon))
+
+    def deposer(self, menage: Menage, kg: float) -> None:
+        """Dépôt sauvage simulé : un dépotoir par point de regroupement voisin."""
+        did = f"sim_{menage.point['id']}"
+        d = self.depotoirs.setdefault(did, {"id": did, "lat": menage.point["lat"], "lon": menage.point["lon"],
+                                            "kg": 0.0, "signale": False, "source": "sim", "origine": "simulation"})
+        d["kg"] += kg
+        self.jour_courant["depose_kg"] += kg
+
+    def step(self) -> None:
+        self.jour_courant = {"jour": self.jour + 1, "produit_kg": 0.0, "precollecte_kg": 0.0, "collecte_kg": 0.0,
+                             "depose_kg": 0.0, "cout_fcfa": 0.0}
+        for groupe in (self.menages, self.tricycles, self.patrouilles, [self.mairie] if self.mairie else []):
+            ordre = list(groupe)
+            self.random.shuffle(ordre)
+            for agent in ordre:
+                agent.step()
+        seuil = self.h("mairie", "seuil_depotoir_kg")
+        self.series.append({**{k: round(v, 1) if isinstance(v, float) else v for k, v in self.jour_courant.items()},
+                            "depotoirs": sum(1 for d in self.depotoirs.values() if d["kg"] >= seuil)})
+        self.jour += 1
+
+
+def _hypotheses_utilisees(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Copie des hypothèses de la configuration, pour l'étiquetage dans la sortie."""
+    out = {}
+    for groupe, valeurs in section(cfg, "hypotheses").items():
+        if isinstance(valeurs, dict):
+            out[groupe] = {k: v for k, v in valeurs.items() if not k.startswith("_")}
+    return out
+
+
+def run_scenario(params: dict[str, Any] | None, plan: dict[str, Any] | None, days: Any = 7,
+                 actors_enabled: dict[str, bool] | None = None, seed: Any = 0,
+                 sim_dumpsites: list[dict[str, Any]] | None = None, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Simule `days` jours du plan ; ne lève jamais : {"error": ...} si l'entrée est inutilisable."""
     try:
-        jours = max(1, int(jours))
-    except (TypeError, ValueError):
-        jours = 7
-    try:
-        seed = int(seed)
-    except (TypeError, ValueError):
-        seed = 0
-
-    r = _regles(parametres, config)
-    r.update(_regles_plan(plan, r))
-    modele = OuagaModel(parametres, config, r, seed)
-    for _ in range(jours):
-        modele.step()
-
-    restants = sum(
-        1 for a in modele.agents if isinstance(a, Menage) and a.a_depose  # type: ignore[attr-defined]
-    )
-    total = r["n_menages"]
-    sans_dechet = total <= 0
-    # Sans déchet, « 100 % ramassé » serait faux : on affiche 0 et un message.
-    part = 0.0 if sans_dechet else round(1.0 - restants / max(1, total), 3)
-
-    return {
-        "part_ramassee": part,
-        "cout_m_fcfa": _cout_plan(plan),
-        "depotoirs_restants": 0 if sans_dechet else restants,
-        "sans_dechet": sans_dechet,
-        "message_dechet": "Aucun déchet généré" if sans_dechet else None,
-        "jours": jours,
-        "moteur": MOTEUR,
-        # Métadonnées d'honnêteté : le compteur est un proxy, pas un relevé terrain.
-        "unite_depotoirs_restants": "ménages synthétiques (proxy)",
-        "menages_synthetiques": total,
-        "crises_actives": r["crises"],
-        "graine": seed,
-        "agents": [dict(a) for a in AGENTS],
-        "hypotheses": "paramètres de démonstration à valider avec la mairie",
-        # Traçabilité du plan : chaque nombre vient du plan, rien n'est inventé.
-        "plan": {
-            "taux_points_non_servis": r["taux_points_non_servis"],
-            "points_non_servis": (
-                plan.get("totals", {}).get("points_unserved")
-                if isinstance(plan, dict) and isinstance(plan.get("totals"), dict) else None
-            ),
-            "raisons_non_servis": r["raisons_non_servis"],
-            "kg_collectes": r["kg_collectes_plan"],
-            "kg_collectes_par_menage": r["kg_collectes_par_menage"],
-        },
-    }
-
-
-# ---------------------------------------------------------------------------
-# Fonctions partagées du contrat (docs/contracts.md §6)
-# ---------------------------------------------------------------------------
-def _scenario_id() -> str:
-    return "s_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + uuid.uuid4().hex[:6]
-
-
-def _repli(exc: Exception | None = None) -> dict[str, Any]:
-    """Dernier état valide connu, toujours marqué « simulé » et jamais d'exception."""
-    sortie: dict[str, Any] = {
-        "part_ramassee": 0.0,
-        "cout_m_fcfa": 0.0,
-        "depotoirs_restants": 0,
-        "jours": 1,
-        "days": 1,
-        "moteur": MOTEUR,
-        "unite_depotoirs_restants": "ménages synthétiques (proxy)",
-        "menages_synthetiques": 0,
-        "crises_actives": [],
-        "graine": 0,
-        "agents": [dict(a) for a in AGENTS],
-        "fonction": "run_scenario",
-        "source_plan": "indisponible",
-        "data_tag": "simulated",
-        "series": [],
-        "agent_states": [],
-        "events": [],
-    }
-    if exc is not None:
-        sortie["warnings"] = [f"Simulation de repli : {type(exc).__name__} — {exc}"]
-    return sortie
-
-
-# ---------------------------------------------------------------------------
-# Validation Backend (contrat §6) — renvoie {"error": ...}, jamais d'exception.
-# ---------------------------------------------------------------------------
-def _valider_entree(
-    params: Any, plan: Any, days: Any
-) -> tuple[dict[str, Any], dict[str, Any], int, str | None]:
-    if not isinstance(params, dict):
-        return {}, {}, 0, "Les paramètres doivent être un objet."
-    if not isinstance(plan, dict) or not isinstance(plan.get("totals"), dict):
-        return {}, {}, 0, "Un plan calculé avec ses totaux est obligatoire."
-    if isinstance(days, bool) or not isinstance(days, int) or days < 1:
-        return {}, {}, 0, "Le nombre de jours doit être un entier positif."
-
-    total = plan["totals"]
-    cout = total.get("cost")
-    if isinstance(cout, bool) or not isinstance(cout, (int, float)) or not math.isfinite(cout) or cout < 0:
-        return {}, {}, 0, "Le coût du plan est absent ou invalide."
-
-    # Les tests C historiques appellent run_scenario avec les curseurs du
-    # membre C (taux_abonnement_pct en pourcentage, nb_tricycles). Le contrat
-    # Backend utilise subscription_rate (0..1) et tricycles ; les deux formes
-    # sont acceptées, sans jamais fabriquer de valeur pour un champ manquant.
-    if "subscription_rate" in params and "taux_abonnement_pct" not in params:
-        subscription = params["subscription_rate"]
-        if (isinstance(subscription, bool) or not isinstance(subscription, (int, float))
-                or not math.isfinite(subscription) or not 0 <= subscription <= 1):
-            return {}, {}, 0, "subscription_rate doit être compris entre 0 et 1."
-    elif "taux_abonnement_pct" in params:
-        if ("subscription_rate" in params
-                and (isinstance(params["subscription_rate"], bool)
-                     or not isinstance(params["subscription_rate"], (int, float))
-                     or not math.isfinite(params["subscription_rate"])
-                     or not 0 <= params["subscription_rate"] <= 1)):
-            return {}, {}, 0, "subscription_rate doit être compris entre 0 et 1."
-    else:
-        return {}, {}, 0, "subscription_rate doit être compris entre 0 et 1."
-
-    if "tricycles" in params and "nb_tricycles" not in params:
-        tricycles = params["tricycles"]
-        if isinstance(tricycles, bool) or not isinstance(tricycles, int) or tricycles < 0:
-            return {}, {}, 0, "tricycles doit être un entier positif ou nul."
-    elif "nb_tricycles" in params:
-        if ("tricycles" in params
-                and (isinstance(params["tricycles"], bool)
-                     or not isinstance(params["tricycles"], int)
-                     or params["tricycles"] < 0)):
-            return {}, {}, 0, "tricycles doit être un entier positif ou nul."
-    else:
-        return {}, {}, 0, "tricycles doit être un entier positif ou nul."
-
-    for cle in ("collected_kg", "uncollected_kg", "points_unserved", "points_served"):
-        valeur = total.get(cle)
-        if valeur is not None and (isinstance(valeur, bool) or not isinstance(valeur, (int, float)) or not math.isfinite(valeur)):
-            return {}, {}, 0, f"totals.{cle} est invalide dans le plan."
-
-    # Un plan conforme porte `unserved` (liste) ; sa présence est vérifiée sans
-    # l'exiger quand le champ n'existe pas dans une version antérieure du contrat.
-    if "unserved" in plan and not isinstance(plan["unserved"], list):
-        return {}, {}, 0, "Le champ unserved du plan doit être une liste."
-
-    return params, plan, days, None
-
-
-def _parametres_simulation(params: dict[str, Any]) -> dict[str, Any]:
-    """Convertit les noms du contrat §6 vers les curseurs historiques du membre C."""
-    if "taux_abonnement_pct" in params:
-        abonnement_pct = float(params["taux_abonnement_pct"])
-    else:
-        abonnement_pct = float(params["subscription_rate"]) * 100.0
-    tricycles = params["nb_tricycles"] if "nb_tricycles" in params else params["tricycles"]
-    return {
-        "taux_abonnement_pct": abonnement_pct,
-        "nb_tricycles": int(tricycles),
-        "nb_camions": params.get("trucks", 12),
-        "population": params.get("population", 1_200_000),
-        "crises_actives": (
-            (["panne_camions"] if params.get("broken_trucks") else [])
-            + (["saison_pluies"] if params.get("rainy_season") else [])
-            + (["nouveau_quartier"] if params.get("extra_territories") else [])
-        ),
-        "graine": params.get("graine", params.get("seed", 0)),
-    }
-
-
-def run_scenario(
-    params: dict[str, Any] | None = None,
-    plan: dict[str, Any] | int | None = None,
-    days: int | dict[str, bool] | None = None,
-    actors_enabled: dict[str, bool] | None = None,
-    **kwargs: Any,
-) -> dict[str, Any]:
-    """Lance un scénario et ne lève jamais d'exception vers l'appelant.
-
-    Deux signatures sont acceptées :
-    * historique (contrat §6) : ``run_scenario(params, plan, days)`` ;
-    * étendue (démo acteurs)  : ``run_scenario(params, days, actors_enabled)``.
-
-    La détection repose sur le type du 2ᵉ argument positionnel : un dictionnaire
-    est un plan (ancienne signature), un nombre est le nombre de jours (nouvelle).
-    """
-    try:
-        nouveaux_acteurs = (
-            actors_enabled is not None
-            or isinstance(days, dict)
-            or (plan is not None and not isinstance(plan, dict))
-        )
-
-        if nouveaux_acteurs:
-            # --- Nouvelle signature : jours + drapeaux d'acteurs -------------
-            if isinstance(days, dict):
-                acteurs = days
-                jours_bruts = plan
-            else:
-                acteurs = actors_enabled
-                jours_bruts = plan if (plan is not None and not isinstance(plan, dict)) else days
-            plan_acteurs = params.get("plan") if isinstance(params, dict) else None
-            if isinstance(plan_acteurs, dict):
-                # Le contrat §6 s'applique aussi ici quand un plan valide est fourni.
-                valides, _, duree_valide, erreur = _valider_entree(params, plan_acteurs, jours_bruts)
-                if erreur is not None:
-                    return {"error": erreur}
-                jours_bruts = duree_valide
-            if "actors_enabled" in kwargs and isinstance(kwargs["actors_enabled"], dict):
-                acteurs = kwargs["actors_enabled"]
-            try:
-                duree = max(1, int(jours_bruts))
-            except (TypeError, ValueError):
-                duree = 7
-            try:
-                graine = int(params.get("graine", params.get("seed", 42))) if isinstance(params, dict) else 42
-            except (TypeError, ValueError):
-                graine = 42
-
-            from .actors import executer  # import différé : évite tout cycle
-
-            resultat = executer(params or {}, duree, acteurs, graine)
-            if resultat.get("sans_dechet"):
-                resultat.setdefault("assumptions", []).insert(
-                    0, "Aucun déchet généré : aucun pourcentage de collecte n'est affiché."
-                )
-            resultat.update({
-                "scenario_id": _scenario_id(),
-                "plan_id": (plan_acteurs or {}).get("plan_id")
-                if isinstance(plan_acteurs, dict) else None,
-            })
-            return resultat
-
-        # --- Signature historique : plan + jours ---------------------------
-        valides, plan_valide, duree, erreur = _valider_entree(params, plan, days)
-        if erreur is not None:
-            return {"error": erreur}
-
-        try:
-            graine = int(valides.get("graine", valides.get("seed", 0)))
-        except (TypeError, ValueError):
-            graine = 0
-        resultat = simuler(
-            plan_valide,
-            _parametres_simulation(valides),
-            _config_defaut(),
-            jours=duree,
-            seed=graine,
-        )
-        resultat.update({
-            "fonction": "run_scenario",
-            "scenario_id": _scenario_id(),
-            "plan_id": plan_valide.get("id") or plan_valide.get("plan_id"),
-            "params_used": valides,
-            "days": duree,
-            "source_plan": "plan fourni par A",
-            "data_tag": "simulated",
-            "assumptions": ([
-                "Aucun déchet généré : aucun pourcentage de collecte n'est affiché."
-            ] if resultat.get("sans_dechet") else []) + [
-                "Simulation multi-agents sur {} ménages synthétiques (proxy).".format(
-                    resultat["menages_synthetiques"]
-                ),
-                "Le résultat dépend du plan : taux de points non servis et kg collectés "
-                "sont lus dans unserved et totals.collected_kg (contrat §5).",
-                "Probabilités par défaut faute de configuration : dépôt sauvage 0,78 (non desservi), "
-                "0,35 (desservi), passage de pré-collecte 0,88, panne de tricycle 0,04, "
-                "sensibilisation 0,22.",
-            ],
-        })
-        return resultat
-    except Exception as exc:  # règle commune : jamais d'exception vers l'appelant
-        return _repli(exc)
-
-
-def run_simulation(
-    params: dict[str, Any] | None = None,
-    days: int = 7,
-    actors_enabled: dict[str, bool] | None = None,
-) -> dict[str, Any]:
-    """Signature du message d'équipe, avec support optionnel des acteurs.
-
-    Sans ``actors_enabled``, le comportement historique est conservé (le même
-    calcul que ``run_scenario(params, plan, days)`` avec le plan de référence),
-    ce qui garantit l'égalité attendue par les tests du contrat.
-    """
-    parametres = params if isinstance(params, dict) else {}
-    plan = parametres.get("plan")
-    source = "plan fourni dans params"
-    if not isinstance(plan, dict):
-        plan = _plan_reference()
-        source = "plan de référence simulé (mock local)"
-    if actors_enabled is None:
-        resultat = run_scenario(parametres, plan, days)
-    else:
-        avec_plan = dict(parametres)
-        avec_plan["plan"] = plan
-        resultat = run_scenario(avec_plan, days, actors_enabled)
-        resultat["source_plan"] = source
-    resultat["fonction"] = "run_simulation"
-    resultat["source_plan"] = source
-    return resultat
+        cfg = cfg or get_config()
+        if not isinstance(plan, dict) or not isinstance(plan.get("collection_points"), list):
+            return {"error": "Plan absent ou mal formé : calculer d'abord un plan."}
+        if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= 365:
+            return {"error": "days doit être un entier entre 1 et 365."}
+        warnings: list[str] = []
+        base = dict(plan.get("params_used") or {})
+        base.update({k: v for k, v in (params or {}).items() if k in section(cfg, "params")})
+        base = clamp_params(base, cfg, warnings)
+        actifs = {a: True for a in ACTEURS}
+        if isinstance(actors_enabled, dict):
+            actifs.update({k: bool(v) for k, v in actors_enabled.items() if k in actifs})
+        graine = int(seed) if isinstance(seed, int) and not isinstance(seed, bool) else 0
+        modele = ModeleOuaga(plan, base, cfg, graine, actifs, list(sim_dumpsites or []))
+        for _ in range(days):
+            modele.step()
+        produit = sum(j["produit_kg"] for j in modele.series)
+        collecte = sum(j["collecte_kg"] for j in modele.series)
+        cout = sum(j["cout_fcfa"] for j in modele.series)
+        seuil = modele.h("mairie", "seuil_depotoir_kg")
+        restants = [d for d in modele.depotoirs.values() if d["kg"] >= seuil]
+        part = round(collecte / produit, 4) if produit > 0 else None
+        mairie, tricycles = modele.mairie, modele.tricycles
+        return {
+            "scenario_id": f"s_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}{uuid.uuid4().hex[:6]}",
+            "plan_id": plan.get("plan_id"), "data_tag": "simulated", "source": "sim", "moteur": MOTEUR,
+            "graine": graine, "jours": days, "params_used": base, "actors_enabled": actifs,
+            "part_ramassee": part,
+            "message_dechet": None if produit > 0 else "Aucun déchet produit (population nulle ou aucun ménage actif).",
+            "cout_fcfa": round(cout), "cout_m_fcfa": round(cout / 1e6, 3),
+            "depotoirs_restants": len(restants),
+            "kg_produits": round(produit, 1), "kg_ramasses": round(collecte, 1),
+            "menages_agents": len(modele.menages), "menages_par_agent": round(modele.echelle, 2),
+            "series": modele.series,
+            "depotoirs": [{"id": d["id"], "lat": d["lat"], "lon": d["lon"], "kg": round(d["kg"], 1),
+                           "signale": d["signale"], "source": "sim", "origine": d["origine"]} for d in restants],
+            "indicateurs": {
+                "menages": {"abonnes": sum(1 for a in modele.menages if a.abonne),
+                            "non_desservis": sum(1 for a in modele.menages if not a.desservi),
+                            "sensibilises": sum(1 for a in modele.menages if a.sensibilise_jusqua >= modele.jour)},
+                "pre_collecteurs": {"tricycles": len(tricycles), "en_panne_dernier_jour": sum(t.en_panne for t in tricycles),
+                                    "kg_precollectes": round(sum(t.ramasse_kg for t in tricycles), 1)},
+                "brigade": {"patrouilles": len(modele.patrouilles),
+                            "depotoirs_signales": sum(b.patrouilles for b in modele.patrouilles),
+                            "menages_sensibilises": sum(b.sensibilises for b in modele.patrouilles)},
+                "mairie": {"camions_en_service": modele.camions_en_service, "jours_de_collecte": mairie.jours_collecte if mairie else 0,
+                           "kg_collectes_points": round(mairie.collecte_kg, 1) if mairie else 0,
+                           "kg_nettoyes_depotoirs": round(mairie.nettoye_kg, 1) if mairie else 0,
+                           "budget_par_passage_fcfa": modele.budget_passage}},
+            "agents": [{"cle": k, "nom": NOMS_ACTEURS[k], "actif": actifs[k]} for k in ACTEURS],
+            "hypotheses": _hypotheses_utilisees(cfg),
+            "assumptions": ["Simulation : chiffres issus d'hypothèses non mesurées (configuration, section hypotheses) ; "
+                            "jamais un constat de terrain.",
+                            f"{len(modele.menages)} agents ménages, chacun pour {modele.echelle:.1f} ménages réels."],
+            "warnings": warnings,
+        }
+    except KeyError as exc:  # hypothèse manquante dans la configuration
+        return {"error": str(exc.args[0] if exc.args else exc)}
+    except Exception as exc:  # jamais d'exception vers l'API
+        return {"error": f"Simulation impossible : {type(exc).__name__}: {exc}"}

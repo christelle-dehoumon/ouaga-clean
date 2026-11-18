@@ -14,7 +14,7 @@ from tests.test_a_geo_graph import toy_graph
 
 REPO_CONFIG = Path(__file__).resolve().parents[1] / "config" / "commune_config.json"
 PLAN_KEYS = {"plan_id", "computed_at", "mode", "compute_ms", "params_used", "collection_points", "routes", "unserved",
-             "checks", "totals", "assumptions", "warnings", "ignored_reports"}
+             "checks", "totals", "assumptions", "warnings", "ignored_reports", "postponed"}
 
 
 @pytest.fixture()
@@ -228,14 +228,29 @@ def test_stable_ids_and_unknown_previous_point(setup: tuple[dict[str, Any], g.Ne
     assert plan["mode"] == "optimized"
 
 
-def test_partial_with_unserved_also_tries_full(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
-    """Panne qui laisse des points non servis : le calcul complet est aussi lancé et le choix est expliqué."""
+def test_breakdown_with_unserved_stays_partial(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Panne qui laisse des points sans place : le plan reste partiel (décision d'équipe : seuls les arrêts du camion
+    perdu sont redistribués), les tournées gardées ne bougent pas, le report est expliqué.
+
+    Adapté : avant, un calcul complet remplaçait le partiel s'il servait plus de points."""
     cfg, net, params = setup
     params = {**params, "truck_capacity_kg": 300}
     first = compute_plan(params, [], cfg=cfg, net=net)
     plan = compute_plan({**params, "broken_trucks": ["truck1"]}, [], previous_plan=first, cfg=cfg, net=net)
     _consistent(plan)
+    assert plan["mode"] == "partial"
     assert any(u["reason"] in ("capacity", "time") for u in plan["unserved"])
+    assert any("reportés" in w for w in plan["warnings"])
+
+
+def test_new_reports_with_unserved_also_try_full(setup: tuple[dict[str, Any], g.Network, dict[str, Any]]) -> None:
+    """Hors panne (nouveaux dépotoirs), un partiel qui laisse des points non servis lance aussi le calcul complet."""
+    cfg, net, params = setup
+    params = {**params, "truck_capacity_kg": 300}
+    first = compute_plan(params, [], cfg=cfg, net=net)
+    reports = [{"id": "r1", "lat": 12.001, "lon": -0.999, "size": "large", "status": "accepted"}]
+    plan = compute_plan(params, reports, previous_plan=first, cfg=cfg, net=net)
+    _consistent(plan)
     assert any("calcul complet" in w for w in plan["warnings"])
 
 

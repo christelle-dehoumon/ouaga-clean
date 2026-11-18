@@ -24,7 +24,11 @@
     "territories": "data/territories.geojson",
     "flood_zones": "data/processed/flood_zones.geojson",
     "waterways": "data/processed/waterways.geojson",
-    "secteur": "data/secteur.geojson"
+    "secteur": "data/secteur.geojson",
+    "reel_db": "data/reel.db",
+    "sim_db": "data/sim.db",
+    "water_bodies": "data/water_bodies.geojson",
+    "photos_dir": "data/photos"
   },
   "params": {
     "population": 3000000,
@@ -68,7 +72,9 @@
       "large": 3000
     },
     "territory_population_method": "area_share",
-    "_population_note": "HYPOTHESE : les batiments OSM ne couvrent que le secteur et les quartiers telecharges ; la population d'un territoire = population de la commune x part de sa surface dans la limite communale (densite supposee uniforme, non mesuree). building_share = part des batiments, valable seulement si toute la commune est telechargee."
+    "_population_note": "HYPOTHESE : les batiments OSM ne couvrent que le secteur et les quartiers telecharges ; la population d'un territoire = population de la commune x part de sa surface dans la limite communale (densite supposee uniforme, non mesuree). building_share = part des batiments, valable seulement si toute la commune est telechargee.",
+    "dumpsite_default_size": "medium",
+    "_dumpsite_size_note": "HYPOTHESE : le citoyen ne saisit plus de taille ; un depotoir confirme compte dumpsite_kg_by_size[dumpsite_default_size]"
   },
   "network": {
     "truck_highways": [
@@ -110,7 +116,9 @@
       "stream",
       "canal"
     ],
-    "_rain_note": "HYPOTHESES de travail, non mesurees : en pluie, le poids d'une voie non revetue (ou de revetement inconnu hors grands axes) est multiplie par rain_unpaved_factor ; une voie est coupee si ford ou flood_prone, si son milieu est a moins de flood_buffer_m d'un cours d'eau de type flood_waterway_types (drain et ditch exclus : souvent des caniveaux le long des rues) (sauf pont ou tunnel), ou si elle coupe un polygone de flood_zones."
+    "_rain_note": "HYPOTHESES de travail, non mesurees : en pluie, le poids d'une voie non revetue (ou de revetement inconnu hors grands axes) est multiplie par rain_unpaved_factor ; une voie est coupee si ford ou flood_prone, si son milieu est a moins de flood_buffer_m d'un cours d'eau de type flood_waterway_types (drain et ditch exclus : souvent des caniveaux le long des rues) (sauf pont ou tunnel), ou si elle coupe un polygone de flood_zones.",
+    "cut_snap_m": 150,
+    "_cut_note": "REGLAGE : une coupure donnee par lat/lon retient l'arete dont le milieu est le plus proche, a moins de cut_snap_m"
   },
   "solver": {
     "time_limit_s": 5,
@@ -130,15 +138,12 @@
     "future_tolerance_min": 5,
     "max_accuracy_m": 100,
     "max_photo_bytes": 5000000,
-    "sizes": [
-      "petit",
-      "moyen",
-      "grand"
-    ],
-    "zones_file": "data/mock/zones.geojson",
-    "water_file": "data/mock/water.geojson",
     "grid_center_lat": 12.37,
-    "_grid_note": "latitude de reference de la grille anti-doublon (taille des cellules en longitude) : celle de la commune"
+    "_grid_note": "latitude de reference de la grille anti-doublon (taille des cellules en longitude) : celle de la commune",
+    "water_buffer_m": 30,
+    "max_body_bytes": 8000000,
+    "payload_resume_chars": 600,
+    "_note": "tri automatique (core/validation/rules.py) : aide à la brigade, jamais décideur. Écarté d'office = forme, position, hors ville, date, photo ; sinon transmis avec alertes. Ville = limite communale OSM (paths.raw_dir/boundary.geojson) ; secteur = paths.secteur ; plans d'eau = paths.water_bodies."
   },
   "download": {
     "overpass_url": "https://overpass-api.de/api",
@@ -209,5 +214,159 @@
     "center": null,
     "zoom": 14,
     "_note": "center null : centre du secteur de l'equipe (data/secteur.geojson ou carre pilote)"
+  },
+  "hypotheses": {
+    "_note": "Coefficients de la simulation multi-agents (core/sim/model.py). AUCUN n'est mesuré : ce sont des hypothèses de travail à valider avec la mairie. Ils sont recopiés dans chaque sortie de simulation.",
+    "menages": {
+      "personnes_par_menage": {
+        "valeur": 6,
+        "unite": "personnes",
+        "note": "hypothèse non mesurée"
+      },
+      "proba_depot_sauvage_non_abonne": {
+        "valeur": 0.5,
+        "unite": "probabilité par jour où le ménage vide ses déchets",
+        "note": "hypothèse non mesurée : ménage sans abonnement à la pré-collecte"
+      },
+      "proba_depot_sauvage_non_desservi": {
+        "valeur": 0.78,
+        "unite": "probabilité par jour",
+        "note": "hypothèse non mesurée : abonné dont le point de regroupement n'est desservi par aucun camion"
+      },
+      "proba_depot_sauvage_sature": {
+        "valeur": 0.35,
+        "unite": "probabilité par jour",
+        "note": "hypothèse non mesurée : abonné desservi dont la poubelle déborde (pas de passage du pré-collecteur)"
+      },
+      "jours_avant_debordement": {
+        "valeur": 3,
+        "unite": "jours de déchets stockés avant débordement",
+        "note": "hypothèse non mesurée"
+      },
+      "effet_sensibilisation": {
+        "valeur": 0.5,
+        "unite": "multiplicateur des probabilités de dépôt sauvage",
+        "note": "hypothèse non mesurée : ménage sensibilisé par la brigade"
+      },
+      "duree_sensibilisation_jours": {
+        "valeur": 14,
+        "unite": "jours",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "pre_collecteurs": {
+      "proba_passage": {
+        "valeur": 0.88,
+        "unite": "probabilité qu'un tricycle fasse sa tournée un jour donné",
+        "note": "hypothèse non mesurée"
+      },
+      "proba_panne_jour": {
+        "valeur": 0.04,
+        "unite": "probabilité de panne d'un tricycle par jour",
+        "note": "hypothèse non mesurée"
+      },
+      "tournees_par_jour": {
+        "valeur": 2,
+        "unite": "rotations par tricycle et par jour",
+        "note": "hypothèse non mesurée"
+      },
+      "facteur_pluie": {
+        "valeur": 0.8,
+        "unite": "multiplicateur de la probabilité de passage en saison des pluies",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "brigade": {
+      "patrouilles_par_jour": {
+        "valeur": 2,
+        "unite": "patrouilles",
+        "note": "hypothèse non mesurée"
+      },
+      "rayon_m": {
+        "valeur": 500,
+        "unite": "mètres autour d'un dépotoir visité",
+        "note": "hypothèse non mesurée"
+      },
+      "proba_sensibilisation": {
+        "valeur": 0.22,
+        "unite": "probabilité qu'un ménage du rayon soit sensibilisé",
+        "note": "hypothèse non mesurée"
+      },
+      "depotoirs_par_patrouille": {
+        "valeur": 3,
+        "unite": "dépotoirs signalés à la mairie par patrouille",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "mairie": {
+      "facteur_pluie_camions": {
+        "valeur": 0.9,
+        "unite": "multiplicateur de capacité des camions en saison des pluies",
+        "note": "hypothèse non mesurée"
+      },
+      "part_capacite_nettoyage": {
+        "valeur": 0.3,
+        "unite": "part de la capacité camion restante consacrée aux dépotoirs signalés",
+        "note": "hypothèse non mesurée"
+      },
+      "seuil_depotoir_kg": {
+        "valeur": 50,
+        "unite": "kg en dessous desquels un dépôt simulé n'est plus compté comme dépotoir",
+        "note": "hypothèse non mesurée"
+      }
+    },
+    "simulation": {
+      "max_agents_menages": {
+        "valeur": 1500,
+        "unite": "agents",
+        "note": "réglage de calcul : un agent représente plusieurs ménages réels si besoin"
+      },
+      "dispersion_menages_m": {
+        "valeur": 150,
+        "unite": "mètres",
+        "note": "réglage d'affichage : position des ménages autour de leur point"
+      }
+    }
+  },
+  "roles": {
+    "brigade_code_default": "brigade-demo",
+    "mairie_code_default": "mairie-demo",
+    "header": "X-Role-Code",
+    "_note": "codes de DEMONSTRATION, publics. En vrai déploiement, définir les variables d'environnement BRIGADE_CODE et MAIRIE_CODE."
+  },
+  "privacy": {
+    "_note": "floutage côté serveur avant tout stockage (core/privacy.py) ; l'original n'est jamais écrit sur disque. Cascades Haar fournies par opencv-python-headless (aucun téléchargement). Fiabilité limitée, mesurée dans docs/mesures.md.",
+    "max_side_px": 1600,
+    "jpeg_quality": 80,
+    "margin_ratio": 0.25,
+    "blur_kernel_ratio": 0.5,
+    "pixel_block": 12,
+    "face_cascades": [
+      "haarcascade_frontalface_default.xml",
+      "haarcascade_profileface.xml"
+    ],
+    "plate_cascades": [
+      "haarcascade_russian_plate_number.xml",
+      "haarcascade_license_plate_rus_16stages.xml"
+    ],
+    "scale_factor": 1.1,
+    "min_neighbors": 5,
+    "min_size_px": 24,
+    "on_failure": "blur_all",
+    "plate_min_neighbors": 3,
+    "plate_morph": {
+      "enabled": true,
+      "kernel": [
+        13,
+        5
+      ],
+      "aspect_min": 2.0,
+      "aspect_max": 6.5,
+      "min_width_ratio": 0.04,
+      "max_width_ratio": 0.6,
+      "min_height_px": 8,
+      "min_light_fill": 0.45,
+      "_note": "détecteur complémentaire de zones de texte sombre sur fond clair, de forme allongée (plaques) ; floute aussi des panneaux : préféré pour la vie privée"
+    }
   }
 }

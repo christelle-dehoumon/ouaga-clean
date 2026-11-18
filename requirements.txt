@@ -1,6 +1,11 @@
-fastapi>=0.110
-uvicorn>=0.29
-httpx>=0.27
+# --- API ---
+fastapi==0.163.1       # MIT
+uvicorn==0.54.0        # BSD-3-Clause
+httpx==0.28.1          # BSD-3-Clause (client de test)
+requests==2.34.2       # Apache-2.0 (scripts de préparation des données)
+# --- Simulation et photos ---
+mesa==3.5.2            # Apache-2.0
+opencv-python-headless==4.12.0.88   # Apache-2.0 (cascades Haar incluses ; 5.x ne les fournit plus)
 # --- Membre A : géographie, optimisation ---
 # Versions exactes de l'environnement de dev où les tests A passent (Python 3.12.3, 2026-11-17).
 # Minimums vérifiés : ortools >= 9.12 (RoutingSearchStatus), osmnx >= 2.0 (simplify_graph node_attrs_include).
@@ -9,7 +14,7 @@ networkx==3.7          # BSD-3-Clause
 shapely==2.2.0         # BSD-3-Clause
 geopandas==1.2.0       # BSD-3-Clause
 pyproj==3.8.0          # MIT
-numpy==2.5.5           # BSD-3-Clause
+numpy==2.2.6           # BSD-3-Clause (opencv-python-headless 4.12 exige numpy < 2.3)
 scipy==1.18.1          # BSD-3-Clause
 scikit-learn==1.9.1    # BSD-3-Clause
 ortools==9.15.6755     # Apache-2.0

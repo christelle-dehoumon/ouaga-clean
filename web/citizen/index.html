@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1d1f1e">
+<meta name="theme-color" content="#ffffff">
 <title>Signaler un dépotoir — Yilgré</title>
 <link rel="stylesheet" href="/dashboard/shared/design.css">
 <link rel="stylesheet" href="/dashboard/shared/shared.css">
@@ -11,32 +11,30 @@
 </head>
 <body>
 <header class="entete">
-  <span class="drapeau" aria-hidden="true"><i></i><i></i><i></i></span>
-  <div>
-    <b>Yilgré</b>
-    <span>Signaler un dépotoir sauvage</span>
-  </div>
+  <span class="logo" aria-hidden="true"><img src="/dashboard/shared/logo.jpg" alt=""></span>
+  <b>Yilgré</b>
   <span id="reseau" class="reseau" role="status">…</span>
 </header>
 
 <main>
-  <p class="intro">Une photo et votre position suffisent. Pas de compte, rien à remplir. Le signalement part même sans réseau.</p>
+  <h1 class="accroche">Signaler un dépotoir sauvage</h1>
+  <p class="intro">Une photo suffit. Pas de compte, rien à remplir, même sans réseau.</p>
 
-  <section class="etape" id="etape-position" aria-labelledby="t-pos">
-    <h2 id="t-pos"><span class="num">1</span> Votre position</h2>
-    <p id="pos-etat" class="etat">Recherche de la position…</p>
-    <button id="pos-btn" class="btn" type="button" hidden>Réessayer la position</button>
-  </section>
-
-  <section class="etape" id="etape-photo" aria-labelledby="t-photo">
-    <h2 id="t-photo"><span class="num">2</span> Photo du dépotoir</h2>
-    <label class="btn btn-grand" for="photo">Prendre une photo</label>
+  <section class="etape-photo" id="etape-photo" aria-labelledby="t-photo">
+    <h2 id="t-photo" class="visuellement-cache">Photo du dépotoir</h2>
+    <label class="btn btn-grand" for="photo"><span class="ico i-photo" aria-hidden="true"></span>Prendre une photo</label>
     <input id="photo" type="file" accept="image/*" capture="environment" class="visuellement-cache">
     <img id="apercu" alt="Aperçu de la photo" hidden>
     <p id="photo-etat" class="etat"></p>
   </section>
 
-  <button id="envoyer" class="btn btn-envoi" type="button" disabled>Envoyer le signalement</button>
+  <section class="etape-position" id="etape-position" aria-labelledby="t-pos">
+    <h2 id="t-pos" class="visuellement-cache">Votre position</h2>
+    <p id="pos-etat" class="etat">Recherche de la position…</p>
+    <button id="pos-btn" class="btn btn-secondaire" type="button" hidden>Réessayer la position</button>
+  </section>
+
+  <button id="envoyer" class="btn btn-envoi" type="button" disabled><span class="ico i-envoyer" aria-hidden="true"></span>Envoyer le signalement</button>
   <p id="envoi-aide" class="aide">Le bouton s'active quand la position et la photo sont prêtes.</p>
 
   <section id="confirmation" class="confirmation" hidden role="status" aria-live="polite"></section>
@@ -45,7 +43,7 @@
     <h2 id="t-envois">Mes envois depuis ce téléphone</h2>
     <ul id="liste-envois" class="liste"></ul>
     <p id="aucun" class="aide">Aucun envoi pour l'instant.</p>
-    <button id="sync" class="btn" type="button" hidden>Renvoyer maintenant</button>
+    <button id="sync" class="btn btn-secondaire" type="button" hidden>Renvoyer maintenant</button>
   </section>
 
   <p class="pied">Les visages et les plaques sont floutés par le serveur avant tout enregistrement. Votre position sert

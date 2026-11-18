@@ -1,0 +1,20 @@
+/* Styles communs : bandeau du mode démonstration, fenêtres de confirmation, messages. */
+[hidden] { display: none !important; }
+.bandeau-demo { position: sticky; top: 0; z-index: 1000; background: repeating-linear-gradient(135deg, #fcd116 0 14px, #f3c400 14px 28px);
+  color: #1d1f1e; font: 700 .9rem/1.2 system-ui, sans-serif; letter-spacing: .04em; text-align: center; padding: .45rem .8rem; }
+.toasts { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 1200; display: grid; gap: .4rem; width: min(92vw, 30rem); }
+.toast { background: #1d1f1e; color: #fff; padding: .7rem .9rem; border-radius: 8px; font: .92rem/1.35 system-ui, sans-serif;
+  border-left: 5px solid #fcd116; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.toast-ok { border-left-color: #009e49; }
+.toast-erreur { border-left-color: #ef2b2d; }
+.modal-overlay { position: fixed; inset: 0; z-index: 1100; background: rgba(20, 20, 18, .55); display: grid; place-items: center; padding: 1rem; }
+.modal { background: #fff; color: #1d1f1e; border-radius: 12px; padding: 1.2rem; width: min(100%, 26rem); font: 1rem/1.45 system-ui, sans-serif;
+  box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+.modal h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+.modal p { margin: 0 0 1rem; color: #4a4f4b; }
+.modal .input { width: 100%; font: inherit; padding: .7rem; border: 1.5px solid #8b8f8a; border-radius: 8px; margin-bottom: .9rem; }
+.modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+.modal .btn { min-height: 44px; padding: .5rem 1rem; font: 600 .95rem system-ui, sans-serif; border-radius: 8px; border: 1.5px solid #1d1f1e;
+  background: #fff; color: #1d1f1e; cursor: pointer; width: auto; margin: 0; }
+.modal .btn-primary { background: #1d1f1e; color: #fff; }
+.modal .btn-danger { background: #ef2b2d; border-color: #ef2b2d; color: #fff; }

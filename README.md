@@ -15,8 +15,10 @@ Le script crée `.venv` (Python 3.12), installe `requirements.txt`, génère un 
 HTTPS est indispensable : sans lui, le téléphone refuse le GPS et la caméra. Le certificat étant auto-signé, le
 navigateur affiche un avertissement à accepter une fois.
 
-- Page citoyen : `https://<ip-du-poste>:8443/citizen/`
-- Tableau de bord : `https://<ip-du-poste>:8443/dashboard/`
+- Page citoyen (téléphone, sans compte) : `https://<ip-du-poste>:8443/citizen/`
+- Brigade Laabal (téléphone, code brigade) : `https://<ip-du-poste>:8443/brigade/`
+- Mairie, ville 3D (ordinateur, code mairie) : `https://<ip-du-poste>:8443/dashboard/`
+- Mode démonstration à données FICTIVES : ajouter `?mock=1` (bandeau permanent). Détails du front : [web/README.md](web/README.md)
 - Documentation interactive de l'API : `https://localhost:8443/docs` ; contrat : [docs/api.md](docs/api.md)
 
 Avec Docker : `docker compose up --build`. Port HTTP de débogage en plus : `HTTP_DEBUG_PORT=8000 ./scripts/run.sh`.
@@ -24,7 +26,8 @@ Avec Docker : `docker compose up --build`. Port HTTP de débogage en plus : `HTT
 Codes de démonstration (en-tête `X-Role-Code`) : `brigade-demo` et `mairie-demo`. Ils sont publics : en vrai
 déploiement, définir `BRIGADE_CODE` et `MAIRIE_CODE`.
 
-Tests : `.venv/bin/python -m pytest -q`.
+Tests : `.venv/bin/python -m pytest -q` (serveur et contrat du front). Vérification complète, serveur + trois
+interfaces dans Chromium : `./scripts/verifier_tout.sh` (Playwright requis, voir le script).
 
 ## Ce que fait l'outil
 
@@ -121,10 +124,14 @@ L'export OSM est un fichier à relire dans JOSM ; le logiciel n'envoie jamais ri
   calculées. Un point accessible seulement en tricycle est déclaré non desservi, avec la raison.
 - **Floutage de fiabilité limitée.** Cascades Haar et détecteur de zones de plaque. Les résultats chiffrés sur 7 images
   sont dans [docs/mesures.md](docs/mesures.md) ; aucun taux général n'est annoncé.
-- **Fond de carte en ligne.** Le front affiche les tuiles OpenStreetMap en ligne (« © OpenStreetMap contributors »).
-  Sans réseau, la carte est blanche ; l'API, les calculs et l'envoi depuis la page citoyen continuent.
-- **Front à aligner.** Le dossier `web/` est maintenu à part. Il doit appeler le contrat de [docs/api.md](docs/api.md),
-  en particulier l'en-tête `X-Role-Code`, les nouveaux statuts et la réponse opaque.
+- **Ville 3D partielle.** Emprises des bâtiments et routes OSM du secteur pilote et des quartiers téléchargés ; hauteurs
+  estimées (27 seulement balisées dans OSM), arbres illustratifs. Une autre commune s'affiche en carte 2D tant que sa
+  ville 3D n'a pas été préparée (`web/tools/build_city_data.py`).
+- **Fond de carte en ligne pour la 2D.** La ville 3D est locale ; la vue 2D de secours affiche les tuiles OpenStreetMap
+  en ligne (« © OpenStreetMap contributors »). Sans réseau, cette carte 2D est blanche ; l'API, les calculs et la page
+  citoyen (service worker, file locale) continuent.
+- **Doublon par renvoi.** `POST /api/reports` n'a pas de clé d'idempotence : si une réponse se perd, le renvoi
+  automatique ajoute un signalement au même dépotoir (« signalé N + 1 fois ») au lieu d'en créer un autre.
 - **Mesures.** Les temps de [docs/mesures.md](docs/mesures.md) sont mesurés par `python -m scripts.bench`. Aucun
   pourcentage n'est publié sans cette mesure.
 

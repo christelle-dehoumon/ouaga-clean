@@ -144,6 +144,9 @@ export class HttpApi {
   addSimDump(lat, lon) { return this.request("POST", "/sim/dumpsites", { body: { lat, lon } }); }
   cutRoad(edgeId, cut = true) { return this.request("POST", "/sim/roads/cut", { body: { edge_id: edgeId, cut } }); }
   exportReports() { return this.request("GET", "/export/reports.geojson"); }
+  /** Fichier OSM (texte XML) des dépotoirs réels confirmés : à relire dans JOSM, jamais envoyé à OpenStreetMap. */
+  async exportOsm() { return (await this.request("GET", "/export/reports.osm", { raw: true })).text(); }
+  exportPlan(planId) { return this.request("GET", `/plans/${encodeURIComponent(planId)}/export`); }
 }
 
 /** Fabrique : client réel, ou client de démonstration si ?mock=1 (et seulement dans ce cas). */

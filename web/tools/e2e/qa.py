@@ -15,6 +15,7 @@ with sync_playwright() as p:
     pg.goto(BASE + "/dashboard/ville/")
     pg.wait_for_function("document.getElementById('chargement').hidden === true", timeout=120000)
     print("sans WebGL :", pg.evaluate("window.__ouaga.view.kind"), "|", pg.text_content("#bandeau-perime")[:75], "| erreurs :", errs)
+    assert pg.evaluate("window.__ouaga.view.kind") == "2d" and not errs
     b.close()
     b = p.chromium.launch(args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
     ctx = b.new_context(viewport={"width": 1280, "height": 720}); ctx.add_init_script(INIT)
@@ -28,4 +29,5 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1500); pg.screenshot(path=SH + "qa_1280.png")
     over = pg.evaluate("document.querySelector('.barre-haut').scrollHeight > 60 || document.body.scrollWidth > innerWidth")
     print("1280×720 : débordement =", over, "| erreurs :", errs)
+    assert not over and not errs
     b.close()

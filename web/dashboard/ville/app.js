@@ -65,10 +65,16 @@ async function init() {
   progress("Téléchargement des bâtiments et des routes (OpenStreetMap)…", 25);
   const cityResp = await fetch("/dashboard/ville/data/city.json");
   if (!cityResp.ok) { progress("Données de la ville introuvables.", 25); return; }
-  const cityData = await cityResp.json();
+  let cityData = await cityResp.json();
+  // Réglages par commune : la ville 3D n'existe que pour la commune où elle a été préparée (web/tools/build_city_data.py).
+  let other = null;
+  if (S.config.commune && cityData.meta.commune && cityData.meta.commune !== S.config.commune) {
+    other = `La ville 3D n'est préparée que pour ${cityData.meta.commune} : carte 2D pour ${S.config.commune} (configuration de la commune).`;
+    cityData = { meta: { origin: S.config.center, commune: S.config.commune, counts: { buildings: 0 }, sources: [] }, buildings: [], roads: [], water: [], territories: [] };
+  }
   progress(`Construction de ${fmt.int(cityData.meta.counts.buildings)} bâtiments en 3D…`, 55);
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
-  S.view = await createView(cityData);
+  S.view = await createView(cityData, other);
   if (isMockMode()) S.api.attachCity?.(S.view.city.roads, S.view.proj);
   bindView();
   bindChrome();
@@ -84,11 +90,11 @@ async function init() {
   window.__ouaga = S;   // inspection et tests
 }
 
-async function createView(cityData) {
+async function createView(cityData, other = null) {
   const host = $("#scene");
   const { detectWebGL } = await import("./map3d/scene.js");
   const forced2d = new URLSearchParams(location.search).get("vue") === "2d";
-  if (!forced2d && detectWebGL()) {
+  if (!forced2d && !other && detectWebGL()) {
     try {
       const { createView3D } = await import("./view3d.js");
       return await createView3D(host, cityData);
@@ -102,9 +108,9 @@ async function createView(cityData) {
   host.prepend(box);
   document.body.classList.add("vue-2d");
   $("#bandeau-perime").hidden = false;
-  $("#bandeau-perime").textContent = forced2d
+  $("#bandeau-perime").textContent = other || (forced2d
     ? "Vue 2D de secours (demandée par ?vue=2d). Les données et les actions sont les mêmes, sans la ville en 3D."
-    : "Vue 2D de secours : la 3D (WebGL) n'est pas disponible sur ce poste. Les données et les actions sont les mêmes, sans la ville en 3D.";
+    : "Vue 2D de secours : la 3D (WebGL) n'est pas disponible sur ce poste. Les données et les actions sont les mêmes, sans la ville en 3D.");
   for (const b of document.querySelectorAll("[data-cam=immersive],[data-cam=rue],[data-cam=animation]")) b.disabled = true;
   return createView2D(box, cityData);
 }
@@ -479,6 +485,37 @@ function ficheRoute(info) {
   ]);
 }
 
+/** Téléchargement d'un fichier produit par l'API (le contenu vient du serveur, rien n'est recalculé ici). */
+function download(name, content, type) {
+  const url = URL.createObjectURL(new Blob([typeof content === "string" ? content : JSON.stringify(content, null, 1)], { type }));
+  const a = el("a", { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function exporter(button, kind) {
+  await once(button, async () => {
+    try {
+      if (kind === "geojson") {
+        const fc = await call(() => S.api.exportReports());
+        download("signalements-verifies.geojson", fc, "application/geo+json");
+        toast(`${fc.features.length} signalement(s) vérifié(s) exporté(s), licence ${fc.license}.`, "ok");
+      } else if (kind === "osm") {
+        download("depotoirs.osm", await call(() => S.api.exportOsm()), "application/xml");
+        toast("Fichier OSM téléchargé : à relire dans JOSM, rien n'est envoyé à OpenStreetMap.", "ok", 6000);
+      } else {
+        const plan = S.plan[S.mode];
+        download(`plan-${plan.plan_id}.geojson`, await call(() => S.api.exportPlan(plan.plan_id)), "application/geo+json");
+        toast("Plan exporté en GeoJSON.", "ok");
+      }
+    } catch (err) {
+      toast(`Export impossible : ${err.message}`, "erreur");
+    }
+  });
+}
+
 // --- Panneau gauche --------------------------------------------------------------------------------------------
 function renderLeft() {
   const host = $("#panneau-gauche");
@@ -526,6 +563,15 @@ function leftReal() {
       el("p", {}, ["Calculé avec les paramètres de la commune et les seuls dépotoirs confirmés par la brigade."]),
       el("button", { class: "btn btn-primaire btn-large", type: "button", onclick: (e) => once(e.currentTarget, () => recalc("Plan réel")) },
         [planReel ? "Recalculer le plan réel" : "Calculer le plan réel"]),
+      planReel ? el("button", { class: "btn btn-large", type: "button", style: "margin-top:.4rem", onclick: (e) => exporter(e.currentTarget, "plan") }, ["Exporter le plan (GeoJSON)"]) : null,
+    ]),
+    el("section", { class: "bloc" }, [
+      el("h3", {}, ["Données ouvertes"]),
+      el("p", {}, ["Signalements réels confirmés ou nettoyés, sans photo ni donnée personnelle (ODbL). Jamais de cas simulé."]),
+      el("div", { class: "rangee" }, [
+        el("button", { class: "btn", type: "button", onclick: (e) => exporter(e.currentTarget, "geojson") }, ["GeoJSON"]),
+        el("button", { class: "btn", type: "button", onclick: (e) => exporter(e.currentTarget, "osm") }, ["Fichier OSM (JOSM)"]),
+      ]),
     ]),
   ];
 }
@@ -589,6 +635,7 @@ function leftSim() {
       el("div", { class: "rangee" }, [
         el("button", { class: "btn btn-primaire", type: "button", onclick: (e) => once(e.currentTarget, () => recalc("Recalcul demandé")) }, ["Recalculer"]),
         el("button", { class: "btn", type: "button", onclick: resetScenario }, ["Réinitialiser"]),
+        plan ? el("button", { class: "btn", type: "button", onclick: (e) => exporter(e.currentTarget, "plan") }, ["Exporter le plan"]) : null,
       ]),
       el("p", {}, [`Cas simulés affichés : ${S.simReports.length}. Dépotoirs ajoutés : ${S.simDumps.length}.`]),
     ]),

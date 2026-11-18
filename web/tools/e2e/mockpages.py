@@ -14,7 +14,9 @@ with sync_playwright() as p:
     pg.set_input_files("#photo", ROOT + "tests/data/blur/street1.jpg"); pg.wait_for_selector("#photo-etat.ok")
     pg.click("#envoyer"); pg.wait_for_selector("#confirmation:not([hidden])")
     print("citoyen démo :", pg.text_content("#bandeau-demo"), "|", pg.text_content("#confirmation b"), "| erreurs :", errs)
+    assert not errs and "DÉMONSTRATION" in pg.text_content("#bandeau-demo")
     pg = ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(BASE + "/brigade/?mock=1"); pg.wait_for_selector(".carte", timeout=15000)
     print("brigade démo :", pg.text_content("#bandeau-demo"), "|", pg.locator(".carte").count(), "cas | erreurs :", errs)
+    assert not errs and pg.locator(".carte").count() > 0
     b.close()

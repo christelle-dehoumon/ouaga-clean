@@ -73,4 +73,5 @@ with sync_playwright() as p:
     pg.wait_for_selector(".toast-erreur", timeout=10000)
     print("7 conflit       :", pg.locator(".toast-erreur").last.text_content())
     print("erreurs JS      :", errs)
+    assert not errs and "Conflit" in pg.locator(".toast-erreur").last.text_content()
     b.close()

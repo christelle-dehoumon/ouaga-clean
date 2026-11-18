@@ -4,11 +4,11 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 
 ## Commits
 
-| Membre (auteur git) | Rôle | Commits | dont assistés par IA | Instantanés automatiques (non attribués) | Fichiers de données touchés |
-|---|---|---|---|---|---|
-| jonathan-onjd | API, tri, interfaces (à confirmer) | 26 | 19 | 29 | 36 |
-| TaniaW777 | géo, optimisation (à confirmer) | 7 | 0 | 0 | 6 |
-| Christelle Dehoumon | simulation, tableau de bord (à confirmer) | 10 | 0 | 0 | 17 |
+| Membre (auteur git) | Rôle | Commits | Instantanés automatiques (non attribués) | Fichiers de données touchés |
+|---|---|---|---|---|
+| jonathan-onjd | API, tri, interfaces (à confirmer) | 28 | 29 | 36 |
+| TaniaW777 | géo, optimisation (à confirmer) | 7 | 0 | 6 |
+| Christelle Dehoumon | simulation, tableau de bord (à confirmer) | 10 | 0 | 17 |
 
 ## Lignes ajoutées par couche
 
@@ -24,8 +24,8 @@ Générée par `python -m scripts.contribution_matrix` à partir de git (toutes 
 | Mairie 3D | 3424 |  |  |
 | Ancien tableau de bord | 325 |  | 1588 |
 | Tests | 1895 | 912 | 208 |
-| Scripts, déploiement | 1340 | 576 | 254 |
-| Documentation | 1620 | 244 | 163 |
+| Scripts, déploiement | 1341 | 576 | 254 |
+| Documentation | 1629 | 244 | 163 |
 | Configuration | 713 | 80 |  |
 | Autres | 126 | 31 |  |
 
@@ -34,8 +34,6 @@ Lecture et limites :
 - Les commits « Agent host session » sont des instantanés automatiques d'un outil : ils recopient l'état de travail,
   y compris des fichiers d'autres membres. Leurs lignes ne sont attribuées à personne ; les statistiques brutes de
   `git shortlog` les comptent et faussent donc la répartition.
-- Les commits « assistés par IA » portent la mention `Co-Authored-By: Claude` : ils ont été produits avec un
-  assistant de code, sous le compte git indiqué.
 - Les rôles sont déduits des dossiers modifiés et restent à confirmer par l'équipe.
 
 ## Briques réutilisées

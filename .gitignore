@@ -43,7 +43,6 @@ data/raw/*
 *.npz
 !data/processed/roads_graph.pkl
 !data/processed/buildings_centroids.npz
-.claude/settings.local.json
 data/communes/*/reel.db*
 data/communes/*/sim.db*
 data/communes/*/photos/

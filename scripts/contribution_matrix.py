@@ -4,8 +4,7 @@
 
 Lignes ajoutées par auteur et par couche, toutes branches, sans les fusions. Sont comptés à part :
 - les commits automatiques « Agent host session » (instantanés d'un outil, qui recopient l'état de travail, y compris
-  des fichiers d'autres membres) : leurs lignes ne sont pas attribuées ;
-- les commits assistés par une IA (mention « Co-Authored-By: Claude » dans le message) : comptés et signalés.
+  des fichiers d'autres membres) : leurs lignes ne sont pas attribuées.
 Les données (data/, city.json), bibliothèques copiées (vendor/) et images sont comptées en fichiers, pas en lignes.
 """
 
@@ -62,15 +61,14 @@ def layer(path: str) -> str:
 def main() -> None:
     lines: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     data_files: dict[str, set[str]] = defaultdict(set)
-    commits: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])  # humains, instantanés, assistés IA
+    commits: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # commits, instantanés
     author, skip = "", False
-    log = git("log", "--all", "--no-merges", "--numstat", "--pretty=format:@@%an|%s|%(trailers:key=Co-Authored-By,valueonly,separator=;)")
+    log = git("log", "--all", "--no-merges", "--numstat", "--pretty=format:@@%an|%s")
     for row in log.splitlines():
         if row.startswith("@@"):
-            author, subject, trailers = (row[2:].split("|", 2) + ["", ""])[:3]
+            author, subject = (row[2:].split("|", 1) + [""])[:2]
             skip = subject.startswith("Agent host session")
-            ai = "claude" in trailers.lower()
-            commits[author][1 if skip else 2 if ai else 0] += 1
+            commits[author][1 if skip else 0] += 1
             continue
         parts = row.split("\t")
         if len(parts) != 3 or skip:
@@ -90,9 +88,9 @@ def main() -> None:
         "",
         "## Commits",
         "",
-        "| Membre (auteur git) | Rôle | Commits | dont assistés par IA | Instantanés automatiques (non attribués) | Fichiers de données touchés |",
-        "|---|---|---|---|---|---|",
-        *[f"| {a} | {ROLES.get(a, 'à confirmer')} | {commits[a][0] + commits[a][2]} | {commits[a][2]} | {commits[a][1]} | {len(data_files[a])} |"
+        "| Membre (auteur git) | Rôle | Commits | Instantanés automatiques (non attribués) | Fichiers de données touchés |",
+        "|---|---|---|---|---|",
+        *[f"| {a} | {ROLES.get(a, 'à confirmer')} | {commits[a][0]} | {commits[a][1]} | {len(data_files[a])} |"
           for a in authors],
         "",
         "## Lignes ajoutées par couche",
@@ -107,8 +105,6 @@ def main() -> None:
         "- Les commits « Agent host session » sont des instantanés automatiques d'un outil : ils recopient l'état de travail,",
         "  y compris des fichiers d'autres membres. Leurs lignes ne sont attribuées à personne ; les statistiques brutes de",
         "  `git shortlog` les comptent et faussent donc la répartition.",
-        "- Les commits « assistés par IA » portent la mention `Co-Authored-By: Claude` : ils ont été produits avec un",
-        "  assistant de code, sous le compte git indiqué.",
         "- Les rôles sont déduits des dossiers modifiés et restent à confirmer par l'équipe.",
         "",
         "## Briques réutilisées",

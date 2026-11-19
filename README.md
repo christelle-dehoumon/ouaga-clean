@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licence-Apache%202.0-blue.svg" alt="Licence Apache 2.0"></a>
-  <a href="https://github.com/christelle-dehoumon/yilgre/actions/workflows/ci.yml"><img src="https://github.com/christelle-dehoumon/yilgre/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/christelle-dehoumon/viela/actions/workflows/ci.yml"><img src="https://github.com/christelle-dehoumon/viela/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
   <a href="THIRD_PARTY_LICENSES.md"><img src="https://img.shields.io/badge/Open%20Source-briques%20libres-green.svg" alt="Open source"></a>
   <a href="#7-open-source-et-bien-commun"><img src="https://img.shields.io/badge/Donn%C3%A9es-OpenStreetMap%20ODbL-orange.svg" alt="Données OpenStreetMap ODbL"></a>
   <img src="https://img.shields.io/badge/Python-3.12-yellow.svg" alt="Python 3.12">
@@ -41,7 +41,7 @@
 
 ### 1. Cloner le dépôt
 ```bash
-git clone https://github.com/christelle-dehoumon/yilgre.git
+git clone https://github.com/christelle-dehoumon/viela.git
 cd yilgre
 ```
 > GitHub redirige l'ancienne adresse du dépôt après son renommage : les anciens liens et clones continuent de fonctionner.

@@ -3,7 +3,7 @@
 **Plateforme numérique de gestion et de suivi de l'assainissement urbain à Ouagadougou**
 Rapport technique et de présentation du projet. Hackathon des Universités 2026, finale, thème l'Open Source, sujet 01 « Assainissement de Ouaga ».
 Équipe (auteurs du dépôt git) : jonathan-onjd, TaniaW777, Christelle Dehoumon. *Noms complets, établissement et encadrement : à compléter.*
-Code : https://github.com/christelle-dehoumon/yilgre (licence Apache-2.0). État décrit : 18 novembre 2026. Identifiant technique : `yilgre` (anciens noms : Yilgré, Ouaga Clean).
+Code : https://github.com/christelle-dehoumon/viela (licence Apache-2.0). État décrit : 18 novembre 2026. Identifiant technique : `yilgre` (anciens noms : Yilgré, Ouaga Clean).
 
 ## Résumé exécutif
 

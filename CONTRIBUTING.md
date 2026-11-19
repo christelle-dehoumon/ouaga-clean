@@ -8,7 +8,7 @@ documentation, traduction des interfaces.
 ## 1. Installation de Développement
 
 ```bash
-git clone https://github.com/christelle-dehoumon/yilgre.git
+git clone https://github.com/christelle-dehoumon/viela.git
 cd yilgre
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt

@@ -32,7 +32,7 @@ reproductible ; les scènes de simulation portent le bandeau violet hachuré « 
 | **1:50 – 2:15** | Clic sur un camion, « Déclarer en panne » : il s'arrête, feux allumés ; statut « partiellement réalisable », arrêts reportés, temps serveur affiché. | « Un camion tombe en panne : seuls ses arrêts sont redistribués, en une fraction de seconde. Ce qui ne peut pas être collecté est dit, pas caché. » |
 | **2:15 – 2:35** | « Déclencher la saison des pluies » (pluie à l'écran), puis ajout du quartier Kalgodin : la caméra y vole, nouveaux points. | « Pluie : les pistes en latérite ralentissent, certaines routes sont coupées. Un nouveau quartier : le plan s'agrandit. » |
 | **2:35 – 2:55** | « Fixer le plan affiché comme B », « Comparer A et B » : tableau des écarts et compromis. | « La comparaison montre ce que l'on gagne et ce que l'on perd : couverture, coût, points non desservis. L'outil éclaire, la mairie décide. » |
-| **2:55 – 3:00** | Logo, « Apache-2.0 · données OpenStreetMap (ODbL) · github.com/christelle-dehoumon/yilgre ». | « Yilgré est libre, ses données sont ouvertes, et une autre commune peut l'adopter en changeant sa configuration. » |
+| **2:55 – 3:00** | Logo, « Apache-2.0 · données OpenStreetMap (ODbL) · github.com/christelle-dehoumon/viela ». | « Yilgré est libre, ses données sont ouvertes, et une autre commune peut l'adopter en changeant sa configuration. » |
 
 ---
 
